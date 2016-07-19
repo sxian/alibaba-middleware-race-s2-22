@@ -10,7 +10,21 @@ import java.util.Iterator;
 public class OrderSystemImpl implements OrderSystem {
     @Override
     public void construct(Collection<String> orderFiles, Collection<String> buyerFiles, Collection<String> goodFiles, Collection<String> storeFolders) throws IOException, InterruptedException {
-
+        for (String file : orderFiles) {
+            System.out.println("orderFiles: " + file);
+        }
+        System.out.println("******************************************");
+        for (String file : buyerFiles) {
+            System.out.println("buyerFiles: " + file);
+        }
+        System.out.println("******************************************");
+        for (String file : goodFiles) {
+            System.out.println("goodFiles: " + file);
+        }
+        System.out.println("******************************************");
+        for (String file : storeFolders) {
+            System.out.println("storeFolders: " + file);
+        }
     }
 
     @Override
