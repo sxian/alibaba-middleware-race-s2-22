@@ -8,6 +8,8 @@ package com.alibaba.middleware.race.datastruct;
  * @email sxian.wang@gmail.com
  */
 
+import com.alibaba.middleware.race.util.ObjectSize;
+
 import java.util.Random;
 
 public class BplusTree implements BTree {
@@ -70,19 +72,22 @@ public class BplusTree implements BTree {
     }
 
     //测试
-    public static void main(String[] args) {
-        BplusTree tree = new BplusTree(20);
-        Random random = new Random();
-        long current = System.currentTimeMillis();
-        for (int j = 0; j < 10000000; j++) {
-            tree.insertOrUpdate(j, new RecordIndex("",j));
-        }
-
-        long duration = System.currentTimeMillis() - current;
-        System.out.println("time elpsed for duration: " + duration);
-        int search = 80;
-        System.out.print(tree.get(search));
-    }
+//    public static void main(String[] args) {
+//        BplusTree tree = new BplusTree(10);
+//        Random random = new Random();
+//        long current = System.currentTimeMillis();
+//        for (int j = 0; j < 10000000; j++) {
+//            tree.insertOrUpdate(j, new RecordIndex("a",j));
+//        }
+//
+//        long duration = System.currentTimeMillis() - current;
+//        System.out.println("time elpsed for duration: " + duration);
+//        int search = 80;
+//        current = System.currentTimeMillis();
+//        System.out.print(tree.get(search));
+//        duration = System.currentTimeMillis() - current;
+//        System.out.println("time elpsed for duration: " + duration);
+//    }
 
 }
 

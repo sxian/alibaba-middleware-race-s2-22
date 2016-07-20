@@ -1,7 +1,7 @@
 package com.alibaba.middleware.race.datastruct;
 
 import java.util.HashSet;
-
+import com.alibaba.middleware.race.OrderSystemImpl.Row;
 /**
  * descption: 查找到的索引
  *
@@ -16,12 +16,10 @@ public class RecordIndex {
     public int length;
     public HashSet<String> keySet;
 
-    public RecordIndex(String filePath, int position) {
+    public RecordIndex(String filePath, int position, Row row) {
         this.filePath = filePath;
         this.position = position;
-    }
-
-    public RecordIndex(String filePath, int position, Row row) {
-
+        length = row.toString().getBytes().length;
+        keySet = (HashSet<String>) row.keySet();
     }
 }
