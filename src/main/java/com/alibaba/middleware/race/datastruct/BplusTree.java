@@ -12,7 +12,7 @@ import com.alibaba.middleware.race.util.ObjectSize;
 
 import java.util.Random;
 
-public class BplusTree implements BTree {
+public class BplusTree<T> {
 
     /** 根节点 */
     protected Node root;
@@ -47,18 +47,15 @@ public class BplusTree implements BTree {
         this.rank = order;
     }
 
-    @Override
-    public RecordIndex get(Comparable key) {
-        return (RecordIndex) root.get(key);
+    public T get(Comparable key) {
+        return (T) root.get(key);
     }
 
-    @Override
     public void remove(Comparable key) {
         root.remove(key, this);
     }
 
-    @Override
-    public void insertOrUpdate(Comparable key, RecordIndex rindex) {
+    public void insertOrUpdate(Comparable key, T rindex) {
         root.insertOrUpdate(key, rindex, this);
     }
 

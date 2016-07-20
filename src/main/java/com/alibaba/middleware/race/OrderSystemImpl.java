@@ -1,14 +1,12 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.process.FileProcessor;
 
 import java.io.*;
 import java.nio.channels.Channel;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -22,16 +20,24 @@ public class OrderSystemImpl implements OrderSystem {
     private static String booleanTrueValue = "true";
     private static String booleanFalseValue = "false";
 
-    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
+//    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
     private ExecutorService constructThreads = Executors.newCachedThreadPool();
 
     public static final LinkedBlockingQueue<Row> orderQueue = new LinkedBlockingQueue<>(100000);
     public static final LinkedBlockingQueue<Row> buyerQueue = new LinkedBlockingQueue<>(100000);
     public static final LinkedBlockingQueue<Row> goodsQueue = new LinkedBlockingQueue<>(100000);
 
+    public BplusTree<Row> orderTree;
+    public BplusTree<Row> buyerTree;
+    public BplusTree<Row> goodsTree;
+
+    public final FileProcessor fileProcessor;
 
     public OrderSystemImpl() {
-//        orderQueue.m
+        fileProcessor = new FileProcessor();
+        orderTree = fileProcessor.orderTree;
+        buyerTree = fileProcessor.buyerTree;
+        goodsTree = fileProcessor.goodsTree;
     }
 
     public static class KV implements Comparable<KV>, KeyValue {
@@ -246,33 +252,36 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-        final Semaphore semaphore = new Semaphore(0);
-        final AtomicInteger threadCount = new AtomicInteger(0);
-        FileProcessor fileProcessor = new FileProcessor();
+        final CountDownLatch latch = new CountDownLatch(orderFiles.size()+buyerFiles.size()+goodFiles.size());
         fileProcessor.init(storeFolders);
 
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) {
-                orderQueue.offer(row);
+            synchronized void handleRow(Row row) throws InterruptedException {
+                orderQueue.offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(orderFiles, semaphore, threadCount);
+        }.handle(orderFiles, latch);
 
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) {
-                buyerQueue.offer(row);
+            void handleRow(Row row) throws InterruptedException {
+                buyerQueue.offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(buyerFiles, semaphore, threadCount);
+        }.handle(buyerFiles, latch);
 
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) {
-                goodsQueue.offer(row);
+            void handleRow(Row row) throws InterruptedException {
+                goodsQueue.offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(goodFiles, semaphore, threadCount);
+        }.handle(goodFiles, latch);
 //        new
-        semaphore.acquire(threadCount.get());
+        latch.await();
+        orderQueue.offer(new Row());
+        buyerQueue.offer(new Row());
+        goodsQueue.offer(new Row());
+        fileProcessor.waitOver();
+        constructThreads.shutdown();
         System.out.println();
     }
 
@@ -293,14 +302,14 @@ public class OrderSystemImpl implements OrderSystem {
     }
 
     private abstract class DataFileHandler {
-        abstract void handleRow(Row row);
+        abstract void handleRow(Row row) throws InterruptedException;
 
-        void handle(Collection<String> files, final Semaphore semaphore, final AtomicInteger threadCount) throws IOException {
+        void handle(Collection<String> files, final CountDownLatch latch) {
+            final AtomicInteger counter = new AtomicInteger(0);
             for (final String file : files) {
                 constructThreads.execute(new Runnable() {
                     @Override
                     public void run() {
-                        threadCount.addAndGet(1);
                         BufferedReader bfr = null;
                         try {
                             bfr = createReader(file);
@@ -310,7 +319,7 @@ public class OrderSystemImpl implements OrderSystem {
                                 handleRow(kvMap);
                                 line = bfr.readLine();
                             }
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         } finally {
                             if (bfr!=null){
@@ -320,7 +329,7 @@ public class OrderSystemImpl implements OrderSystem {
                                     e.printStackTrace();
                                 }
                             }
-                            semaphore.release();
+                            latch.countDown();
                         }
                     }
                 });
