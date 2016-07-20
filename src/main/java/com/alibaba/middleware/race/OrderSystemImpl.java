@@ -1,16 +1,15 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.process.FileProcessor;
+
 import java.io.*;
 import java.nio.channels.Channel;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 订单系统的demo实现，订单数据全部存放在内存中，用简单的方式实现数据存储和查询功能
@@ -20,8 +19,20 @@ import java.util.TreeMap;
  */
 public class OrderSystemImpl implements OrderSystem {
 
-    static private String booleanTrueValue = "true";
-    static private String booleanFalseValue = "false";
+    private static String booleanTrueValue = "true";
+    private static String booleanFalseValue = "false";
+
+    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
+    private ExecutorService constructThreads = Executors.newCachedThreadPool();
+
+    public static final LinkedBlockingQueue<Row> orderQueue = new LinkedBlockingQueue<>(100000);
+    public static final LinkedBlockingQueue<Row> buyerQueue = new LinkedBlockingQueue<>(100000);
+    public static final LinkedBlockingQueue<Row> goodsQueue = new LinkedBlockingQueue<>(100000);
+
+
+    public OrderSystemImpl() {
+//        orderQueue.m
+    }
 
     public static class KV implements Comparable<KV>, KeyValue {
         String key;
@@ -119,6 +130,15 @@ public class OrderSystemImpl implements OrderSystem {
             this.put(kv.key(), kv);
             return this;
         }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, KV> entry : entrySet()) {
+                sb.append(entry.getKey()).append(':').append(entry.getValue().rawValue).append('\t');
+            }
+            return sb.append('\n').toString();
+        }
     }
 
     private static class ResultImpl implements Result {
@@ -188,7 +208,7 @@ public class OrderSystemImpl implements OrderSystem {
         }
     }
 
-    static private class ComparableKeys implements Comparable<ComparableKeys> {
+    private static class ComparableKeys implements Comparable<ComparableKeys> {
         List<String> orderingKeys;
         Row row;
 
@@ -219,94 +239,44 @@ public class OrderSystemImpl implements OrderSystem {
         }
     }
 
-    public OrderSystemImpl() {
-
-    }
-
-    public static void main(String[] args) throws IOException,
-            InterruptedException {
-
-        // init order system
-        List<String> orderFiles = new ArrayList<String>();
-        List<String> buyerFiles = new ArrayList<String>();
-        ;
-        List<String> goodFiles = new ArrayList<String>();
-        List<String> storeFolders = new ArrayList<String>();
-
-        orderFiles.add("order_records.txt");
-        buyerFiles.add("buyer_records.txt");
-        goodFiles.add("good_records.txt");
-        storeFolders.add("./");
-
-        OrderSystem os = new OrderSystemImpl();
-        os.construct(orderFiles, buyerFiles, goodFiles, storeFolders);
-
-        // 用例
-        long orderid = 2982388;
-        System.out.println("\n查询订单号为" + orderid + "的订单");
-        System.out.println(os.queryOrder(orderid, null));
-
-        System.out.println("\n查询订单号为" + orderid + "的订单，查询的keys为空，返回订单，但没有kv数据");
-        System.out.println(os.queryOrder(orderid, new ArrayList<String>()));
-
-        System.out.println("\n查询订单号为" + orderid
-                + "的订单的contactphone, buyerid, foo, done, price字段");
-        List<String> queryingKeys = new ArrayList<String>();
-        queryingKeys.add("contactphone");
-        queryingKeys.add("buyerid");
-        queryingKeys.add("foo");
-        queryingKeys.add("done");
-        queryingKeys.add("price");
-        Result result = os.queryOrder(orderid, queryingKeys);
-        System.out.println(result);
-        System.out.println("\n查询订单号不存在的订单");
-        result = os.queryOrder(1111, queryingKeys);
-        if (result == null) {
-            System.out.println(1111 + " order not exist");
-        }
-
-        String buyerid = "tb_a99a7956-974d-459f-bb09-b7df63ed3b80";
-        long startTime = 1471025622;
-        long endTime = 1471219509;
-        System.out.println("\n查询买家ID为" + buyerid + "的一定时间范围内的订单");
-        Iterator<Result> it = os.queryOrdersByBuyer(startTime, endTime, buyerid);
-        while (it.hasNext()) {
-            System.out.println(it.next());
-        }
-
-        String goodid = "good_842195f8-ab1a-4b09-a65f-d07bdfd8f8ff";
-        String salerid = "almm_47766ea0-b8c0-4616-b3c8-35bc4433af13";
-        System.out.println("\n查询商品id为" + goodid + "，商家id为" + salerid + "的订单");
-        it = os.queryOrdersBySaler(salerid, goodid, new ArrayList<String>());
-        while (it.hasNext()) {
-            System.out.println(it.next());
-        }
-
-        goodid = "good_d191eeeb-fed1-4334-9c77-3ee6d6d66aff";
-        String attr = "app_order_33_0";
-        System.out.println("\n对商品id为" + goodid + "的 " + attr + "字段求和");
-        System.out.println(os.sumOrdersByGood(goodid, attr));
-
-        attr = "done";
-        System.out.println("\n对商品id为" + goodid + "的 " + attr + "字段求和");
-        KeyValue sum = os.sumOrdersByGood(goodid, attr);
-        if (sum == null) {
-            System.out.println("由于该字段是布尔类型，返回值是null");
-        }
-
-        attr = "foo";
-        System.out.println("\n对商品id为" + goodid + "的 " + attr + "字段求和");
-        sum = os.sumOrdersByGood(goodid, attr);
-        if (sum == null) {
-            System.out.println("由于该字段不存在，返回值是null");
-        }
-    }
-
     private BufferedReader createReader(String file) throws FileNotFoundException {
         return new BufferedReader(new FileReader(file));
     }
 
-    private Row createKVMapFromLine(String line) {
+    public void construct(Collection<String> orderFiles,
+                          Collection<String> buyerFiles, Collection<String> goodFiles,
+                          Collection<String> storeFolders) throws IOException, InterruptedException {
+        final Semaphore semaphore = new Semaphore(0);
+        final AtomicInteger threadCount = new AtomicInteger(0);
+        FileProcessor fileProcessor = new FileProcessor();
+        fileProcessor.init(storeFolders);
+
+        new DataFileHandler() {
+            @Override
+            void handleRow(Row row) {
+                orderQueue.offer(row);
+            }
+        }.handle(orderFiles, semaphore, threadCount);
+
+        new DataFileHandler() {
+            @Override
+            void handleRow(Row row) {
+                buyerQueue.offer(row);
+            }
+        }.handle(buyerFiles, semaphore, threadCount);
+
+        new DataFileHandler() {
+            @Override
+            void handleRow(Row row) {
+                goodsQueue.offer(row);
+            }
+        }.handle(goodFiles, semaphore, threadCount);
+//        new
+        semaphore.acquire(threadCount.get());
+        System.out.println();
+    }
+
+    private Row createRow(String line) {
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {
@@ -325,28 +295,37 @@ public class OrderSystemImpl implements OrderSystem {
     private abstract class DataFileHandler {
         abstract void handleRow(Row row);
 
-        void handle(Collection<String> files) throws IOException {
-            for (String file : files) {
-                BufferedReader bfr = createReader(file);
-                try {
-                    String line = bfr.readLine();
-                    while (line != null) {
-                        Row kvMap = createKVMapFromLine(line);
-                        handleRow(kvMap);
-                        line = bfr.readLine();
+        void handle(Collection<String> files, final Semaphore semaphore, final AtomicInteger threadCount) throws IOException {
+            for (final String file : files) {
+                constructThreads.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        threadCount.addAndGet(1);
+                        BufferedReader bfr = null;
+                        try {
+                            bfr = createReader(file);
+                            String line = bfr.readLine();
+                            while (line != null) {
+                                Row kvMap = createRow(line);
+                                handleRow(kvMap);
+                                line = bfr.readLine();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } finally {
+                            if (bfr!=null){
+                                try {
+                                    bfr.close();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            semaphore.release();
+                        }
                     }
-                } finally {
-                    bfr.close();
-                }
+                });
             }
         }
-    }
-
-    public void construct(Collection<String> orderFiles,
-                          Collection<String> buyerFiles, Collection<String> goodFiles,
-                          Collection<String> storeFolders) throws IOException, InterruptedException {
-
-
     }
 
     @Override
@@ -368,6 +347,4 @@ public class OrderSystemImpl implements OrderSystem {
     public KeyValue sumOrdersByGood(String goodid, String key) {
         return null;
     }
-
-
 }

@@ -5,4 +5,5 @@ package com.alibaba.middleware.race;
  */
 public class RaceConfig {
     public static final String DATA_ROOT = "prerun_data/";
+    public static final String STORE_PATH = "test_data/";
 }

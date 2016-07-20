@@ -1,33 +1,87 @@
 package com.alibaba.middleware.race.process;
 
+import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
 
 import java.io.*;
+import java.util.Collection;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 
 /**
  * Created by sxian.wang on 2016/7/19.
  */
 public class FileProcessor {
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> orderQueue = OrderSystemImpl.orderQueue;
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> buyerQueue = OrderSystemImpl.buyerQueue;
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> goodsQueue = OrderSystemImpl.goodsQueue;
 
-    public static void main(String[] args) {
-        FileProcessor fp = new FileProcessor();
-        try {
-            fp.ReadOrder(RaceConfig.DATA_ROOT+"order.2.2");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    public void init(final Collection<String> storeFiles) throws InterruptedException {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                BufferedWriter br = null;
+                try {
+                    br = createWriter(RaceConfig.STORE_PATH+"order.txt");
+                    while (true) {
+                        br.write(orderQueue.take().toString());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        br.flush();
+                        br.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
 
-    public void ReadOrder(String filePath) throws IOException {
-        processData(filePath);
-    }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                BufferedWriter br = null;
+                try {
+                    br = createWriter(RaceConfig.STORE_PATH+"buyer.txt");
+                    while (true) {
+                        br.write(buyerQueue.take().toString());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        br.flush();
+                        br.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
 
-    public void ReadBuyer(String filePath) {
-
-    }
-
-    public void ReadGoods(String filePath) {
-
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                BufferedWriter br = null;
+                try {
+                    br = createWriter(RaceConfig.STORE_PATH+"goods.txt");
+                    while (true) {
+//                        String str = goodsQueue.take().toString();
+                        br.write(goodsQueue.take().toString());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        br.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
     }
 
     public void ProcessCase(String filePath) throws IOException {
@@ -64,19 +118,8 @@ public class FileProcessor {
         br.close();
     }
 
-    private void processData(String filePath) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(new File(filePath)));
-        String record = br.readLine();
-//        while (record!=null) {
-//            String[] kvs = record.split("\t");
-//            for (String kv : kvs) {
-//                String[] k_v = kv.split(":");
-//                String key = k_v[0];
-//                String value = k_v[1];
-//            }
-//            record = br.readLine();
-//        }
-        br.close();
-    }
 
+    private BufferedWriter createWriter(String file) throws IOException {
+        return new BufferedWriter(new FileWriter(file));
+    }
 }
