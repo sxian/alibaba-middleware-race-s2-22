@@ -18,7 +18,9 @@ public class OrderSystemImplTest {
         long startTime = System.currentTimeMillis();
         int count = 0;
         while (str != null) {
-            count++;
+            if (!(str.equals("}")||str.equals("")))
+                count++;
+
 //            System.out.println(str);
             str = br.readLine();
         }
