@@ -3,27 +3,10 @@ package com.alibaba.middleware.race.datastruct;
 /**
  * Created by sxian.wang on 2016/7/19.
  */
-public class BTree {
-    private Node root;
+public interface BTree {
+    public RecordIndex get(Comparable key);   //查询
 
-    public BTree() {
+    public void remove(Comparable key);    //移除
 
-    }
-
-
-    private class Node{
-
-    }
-
-    public void insertNode() {
-
-    }
-
-    public void removeNode() {
-
-    }
-
-    public void reblance() {
-
-    }
+    public void insertOrUpdate(Comparable key, RecordIndex obj);
 }
