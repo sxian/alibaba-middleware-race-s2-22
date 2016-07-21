@@ -170,17 +170,17 @@ public class OrderSystemImpl implements OrderSystem {
             }
 
             for (KV kv : orderData.values()) {
-                if (queryingKeys == null || queryingKeys.contains(kv.key)) {
+                if (queryingKeys.contains(kv.key) || queryingKeys == null) {
                     allkv.put(kv.key(), kv);
                 }
             }
             for (KV kv : buyerData.values()) {
-                if (queryingKeys == null || queryingKeys.contains(kv.key)) {
+                if (queryingKeys.contains(kv.key) || queryingKeys == null) {
                     allkv.put(kv.key(), kv);
                 }
             }
             for (KV kv : goodData.values()) {
-                if (queryingKeys == null || queryingKeys.contains(kv.key)) {
+                if (queryingKeys.contains(kv.key) || queryingKeys == null) {
                     allkv.put(kv.key(), kv);
                 }
             }
@@ -257,7 +257,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         new DataFileHandler() {
             @Override
-            synchronized void handleRow(Row row) throws InterruptedException {
+            void handleRow(Row row) throws InterruptedException {
                 orderQueue.offer(row,60,TimeUnit.SECONDS);
             }
         }.handle(orderFiles, latch);
@@ -339,7 +339,13 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        return null;
+        Row orderRow = orderTree.get(orderId);
+        String buyerId = orderRow.get("buyerid").key();
+        String goodsId = orderRow.get("goodid").key();
+        Row buyerRow = buyerTree.get(buyerId);
+        Row goodsRow = goodsTree.get(goodsId);
+
+        return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, (Set<String>) keys);
     }
 
     @Override
