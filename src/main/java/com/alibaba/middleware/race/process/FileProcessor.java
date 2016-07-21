@@ -3,48 +3,118 @@ package com.alibaba.middleware.race.process;
 import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
+import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 import java.util.concurrent.*;
+
+import static javafx.scene.input.KeyCode.R;
 
 /**
  * Created by sxian.wang on 2016/7/19.
  */
 public class FileProcessor {
 
-    public final IndexProcessor indexProcessor = new IndexProcessor();
-
+    // 接受原始数据的队列
     public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> orderQueues = OrderSystemImpl.orderQueues;
     public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> buyerQueues = OrderSystemImpl.buyerQueues;
     public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> goodsQueues = OrderSystemImpl.goodsQueues;
 
+    // 排序后发送索引信息的队列
+    public final ArrayList<LinkedBlockingQueue<RecordIndex>> orderIndexQueues = new ArrayList<>();
+    public final ArrayList<LinkedBlockingQueue<RecordIndex>> buyerIndexQueues = new ArrayList<>();
+    public final ArrayList<LinkedBlockingQueue<RecordIndex>> goodsIndexQueues = new ArrayList<>();
+
+    // 写hash后的数据的writers
     public final BufferedWriter[] orderWriters = new BufferedWriter[RaceConfig.ORDER_FILE_SIZE];
     public final BufferedWriter[] buyerWriters = new BufferedWriter[RaceConfig.BUYER_FILE_SIZE];
     public final BufferedWriter[] goodsWriters = new BufferedWriter[RaceConfig.GOODS_FILE_SIZE];
 
+
+    // hash完相对应的所有文件后开始排序
+    public final CountDownLatch orderLatch = new CountDownLatch(orderQueues.size());
+    public final CountDownLatch buyerLatch = new CountDownLatch(buyerQueues.size());
+    public final CountDownLatch goodsLatch = new CountDownLatch(goodsQueues.size());
+    // 所有的文件排序完成后退出fileProcessor
+    public final CountDownLatch orderSortLatch = new CountDownLatch(RaceConfig.ORDER_FILE_SIZE);
+    public final CountDownLatch buyerSortLatch = new CountDownLatch(RaceConfig.BUYER_FILE_SIZE);
+    public final CountDownLatch goodsSortLatch = new CountDownLatch(RaceConfig.GOODS_FILE_SIZE);
+
+    // 不同硬盘上的存储路径
     public final String[] storeDiskPath = new String[3];
 
-    public final CountDownLatch latch = new CountDownLatch(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
     private ExecutorService threads;
+    private IndexProcessor indexProcessor;
 
     public void init(final Collection<String> storeFolders) throws InterruptedException {// todo 确认下folders的数量
         // 相同磁盘的路径前缀相同
         threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
+        indexProcessor = new IndexProcessor();
         if (RaceConfig.ONLINE) {
             for (String path : storeFolders) {
             // todo 创建文件夹
             }
         } else {
-            execute(orderQueues,orderWriters,RaceConfig.ORDER_FILE_SIZE,"goodid",RaceConfig.STORE_PATH+"orderdata");
-            execute(buyerQueues,buyerWriters,RaceConfig.BUYER_FILE_SIZE,"buyerid",RaceConfig.STORE_PATH+"buyerdata");
-            execute(goodsQueues,goodsWriters,RaceConfig.GOODS_FILE_SIZE,"goodid",RaceConfig.STORE_PATH+"goodsdata");
+            execute(orderQueues,orderWriters, orderLatch, RaceConfig.ORDER_FILE_SIZE,"goodid",
+                    RaceConfig.STORE_PATH+"orderdata",true);
+            execute(buyerQueues,buyerWriters, buyerLatch, RaceConfig.BUYER_FILE_SIZE,"buyerid",
+                    RaceConfig.STORE_PATH+"buyerdata",false);
+            execute(goodsQueues,goodsWriters, goodsLatch, RaceConfig.GOODS_FILE_SIZE,"goodid",
+                    RaceConfig.STORE_PATH+"goodsdata",false);
         }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    buyerLatch.await();
+                    for (BufferedWriter bw : buyerWriters) {
+                        if (bw!=null) {
+                            bw.flush();
+                            bw.close();
+                        }
+                    }
+                    buyerIndexQueues.add(new LinkedBlockingQueue<RecordIndex>()); // todo 限制队列大小和修改offer的接口
+                    sortData(buyerIndexQueues, buyerSortLatch, RaceConfig.BUYER_FILE_SIZE,RaceConfig.STORE_PATH
+                            +"buyerdata",false);
+                    indexProcessor.createBuyerIndex(buyerIndexQueues);
+
+                    goodsLatch.await();
+                    for (BufferedWriter bw : goodsWriters) {
+                        if (bw!=null) {
+                            bw.flush();
+                            bw.close();
+                        }
+                    }
+                    goodsIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
+                    sortData(goodsIndexQueues, goodsSortLatch,RaceConfig.GOODS_FILE_SIZE,RaceConfig.STORE_PATH
+                            +"goodsdata",false);
+                    indexProcessor.createGoodsIndex(goodsIndexQueues);
+
+                    orderLatch.await();
+                    for (BufferedWriter bw : orderWriters) {
+                        if (bw!=null) {
+                            bw.flush();
+                            bw.close();
+                        }
+                    }
+                    orderIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
+                    orderIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
+                    orderIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
+                    sortData(orderIndexQueues, orderSortLatch, RaceConfig.ORDER_FILE_SIZE,RaceConfig.STORE_PATH
+                            +"orderdata",true);
+                    indexProcessor.createOrderIndex(orderIndexQueues);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     public void execute(ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> queues, final BufferedWriter[] writers,
-                        final int fileSize, final String key,final String pathPrefix) {
+                        final CountDownLatch _latch, final int fileSize, final String key,final String pathPrefix,
+                        final boolean flag) {
         for (int i = 0;i<queues.size();i++) {
             final LinkedBlockingQueue<OrderSystemImpl.Row> queue = queues.get(i);
             threads.execute(new Runnable() {
@@ -57,85 +127,108 @@ public class FileProcessor {
                                 break;
                             }
                             int index = Math.abs(row.get(key).valueAsString().hashCode())%fileSize;
-                            if(writers[index] != null) {
-                                writers[index].write(row.toString());
-                            } else {
+                            if(writers[index] == null) {
                                 writers[index] = createWriter(pathPrefix+index);
-                                writers[index].write(row.toString());
+                            }
+
+                            if (flag) {
+                                writers[index].write(row.get(key).valueAsString()+"\t"+row.get("amount").valueAsString()
+                                        +"\t"+row.get("orderid").valueAsString()+"&"+row.toString());
+                            } else {
+                                writers[index].write(row.get(key).valueAsString()+"&"+row.toString());
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
-                        latch.countDown();
+                        _latch.countDown();
                     }
                 }
             });
         }
     }
 
-    public void ProcessCase(String filePath) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(new File(RaceConfig.DATA_ROOT+"order.2.2")));
-        String record = br.readLine();
-        while (record!=null) {
-            if ((record.equals("}")||record.equals(""))) { // todo 执行查询
-                record = br.readLine();
-                continue;
-            }
+    public void sortData(final ArrayList<LinkedBlockingQueue<RecordIndex>> queues, final CountDownLatch _latch, int fileSize,
+                         final String prefixPath, final boolean flag) {
+        for (int i = 0; i < fileSize; i++) {
+            final int index = i;
+            threads.execute(new Runnable() {
+                @Override
+                public void run() {
+                    BufferedReader br = null;
+                    BufferedWriter bw = null;
+                    try {
+                        br = createReader(prefixPath+index);
+                        TreeMap<String,String> treeMap = new TreeMap<>();
+                        String line = br.readLine();
+                        while (line!=null) {
+                            String[] kv = line.split("&");
+                            if (kv.length > 2) {
+                                throw new RuntimeException("split regex error: "+line);
+                            }
+                            treeMap.put(kv[0],kv[1]+'\n'); // 在hash完的数据中加上pk，在这里就不build
+                            line = br.readLine();
+                        }
 
-            String[] kv = record.split(":");
-            switch (kv[0]) {
-                case "CASE":
-
-                    break;
-                case "ORDERID":
-                    break;
-                case "SALERID":
-                    break;
-                case "GOODID":
-                    break;
-                case "KEYS":
-                    break;
-                case "STARTTIME":
-                    break;
-                case "ENDTIME":
-                    break;
-                case "Result":
-                    break;
-            }
-            record = br.readLine();
+                        long pos = 0;
+                        String path = prefixPath+"Sorted_"+index;
+                        bw = createWriter(path);
+                        Set<Map.Entry<String,String>> entrySet = treeMap.entrySet();
+                        for (Map.Entry<String,String> entry : entrySet) {
+                            String key = entry.getKey();
+                            char[] chars = entry.getValue().toCharArray();
+                            int index = 0;
+                            if (flag) {
+                                key = key.split("\t")[0];
+                                index = Math.abs(key.hashCode())%3;
+                            }
+                            queues.get(index).offer(new RecordIndex(path,key,pos,chars.length));
+                            bw.write(chars);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            if (br!=null)
+                                br.close();
+                            if (bw!=null) {
+                                bw.flush();
+                                bw.close();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        _latch.countDown();
+                    }
+                }
+            });
         }
-        br.close();
     }
 
     private BufferedWriter createWriter(String file) throws IOException {
         return new BufferedWriter(new FileWriter(file));
     }
 
+    private BufferedReader createReader(String file) throws FileNotFoundException {
+        return new BufferedReader(new FileReader(file));
+    }
+
     public void waitOver() throws InterruptedException {
-        latch.await();
-        try {
-            for (BufferedWriter bw : orderWriters) {
-                if (bw!=null) {
-                    bw.flush();
-                    bw.close();
-                }
-            }
-            for (BufferedWriter bw : buyerWriters) {
-                if (bw!=null) {
-                    bw.flush();
-                    bw.close();
-                }
-            }
-            for (BufferedWriter bw : goodsWriters) {
-                if (bw!=null) {
-                    bw.flush();
-                    bw.close();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        buyerSortLatch.await();
+        for (LinkedBlockingQueue<RecordIndex> queue : buyerIndexQueues){
+            queue.offer(new RecordIndex("","",0,-1));
         }
+
+        goodsSortLatch.await();
+        for (LinkedBlockingQueue<RecordIndex> queue : goodsIndexQueues){
+            queue.offer(new RecordIndex("","",0,-1));
+        }
+
+        orderSortLatch.await();
+        for (LinkedBlockingQueue<RecordIndex> queue : orderIndexQueues){
+            queue.offer(new RecordIndex("","",0,-1));
+        }
+
         threads.shutdown();
     }
 }

@@ -1,10 +1,8 @@
 package com.alibaba.middleware.race;
 
 import java.io.*;
-import java.util.List;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
+import java.nio.channels.FileChannel;
+import java.util.*;
 
 /**
  * Created by sxian.wang on 2016/7/19.
@@ -38,4 +36,39 @@ public class OrderSystemImplTest {
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("useTime: " + (System.currentTimeMillis() - start));
     }
+
+    public void ProcessCase(String filePath) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(new File(RaceConfig.DATA_ROOT+"order.2.2")));
+        String record = br.readLine();
+        while (record!=null) {
+            if ((record.equals("}")||record.equals(""))) { // todo 执行查询
+                record = br.readLine();
+                continue;
+            }
+
+            String[] kv = record.split(":");
+            switch (kv[0]) {
+                case "CASE":
+
+                    break;
+                case "ORDERID":
+                    break;
+                case "SALERID":
+                    break;
+                case "GOODID":
+                    break;
+                case "KEYS":
+                    break;
+                case "STARTTIME":
+                    break;
+                case "ENDTIME":
+                    break;
+                case "Result":
+                    break;
+            }
+            record = br.readLine();
+        }
+        br.close();
+    }
+
 }

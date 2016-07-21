@@ -148,6 +148,7 @@ public class OrderSystemImpl implements OrderSystem {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, KV> entry : entrySet()) {
+
                 sb.append(entry.getKey()).append(':').append(entry.getValue().rawValue).append('\t');
             }
             return sb.append('\n').toString();

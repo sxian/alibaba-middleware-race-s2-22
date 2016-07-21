@@ -11,15 +11,15 @@ import com.alibaba.middleware.race.OrderSystemImpl.Row;
  */
 
 public class RecordIndex {
+    public String pk; // todo 有没有必要
     public String filePath;
-    public int position;
+    public long position;
     public int length;
-    public HashSet<String> keySet;
 
-    public RecordIndex(String filePath, int position, Row row) {
+    public RecordIndex(String filePath, String pk, long position, int length) {
         this.filePath = filePath;
+        this.pk = pk;
         this.position = position;
-        length = row.toString().getBytes().length;
-        keySet = (HashSet<String>) row.keySet();
+        this.length = length;
     }
 }
