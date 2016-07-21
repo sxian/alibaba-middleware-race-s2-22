@@ -25,6 +25,7 @@ public class OrderSystemImplTest {
         String[] storeFiles = new String[]{RaceConfig.STORE_PATH};
 
         String caseFile = RaceConfig.DATA_ROOT+"case.0";
+//        Thread.currentThread().interrupt();
 
         OrderSystemImpl orderSystem = new OrderSystemImpl();
 

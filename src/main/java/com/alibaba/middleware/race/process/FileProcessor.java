@@ -5,110 +5,73 @@ import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 
 /**
  * Created by sxian.wang on 2016/7/19.
  */
 public class FileProcessor {
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> orderQueue = OrderSystemImpl.orderQueue;
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> buyerQueue = OrderSystemImpl.buyerQueue;
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> goodsQueue = OrderSystemImpl.goodsQueue;
 
-    public final BplusTree<OrderSystemImpl.Row> orderTree = new BplusTree(20);
-    public final BplusTree<OrderSystemImpl.Row> buyerTree = new BplusTree(20);
-    public final BplusTree<OrderSystemImpl.Row> goodsTree = new BplusTree(20);
+    public final IndexProcessor indexProcessor = new IndexProcessor();
 
-    public final CountDownLatch latch = new CountDownLatch(3);
+    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> orderQueues = OrderSystemImpl.orderQueues;
+    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> buyerQueues = OrderSystemImpl.buyerQueues;
+    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> goodsQueues = OrderSystemImpl.goodsQueues;
 
-    public void init(final Collection<String> storeFiles) throws InterruptedException {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                BufferedWriter br = null;
-                try {
-                    br = createWriter(RaceConfig.STORE_PATH+"order.txt");
-                    int count = 0;
-                    while (true) {
-                        OrderSystemImpl.Row row = orderQueue.take();
-                        count++;
-                        if (row.size() == 0) {
-                            break;
-                        }
-//                        orderTree.insertOrUpdate(row.get("orderid").valueAsLong(), row);
-                        br.write(row.toString());
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        br.flush();
-                        br.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    latch.countDown();
-                }
+    public final BufferedWriter[] orderWriters = new BufferedWriter[RaceConfig.ORDER_FILE_SIZE];
+    public final BufferedWriter[] buyerWriters = new BufferedWriter[RaceConfig.BUYER_FILE_SIZE];
+    public final BufferedWriter[] goodsWriters = new BufferedWriter[RaceConfig.GOODS_FILE_SIZE];
+
+    public final String[] storeDiskPath = new String[3];
+
+    public final CountDownLatch latch = new CountDownLatch(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
+    private ExecutorService threads;
+
+    public void init(final Collection<String> storeFolders) throws InterruptedException {// todo 确认下folders的数量
+        // 相同磁盘的路径前缀相同
+        threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
+        if (RaceConfig.ONLINE) {
+            for (String path : storeFolders) {
+            // todo 创建文件夹
             }
-        }).start();
+        } else {
+            execute(orderQueues,orderWriters,RaceConfig.ORDER_FILE_SIZE,"goodid",RaceConfig.STORE_PATH+"orderdata");
+            execute(buyerQueues,buyerWriters,RaceConfig.BUYER_FILE_SIZE,"buyerid",RaceConfig.STORE_PATH+"buyerdata");
+            execute(goodsQueues,goodsWriters,RaceConfig.GOODS_FILE_SIZE,"goodid",RaceConfig.STORE_PATH+"goodsdata");
+        }
+    }
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                BufferedWriter br = null;
-                try {
-                    br = createWriter(RaceConfig.STORE_PATH+"buyer.txt");
-                    while (true) {
-                        OrderSystemImpl.Row row = buyerQueue.take();
-                        if (row.size() == 0) {
-                            break;
-                        }
-//                        buyerTree.insertOrUpdate(row.get("buyerid").valueAsString(), row);
-                        br.write(row.toString());
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
+    public void execute(ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> queues, final BufferedWriter[] writers,
+                        final int fileSize, final String key,final String pathPrefix) {
+        for (int i = 0;i<queues.size();i++) {
+            final LinkedBlockingQueue<OrderSystemImpl.Row> queue = queues.get(i);
+            threads.execute(new Runnable() {
+                @Override
+                public void run() {
                     try {
-                        br.flush();
-                        br.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    latch.countDown();
-                }
-            }
-        }).start();
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                BufferedWriter br = null;
-                try {
-                    br = createWriter(RaceConfig.STORE_PATH+"goods.txt");
-                    while (true) {
-                       OrderSystemImpl.Row row = goodsQueue.take();
-                        if (row.size() == 0) {
-                            break;
+                        while (true) {
+                            OrderSystemImpl.Row row = queue.take();
+                            if (row.size() == 0) {
+                                break;
+                            }
+                            int index = Math.abs(row.get(key).valueAsString().hashCode())%fileSize;
+                            if(writers[index] != null) {
+                                writers[index].write(row.toString());
+                            } else {
+                                writers[index] = createWriter(pathPrefix+index);
+                                writers[index].write(row.toString());
+                            }
                         }
-//                        goodsTree.insertOrUpdate(row.get("goodid").valueAsString(), row);
-                        br.write(row.toString());
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        br.close();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
+                    } finally {
+                        latch.countDown();
                     }
-                    latch.countDown();
                 }
-            }
-        }).start();
+            });
+        }
     }
 
     public void ProcessCase(String filePath) throws IOException {
@@ -145,12 +108,34 @@ public class FileProcessor {
         br.close();
     }
 
-
     private BufferedWriter createWriter(String file) throws IOException {
         return new BufferedWriter(new FileWriter(file));
     }
 
     public void waitOver() throws InterruptedException {
         latch.await();
+        try {
+            for (BufferedWriter bw : orderWriters) {
+                if (bw!=null) {
+                    bw.flush();
+                    bw.close();
+                }
+            }
+            for (BufferedWriter bw : buyerWriters) {
+                if (bw!=null) {
+                    bw.flush();
+                    bw.close();
+                }
+            }
+            for (BufferedWriter bw : goodsWriters) {
+                if (bw!=null) {
+                    bw.flush();
+                    bw.close();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        threads.shutdown();
     }
 }

@@ -4,6 +4,7 @@ import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.process.FileProcessor;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.channels.Channel;
 import java.util.*;
 import java.util.concurrent.*;
@@ -20,24 +21,30 @@ public class OrderSystemImpl implements OrderSystem {
     private static String booleanTrueValue = "true";
     private static String booleanFalseValue = "false";
 
-//    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
-    private ExecutorService constructThreads = Executors.newCachedThreadPool();
+    // todo 优化线程数量，减少上下文切换开销
+    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
+    private ExecutorService constructThreads;
 
-    public static final LinkedBlockingQueue<Row> orderQueue = new LinkedBlockingQueue<>(100000);
-    public static final LinkedBlockingQueue<Row> buyerQueue = new LinkedBlockingQueue<>(100000);
-    public static final LinkedBlockingQueue<Row> goodsQueue = new LinkedBlockingQueue<>(100000);
+    public static final ArrayList<LinkedBlockingQueue<Row>> orderQueues = new ArrayList();
+    public static final ArrayList<LinkedBlockingQueue<Row>> buyerQueues = new ArrayList();
+    public static final ArrayList<LinkedBlockingQueue<Row>> goodsQueues = new ArrayList();
 
     public BplusTree<Row> orderTree;
     public BplusTree<Row> buyerTree;
     public BplusTree<Row> goodsTree;
 
-    public final FileProcessor fileProcessor;
+    // todo 确认一下查询的时候是多个线程持有一个OrderSystemImpl对象查询还是一个线程一个
+    public FileProcessor fileProcessor;
+
+    public static int orderQueueNum;
+    public static int buyerQueueNum;
+    public static int goodsQueueNum;
 
     public OrderSystemImpl() {
         fileProcessor = new FileProcessor();
-        orderTree = fileProcessor.orderTree;
-        buyerTree = fileProcessor.buyerTree;
-        goodsTree = fileProcessor.goodsTree;
+//        orderTree = fileProcessor.orderTree;
+//        buyerTree = fileProcessor.buyerTree;
+//        goodsTree = fileProcessor.goodsTree;
     }
 
     public static class KV implements Comparable<KV>, KeyValue {
@@ -249,40 +256,75 @@ public class OrderSystemImpl implements OrderSystem {
         return new BufferedReader(new FileReader(file));
     }
 
+    private void initQueues() {
+        for (int i = 0;i<orderQueueNum;i++) {
+            orderQueues.add(new LinkedBlockingQueue<Row>());
+        }
+        for (int i = 0;i<buyerQueueNum;i++) {
+            buyerQueues.add(new LinkedBlockingQueue<Row>());
+        }
+        for (int i = 0;i<goodsQueueNum;i++) {
+            goodsQueues.add(new LinkedBlockingQueue<Row>());
+        }
+    }
+
+    private void sendEndMsg() {
+        for (LinkedBlockingQueue<Row> linkedBlockingQueue : orderQueues) {
+            linkedBlockingQueue.offer(new Row());
+        }
+        for (LinkedBlockingQueue<Row> linkedBlockingQueue : buyerQueues) {
+            linkedBlockingQueue.offer(new Row());
+        }
+        for (LinkedBlockingQueue<Row> linkedBlockingQueue : goodsQueues) {
+            linkedBlockingQueue.offer(new Row());
+        }
+    }
+
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-        final CountDownLatch latch = new CountDownLatch(orderFiles.size()+buyerFiles.size()+goodFiles.size());
-        fileProcessor.init(storeFolders);
+        int modNum = RaceConfig.CONSTRUCT_MOD_NUM;
+        orderQueueNum = orderFiles.size()/modNum+1;
+        buyerQueueNum = buyerFiles.size()/modNum+1;
+        goodsQueueNum = goodFiles.size()/modNum+1;
+        initQueues();
 
+        fileProcessor = new FileProcessor();
+        fileProcessor.init(storeFolders);
+        // 一个队列对应一个线程
+        constructThreads = Executors.newFixedThreadPool(orderQueueNum+buyerQueueNum+goodsQueueNum);
+
+        // 设置latch数目，确保所有数据都处理完
+        final CountDownLatch latch = new CountDownLatch(orderFiles.size()+buyerFiles.size()+goodFiles.size());
         new DataFileHandler() {
             @Override
-            synchronized void handleRow(Row row) throws InterruptedException {
-                orderQueue.offer(row,60,TimeUnit.SECONDS);
+            void handleRow(Row row) throws InterruptedException {
+                int index = Math.abs(row.get("goodid").rawValue.hashCode())%orderQueueNum;
+                orderQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
         }.handle(orderFiles, latch);
 
         new DataFileHandler() {
             @Override
             void handleRow(Row row) throws InterruptedException {
-                buyerQueue.offer(row,60,TimeUnit.SECONDS);
+                int index = Math.abs(row.get("buyerid").rawValue.hashCode())%buyerQueueNum;
+                buyerQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
         }.handle(buyerFiles, latch);
 
         new DataFileHandler() {
             @Override
             void handleRow(Row row) throws InterruptedException {
-                goodsQueue.offer(row,60,TimeUnit.SECONDS);
+                int index = Math.abs(row.get("goodid").rawValue.hashCode())%goodsQueueNum;
+                goodsQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
         }.handle(goodFiles, latch);
-//        new
-        latch.await();
-        orderQueue.offer(new Row());
-        buyerQueue.offer(new Row());
-        goodsQueue.offer(new Row());
-        fileProcessor.waitOver();
-        constructThreads.shutdown();
-        System.out.println();
+
+        latch.await(); // 等待处理完所有文件
+        sendEndMsg(); // 发送结束信号
+        fileProcessor.waitOver(); // 等待队列处理完毕
+        constructThreads.shutdown();  // 销毁construct线程池
+        System.out.println("successfully processed!");
     }
 
     private Row createRow(String line) {
@@ -305,7 +347,6 @@ public class OrderSystemImpl implements OrderSystem {
         abstract void handleRow(Row row) throws InterruptedException;
 
         void handle(Collection<String> files, final CountDownLatch latch) {
-            final AtomicInteger counter = new AtomicInteger(0);
             for (final String file : files) {
                 constructThreads.execute(new Runnable() {
                     @Override
