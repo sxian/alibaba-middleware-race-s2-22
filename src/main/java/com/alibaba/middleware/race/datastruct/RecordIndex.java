@@ -11,15 +11,29 @@ import com.alibaba.middleware.race.OrderSystemImpl.Row;
  */
 
 public class RecordIndex {
-    public String pk; // todo 有没有必要
+    public String key; // todo 有没有必要
     public String filePath;
     public long position;
     public int length;
 
-    public RecordIndex(String filePath, String pk, long position, int length) {
+    public RecordIndex(String filePath, String key, long position, int length) {
         this.filePath = filePath;
-        this.pk = pk;
+        this.key = key;
         this.position = position;
         this.length = length;
+    }
+
+    public RecordIndex(String str) {
+        String[] fileds = str.split("\t");
+        key = fileds[0];
+        filePath = fileds[1];
+        position = Long.valueOf(fileds[2]);
+        length = Integer.valueOf(fileds[3]);
+    }
+
+    @Override
+    public String toString() {
+        return new StringBuilder().append(key).append('\t').append(filePath).append('\t').append(position)
+                .append('\t').append(length).append('\n').toString();
     }
 }

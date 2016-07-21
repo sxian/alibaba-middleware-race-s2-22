@@ -2,6 +2,7 @@ package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.process.FileProcessor;
+import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
 import java.lang.reflect.Array;
@@ -253,10 +254,6 @@ public class OrderSystemImpl implements OrderSystem {
         }
     }
 
-    private BufferedReader createReader(String file) throws FileNotFoundException {
-        return new BufferedReader(new FileReader(file));
-    }
-
     private void initQueues() {
         for (int i = 0;i<orderQueueNum;i++) {
             orderQueues.add(new LinkedBlockingQueue<Row>());
@@ -354,7 +351,7 @@ public class OrderSystemImpl implements OrderSystem {
                     public void run() {
                         BufferedReader bfr = null;
                         try {
-                            bfr = createReader(file);
+                            bfr = Utils.createReader(file);
                             String line = bfr.readLine();
                             while (line != null) {
                                 Row kvMap = createRow(line);

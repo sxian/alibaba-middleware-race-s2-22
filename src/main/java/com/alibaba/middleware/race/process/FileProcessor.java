@@ -4,6 +4,7 @@ import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
+import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
 import java.util.*;
@@ -57,11 +58,11 @@ public class FileProcessor {
             }
         } else {
             execute(orderQueues,orderWriters, orderLatch, RaceConfig.ORDER_FILE_SIZE,"goodid",
-                    RaceConfig.STORE_PATH+"orderdata",true);
+                    RaceConfig.STORE_PATH+"o",true);
             execute(buyerQueues,buyerWriters, buyerLatch, RaceConfig.BUYER_FILE_SIZE,"buyerid",
-                    RaceConfig.STORE_PATH+"buyerdata",false);
+                    RaceConfig.STORE_PATH+"b",false);
             execute(goodsQueues,goodsWriters, goodsLatch, RaceConfig.GOODS_FILE_SIZE,"goodid",
-                    RaceConfig.STORE_PATH+"goodsdata",false);
+                    RaceConfig.STORE_PATH+"g",false);
         }
 
         new Thread(new Runnable() {
@@ -77,7 +78,7 @@ public class FileProcessor {
                     }
                     buyerIndexQueues.add(new LinkedBlockingQueue<RecordIndex>()); // todo 限制队列大小和修改offer的接口
                     sortData(buyerIndexQueues, buyerSortLatch, RaceConfig.BUYER_FILE_SIZE,RaceConfig.STORE_PATH
-                            +"buyerdata",false);
+                            +"b",false);
                     indexProcessor.createBuyerIndex(buyerIndexQueues);
 
                     goodsLatch.await();
@@ -89,7 +90,7 @@ public class FileProcessor {
                     }
                     goodsIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
                     sortData(goodsIndexQueues, goodsSortLatch,RaceConfig.GOODS_FILE_SIZE,RaceConfig.STORE_PATH
-                            +"goodsdata",false);
+                            +"g",false);
                     indexProcessor.createGoodsIndex(goodsIndexQueues);
 
                     orderLatch.await();
@@ -103,7 +104,7 @@ public class FileProcessor {
                     orderIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
                     orderIndexQueues.add(new LinkedBlockingQueue<RecordIndex>());
                     sortData(orderIndexQueues, orderSortLatch, RaceConfig.ORDER_FILE_SIZE,RaceConfig.STORE_PATH
-                            +"orderdata",true);
+                            +"o",true);
                     indexProcessor.createOrderIndex(orderIndexQueues);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -128,7 +129,7 @@ public class FileProcessor {
                             }
                             int index = Math.abs(row.get(key).valueAsString().hashCode())%fileSize;
                             if(writers[index] == null) {
-                                writers[index] = createWriter(pathPrefix+index);
+                                writers[index] = Utils.createWriter(pathPrefix+index);
                             }
 
                             if (flag) {
@@ -158,7 +159,7 @@ public class FileProcessor {
                     BufferedReader br = null;
                     BufferedWriter bw = null;
                     try {
-                        br = createReader(prefixPath+index);
+                        br = Utils.createReader(prefixPath+index);
                         TreeMap<String,String> treeMap = new TreeMap<>();
                         String line = br.readLine();
                         while (line!=null) {
@@ -171,18 +172,21 @@ public class FileProcessor {
                         }
 
                         long pos = 0;
-                        String path = prefixPath+"Sorted_"+index;
-                        bw = createWriter(path);
+                        String path = prefixPath+"S"+index;
+                        bw = Utils.createWriter(path);
                         Set<Map.Entry<String,String>> entrySet = treeMap.entrySet();
                         for (Map.Entry<String,String> entry : entrySet) {
-                            String key = entry.getKey();
                             char[] chars = entry.getValue().toCharArray();
+                            String key = entry.getKey();
+                            int length = chars.length;
                             int index = 0;
                             if (flag) {
-                                key = key.split("\t")[0];
-                                index = Math.abs(key.hashCode())%3;
+                                String[] keys = key.split("\t");
+                                key = keys[2];
+                                index = Math.abs(keys[0].hashCode())%3;
                             }
-                            queues.get(index).offer(new RecordIndex(path,key,pos,chars.length));
+                            queues.get(index).offer(new RecordIndex(path,key,pos,length));
+                            pos += length;
                             bw.write(chars);
                         }
                     } catch (IOException e) {
@@ -205,14 +209,6 @@ public class FileProcessor {
         }
     }
 
-    private BufferedWriter createWriter(String file) throws IOException {
-        return new BufferedWriter(new FileWriter(file));
-    }
-
-    private BufferedReader createReader(String file) throws FileNotFoundException {
-        return new BufferedReader(new FileReader(file));
-    }
-
     public void waitOver() throws InterruptedException {
         buyerSortLatch.await();
         for (LinkedBlockingQueue<RecordIndex> queue : buyerIndexQueues){
@@ -228,7 +224,7 @@ public class FileProcessor {
         for (LinkedBlockingQueue<RecordIndex> queue : orderIndexQueues){
             queue.offer(new RecordIndex("","",0,-1));
         }
-
         threads.shutdown();
+        indexProcessor.waitOver();
     }
 }
