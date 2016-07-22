@@ -1,9 +1,13 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.process.QueryProcessor;
+import com.alibaba.middleware.race.util.Utils;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Random;
 
 /**
  * Created by sxian.wang on 2016/7/19.
@@ -20,24 +24,28 @@ public class FileProcessorTest {
     public static final String caseFile = RaceConfig.DATA_ROOT+"case.0";
 
     public static void main(String[] args) throws IOException {
-        File file = new File(orderFiles[0]);
-//        BufferedReader bf = new BufferedReader(new FileReader(file));
-//        String str = bf.readLine();
-//        long start = System.currentTimeMillis();
-////        int count =
-//        while (str!=null) {
-//            str = bf.readLine();
-//        }
-//        System.out.println(System.currentTimeMillis()-start);
-
-        FileChannel fc = new FileInputStream(file).getChannel();
-        long length = file.length();
-        long start = System.currentTimeMillis();
-        MappedByteBuffer in = fc.map(FileChannel.MapMode.READ_ONLY,10000000,1024);
-        byte[] bytes = new byte[1024];
-        ByteBuffer b1 = in.load();
-        String str = String.valueOf(in.get(bytes,0,1024));
-        System.out.println(System.currentTimeMillis()-start);
+            String str = "t\\index\\orderIndex_1";
+        BufferedReader br = Utils.createReader(str);
+        String line;
+        Random random = new Random(47);
+         do {
+            line = br.readLine();
+            int i = random.nextInt(10);
+            if (i!=1) {
+//                continue;
+            }
+            String[] indexs = line.split("\t");
+            String orderid = indexs[0];
+            String path = indexs[1];
+            long pos = Long.valueOf(indexs[2]);
+            int length = Integer.valueOf(indexs[3]);
+            String value = QueryProcessor.query(path,pos,length);
+            for (String kv : value.split("\t")) {
+                System.out.println(kv);
+            }
+            System.out.println("**********"+orderid+"************");
+            line = br.readLine();
+        } while (line!=null);
 
     }
 }

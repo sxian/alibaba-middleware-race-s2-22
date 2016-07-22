@@ -167,7 +167,7 @@ public class FileProcessor {
                             if (kv.length > 2) {
                                 throw new RuntimeException("split regex error: "+line);
                             }
-                            treeMap.put(kv[0],kv[1]+'\n'); // 在hash完的数据中加上pk，在这里就不build
+                            treeMap.put(kv[0],kv[1]); // 在hash完的数据中加上pk，在这里就不build
                             line = br.readLine();
                         }
 

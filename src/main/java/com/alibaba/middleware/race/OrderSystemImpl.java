@@ -321,7 +321,7 @@ public class OrderSystemImpl implements OrderSystem {
         latch.await(); // 等待处理完所有文件
         sendEndMsg(); // 发送结束信号
         fileProcessor.waitOver(); // 等待队列处理完毕
-        constructThreads.shutdown();  // 销毁construct线程池
+//        constructThreads.shutdown();  // 销毁construct线程池
         System.out.println("successfully processed!");
     }
 

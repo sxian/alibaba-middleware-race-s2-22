@@ -1,5 +1,8 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.process.QueryProcessor;
+import com.alibaba.middleware.race.util.Utils;
+
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
@@ -23,7 +26,7 @@ public class OrderSystemImplTest {
         String[] storeFiles = new String[]{RaceConfig.STORE_PATH};
 
         String caseFile = RaceConfig.DATA_ROOT+"case.0";
-//        Thread.currentThread().interrupt();
+        Thread.currentThread().interrupt();
 
         OrderSystemImpl orderSystem = new OrderSystemImpl();
 
@@ -35,6 +38,7 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("useTime: " + (System.currentTimeMillis() - start));
+
     }
 
     public void ProcessCase(String filePath) throws IOException {
