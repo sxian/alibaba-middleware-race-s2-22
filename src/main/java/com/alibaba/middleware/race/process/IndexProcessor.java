@@ -1,13 +1,13 @@
 package com.alibaba.middleware.race.process;
 
 import com.alibaba.middleware.race.RaceConfig;
+import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 import com.alibaba.middleware.race.util.Utils;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,6 +88,22 @@ public class IndexProcessor {
                 }
             }
         });
+    }
+
+
+    public static BplusTree buildIndexTree(List<String> files) throws IOException {
+        BplusTree<RecordIndex> indexTree = new BplusTree<>(100);
+        for (String file : files) {
+            BufferedReader br = Utils.createReader(file);
+            String line = br.readLine();
+            while (line!=null) {
+                RecordIndex recordIndex = new RecordIndex(line);
+                indexTree.insertOrUpdate(recordIndex.key,recordIndex);
+                line = br.readLine();
+            }
+            br.close();
+        }
+        return indexTree;
     }
 
     public void waitOver() throws InterruptedException {

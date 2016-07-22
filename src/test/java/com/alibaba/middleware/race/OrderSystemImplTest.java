@@ -1,9 +1,12 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.datastruct.BplusTree;
+import com.alibaba.middleware.race.process.IndexProcessor;
 import com.alibaba.middleware.race.process.QueryProcessor;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
@@ -11,7 +14,6 @@ import java.util.*;
  * Created by sxian.wang on 2016/7/19.
  */
 public class OrderSystemImplTest {
-    
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -35,11 +37,8 @@ public class OrderSystemImplTest {
         List<String> storeList = Arrays.asList(storeFiles);
 
         long start = System.currentTimeMillis();
-        for (int i = 0;i<10;i++) {
-            orderSystem.construct(orderList, buyerList, goodsList, storeList);
-        }
-        System.out.println("useTime: " + (System.currentTimeMillis() - start));
-
+        orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        System.out.println("Search useTime: " + (System.currentTimeMillis() - start));
     }
 
     public void ProcessCase(String filePath) throws IOException {
