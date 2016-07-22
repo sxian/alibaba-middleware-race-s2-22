@@ -626,7 +626,7 @@ public class Node {
     public String toString(){
         StringBuilder sb = new StringBuilder();
         if (isLeaf) {
-            sb.append("1.");
+            sb.append("1 ");
             int offset = 0;
             for (int i = 0;i<entries.size();i++) {
                 int rowLen = entries.get(i).getValue().toString().getBytes().length;
@@ -635,7 +635,7 @@ public class Node {
                 offset += rowLen;
             }
         } else {
-            sb.append("0."); // 标记位，表示为内部节点，1为叶子节点.
+            sb.append("0 "); // 标记位，表示为内部节点，1为叶子节点.
             for (int i = 0;i<children.size();i++) {
                 sb.append(entries.get(i).getKey()).append(",").append(children.get(i).pos).append(",")
                         .append(children.get(i).length).append(" ");

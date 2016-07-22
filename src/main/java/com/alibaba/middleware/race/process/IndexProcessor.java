@@ -39,7 +39,7 @@ public class IndexProcessor {
                 String path = RaceConfig.STORE_PATH+"buyerid_create_order"; // todo 要构建B+树，这个地方应该是拆分的，如果要拆分，在放入队列的时候拆
                                                                             // todo 有没有用户同一时间两个订单?
                 BufferedWriter bw;
-                try {
+                try { // todo 有问题
                     bw = Utils.createWriter(path);
                     BplusTree bplusTree = new BplusTree(50); // todo 线上这个值应该考虑
                     while (true) {
@@ -47,7 +47,7 @@ public class IndexProcessor {
                         if ("".equals(keys[0])&&"".equals(keys[1])&&"".equals(keys[2])) {
                             break;
                         }
-                        bplusTree.insertOrUpdate(keys[2]+keys[1],keys[0]);
+                        bplusTree.insertOrUpdate(keys[2]+keys[1],keys[0]+" ");
                     }
 
                     bplusTree.getRoot().writeToDisk(0,bw);
@@ -75,7 +75,7 @@ public class IndexProcessor {
                         if ("".equals(keys[0])&&"".equals(keys[1])) {
                             break;
                         }
-                        bplusTree.insertOrUpdate(keys[1]+keys[0],keys[0]);
+                        bplusTree.insertOrUpdate(keys[1]+keys[0],keys[0]+" ");
                     }
 
                     bplusTree.getRoot().writeToDisk(0,bw);
@@ -110,7 +110,7 @@ public class IndexProcessor {
                             break;
                         }
                         String path = list.get(0);
-                        bw.write(path);
+                        bw.write("file "+path+"\n");
                         TreeMap<Long,Long[]> treeMap = new TreeMap<>();
                         for (int i = 1;i<list.size();i++) {
                             String[] indexs = list.get(i).split(" ");

@@ -53,7 +53,7 @@ public class FileProcessor {
         // 相同磁盘的路径前缀相同
         threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
         this.indexProcessor = indexProcessor;
-
+        indexProcessor.init();
         if (RaceConfig.ONLINE) {
             for (String path : storeFolders) {
             // todo 创建文件夹

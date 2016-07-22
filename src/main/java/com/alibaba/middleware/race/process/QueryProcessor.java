@@ -32,21 +32,21 @@ public class QueryProcessor {
 
 
     public QueryProcessor() {
-        try {
-            long time = System.currentTimeMillis();
-            orderTree = IndexProcessor.buildTree(Arrays.asList(new String[]{RaceConfig.DATA_ROOT+"order.0.0", RaceConfig.DATA_ROOT+"order.0.3",
-                    RaceConfig.DATA_ROOT+"order.1.1", RaceConfig.DATA_ROOT+"order.2.2"}));
-            long mid = System.currentTimeMillis();
-            System.out.println("Build Use Time: "+(mid-time));
-            BufferedWriter bw = Utils.createWriter(RaceConfig.STORE_PATH+"tree");
-            long pos = orderTree.getRoot().writeToDisk(0,bw);
-            bw.flush();
-            bw.close();
-            System.out.println("Set Position Use Time: "+(System.currentTimeMillis()-mid));
-            System.out.println();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            long time = System.currentTimeMillis();
+//            orderTree = IndexProcessor.buildTree(Arrays.asList(new String[]{RaceConfig.DATA_ROOT+"order.0.0", RaceConfig.DATA_ROOT+"order.0.3",
+//                    RaceConfig.DATA_ROOT+"order.1.1", RaceConfig.DATA_ROOT+"order.2.2"}));
+//            long mid = System.currentTimeMillis();
+//            System.out.println("Build Use Time: "+(mid-time));
+//            BufferedWriter bw = Utils.createWriter(RaceConfig.STORE_PATH+"tree");
+//            long pos = orderTree.getRoot().writeToDisk(0,bw);
+//            bw.flush();
+//            bw.close();
+//            System.out.println("Set Position Use Time: "+(System.currentTimeMillis()-mid));
+//            System.out.println();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     private static String query(String file, long pos, int length) throws IOException {
