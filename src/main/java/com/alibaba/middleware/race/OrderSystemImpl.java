@@ -2,6 +2,7 @@ package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.process.FileProcessor;
+import com.alibaba.middleware.race.process.IndexProcessor;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
@@ -36,6 +37,8 @@ public class OrderSystemImpl implements OrderSystem {
     public static int orderQueueNum;
     public static int buyerQueueNum;
     public static int goodsQueueNum;
+
+    IndexProcessor indexProcessor;
 
     public OrderSystemImpl() {
         fileProcessor = new FileProcessor();
@@ -284,7 +287,8 @@ public class OrderSystemImpl implements OrderSystem {
         initQueues();
 
         fileProcessor = new FileProcessor();
-        fileProcessor.init(storeFolders);
+        indexProcessor = new IndexProcessor();
+        fileProcessor.init(storeFolders,indexProcessor);
         // 一个队列对应一个线程
         constructThreads = Executors.newFixedThreadPool(orderQueueNum+buyerQueueNum+goodsQueueNum);
 

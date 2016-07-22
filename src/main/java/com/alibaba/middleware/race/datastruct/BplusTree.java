@@ -50,7 +50,7 @@ public class BplusTree {
         this.rank = order;
     }
 
-    public Row get(Comparable key) {
+    public String get(Comparable key) {
         return root.get(key);
     }
 
@@ -58,8 +58,8 @@ public class BplusTree {
         root.remove(key, this);
     }
 
-    public void insertOrUpdate(Comparable key, Row rindex) {
-        root.insertOrUpdate(key, rindex, this);
+    public void insertOrUpdate(Comparable key, String value) {
+        root.insertOrUpdate(key, value, this);
     }
 
     public BplusTree(int rank){
@@ -70,28 +70,5 @@ public class BplusTree {
         root = new Node(true, true);
         head = root;
     }
-
-    public void layerTraver() {
-        LinkedBlockingQueue<Object> queue = new LinkedBlockingQueue<>();
-        TreeMap<Integer,HashMap<Integer,String>> sortedMap = new TreeMap<>();
-        Object node = root;
-        while (node!=null) {
-            if (node instanceof Node) {
-                Node _node = (Node) node;
-                if (_node.isLeaf) {
-                    for (Map.Entry<Comparable, Row> entry : _node.entries) {
-                        queue.offer(entry.getValue());
-                    }
-                } else {
-                    for (Node cnode : _node.children) {
-                        queue.offer(cnode);
-                    }
-//                    _node.children.
-                }
-            }
-            node = queue.poll();
-        }
-    }
-
 }
 

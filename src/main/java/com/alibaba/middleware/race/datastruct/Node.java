@@ -36,7 +36,7 @@ public class Node {
     protected Node next;
 
     /** 节点的关键字 */
-    protected List<Entry<Comparable, Row>> entries;
+    protected List<Entry<Comparable, String>> entries;
 
     /** 子节点 */
     protected List<Node> children;
@@ -61,10 +61,10 @@ public class Node {
         this.isRoot = isRoot;
     }
 
-    public Row get(Comparable key) {
+    public String get(Comparable key) {
         //如果是叶子节点
         if (isLeaf) {
-            for (Entry<Comparable, Row> entry : entries) {
+            for (Entry<Comparable, String> entry : entries) {
                 if (entry.getKey().compareTo(key) == 0) {
                     return entry.getValue();
                 }
@@ -88,7 +88,7 @@ public class Node {
         return null;
     }
 
-    public void insertOrUpdate(Comparable key, Row obj, BplusTree tree){
+    public void insertOrUpdate(Comparable key, String obj, BplusTree tree){
         //如果是叶子节点
         if (isLeaf){
             //不需要分裂，直接插入或更新
@@ -204,12 +204,12 @@ public class Node {
             //复制子节点到分裂出来的新节点，并更新关键字
             for (int i = 0; i < leftSize; i++){
                 left.getChildren().add(children.get(i));
-                left.getEntries().add(new SimpleEntry<Comparable, Row>(children.get(i).getEntries().get(0).getKey(), null));
+                left.getEntries().add(new SimpleEntry<Comparable, String>(children.get(i).getEntries().get(0).getKey(), null));
                 children.get(i).setParent(left);
             }
             for (int i = 0; i < rightSize; i++){
                 right.getChildren().add(children.get(leftSize + i));
-                right.getEntries().add(new SimpleEntry<Comparable, Row>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
+                right.getEntries().add(new SimpleEntry<Comparable, String>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
                 children.get(leftSize + i).setParent(right);
             }
 
@@ -255,7 +255,7 @@ public class Node {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
                 if (node.getEntries().get(i).getKey().compareTo(key) != 0) {
                     node.getEntries().remove(i);
-                    node.getEntries().add(i, new SimpleEntry<Comparable, Row>(key, null));
+                    node.getEntries().add(i, new SimpleEntry<Comparable, String>(key, null));
                     if(!node.isRoot()){
                         validate(node.getParent(), tree);
                     }
@@ -269,7 +269,7 @@ public class Node {
             node.getEntries().clear();
             for (int i = 0; i < node.getChildren().size(); i++) {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
-                node.getEntries().add(new SimpleEntry<Comparable, Row>(key, null));
+                node.getEntries().add(new SimpleEntry<Comparable, String>(key, null));
                 if (!node.isRoot()) {
                     validate(node.getParent(), tree);
                 }
@@ -399,7 +399,7 @@ public class Node {
                             && previous.getEntries().size() > 2
                             && previous.getParent() == parent) {
                         int size = previous.getEntries().size();
-                        Entry<Comparable, Row> entry = previous.getEntries().get(size - 1);
+                        Entry<Comparable, String> entry = previous.getEntries().get(size - 1);
                         previous.getEntries().remove(entry);
                         //添加到首位
                         entries.add(0, entry);
@@ -409,7 +409,7 @@ public class Node {
                             && next.getEntries().size() > tree.getRank() / 2
                             && next.getEntries().size() > 2
                             && next.getParent() == parent) {
-                        Entry<Comparable, Row> entry = next.getEntries().get(0);
+                        Entry<Comparable, String> entry = next.getEntries().get(0);
                         next.getEntries().remove(entry);
                         //添加到末尾
                         entries.add(entry);
@@ -490,7 +490,7 @@ public class Node {
 
     /** 判断当前节点是否包含该关键字*/
     protected boolean contains(Comparable key) {
-        for (Entry<Comparable, Row> entry : entries) {
+        for (Entry<Comparable, String> entry : entries) {
             if (entry.getKey().compareTo(key) == 0) {
                 return true;
             }
@@ -499,9 +499,9 @@ public class Node {
     }
 
     /** 插入到当前节点的关键字中*/
-    protected void insertOrUpdate(Comparable key, Row obj){
+    protected void insertOrUpdate(Comparable key, String obj){
         // todo 事实上，并不关心关键字的顺序，所以这个地方这一对遍历能否直接去掉？
-        Entry<Comparable, Row> entry = new SimpleEntry<>(key, obj);
+        Entry<Comparable, String> entry = new SimpleEntry<>(key, obj);
         //如果关键字列表长度为0，则直接插入
         if (entries.size() == 0) {
             entries.add(entry);
@@ -576,11 +576,11 @@ public class Node {
         this.parent = parent;
     }
 
-    public List<Entry<Comparable, Row>> getEntries() {
+    public List<Entry<Comparable, String>> getEntries() {
         return entries;
     }
 
-    public void setEntries(List<Entry<Comparable, Row>> entries) {
+    public void setEntries(List<Entry<Comparable, String>> entries) {
         this.entries = entries;
     }
 
@@ -605,7 +605,7 @@ public class Node {
         if (isLeaf) {
             pos = position;
             length = toString().getBytes().length;
-            for (Entry<Comparable, Row> entry : entries) {
+            for (Entry<Comparable, String> entry : entries) {
                 bw.write(entry.getValue().toString().toCharArray());
             }
             bw.write(toString().toCharArray()); // 把数据写进去
@@ -631,14 +631,14 @@ public class Node {
             for (int i = 0;i<entries.size();i++) {
                 int rowLen = entries.get(i).getValue().toString().getBytes().length;
                 sb.append(entries.get(i).getKey()).append(",").append(pos+offset).append(",") // orderid,pos,length
-                        .append(rowLen).append(".");
+                        .append(rowLen).append(" ");
                 offset += rowLen;
             }
         } else {
             sb.append("0."); // 标记位，表示为内部节点，1为叶子节点.
             for (int i = 0;i<children.size();i++) {
                 sb.append(entries.get(i).getKey()).append(",").append(children.get(i).pos).append(",")
-                        .append(children.get(i).length).append(".");
+                        .append(children.get(i).length).append(" ");
             }
         }
         return sb.append("\n").toString();
