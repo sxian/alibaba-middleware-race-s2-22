@@ -24,18 +24,15 @@ public class FileProcessorTest {
     public static final String caseFile = RaceConfig.DATA_ROOT+"case.0";
 
     public static void main(String[] args) throws IOException {
-            String str = "t\\index\\orderIndex_1";
+        String str = "t\\index\\orderIndex_1";
         BufferedReader br = Utils.createReader(str);
-        String line;
+        String line = br.readLine();
         Random random = new Random(47);
-         do {
-            line = br.readLine();
-            int i = random.nextInt(10);
-            if (i!=1) {
-//                continue;
-            }
+        long start = System.currentTimeMillis();
+
+        while (line!=null) {
             String[] indexs = line.split("\t");
-            String orderid = indexs[0];
+            String key = indexs[0];
             String path = indexs[1];
             long pos = Long.valueOf(indexs[2]);
             int length = Integer.valueOf(indexs[3]);
@@ -43,9 +40,10 @@ public class FileProcessorTest {
             for (String kv : value.split("\t")) {
                 System.out.println(kv);
             }
-            System.out.println("**********"+orderid+"************");
+            System.out.println("*******"+key+"******");
+            System.out.println();
             line = br.readLine();
-        } while (line!=null);
-
+        }
+        System.out.println(System.currentTimeMillis()-start);
     }
 }

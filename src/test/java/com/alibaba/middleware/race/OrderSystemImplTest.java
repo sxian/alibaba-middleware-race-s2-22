@@ -26,7 +26,6 @@ public class OrderSystemImplTest {
         String[] storeFiles = new String[]{RaceConfig.STORE_PATH};
 
         String caseFile = RaceConfig.DATA_ROOT+"case.0";
-        Thread.currentThread().interrupt();
 
         OrderSystemImpl orderSystem = new OrderSystemImpl();
 
@@ -36,7 +35,9 @@ public class OrderSystemImplTest {
         List<String> storeList = Arrays.asList(storeFiles);
 
         long start = System.currentTimeMillis();
-        orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        for (int i = 0;i<10;i++) {
+            orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        }
         System.out.println("useTime: " + (System.currentTimeMillis() - start));
 
     }

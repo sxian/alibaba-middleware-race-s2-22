@@ -167,7 +167,7 @@ public class FileProcessor {
                             if (kv.length > 2) {
                                 throw new RuntimeException("split regex error: "+line);
                             }
-                            treeMap.put(kv[0],kv[1]); // 在hash完的数据中加上pk，在这里就不build
+                            treeMap.put(kv[0],kv[1]/*+"\n"*/); // 在hash完的数据中加上pk，在这里就不build
                             line = br.readLine();
                         }
 
@@ -175,15 +175,19 @@ public class FileProcessor {
                         String path = prefixPath+"S"+index;
                         bw = Utils.createWriter(path);
                         Set<Map.Entry<String,String>> entrySet = treeMap.entrySet();
+                        int index = 0;
+                        boolean initIndex = false;
                         for (Map.Entry<String,String> entry : entrySet) {
                             char[] chars = entry.getValue().toCharArray();
                             String key = entry.getKey();
-                            int length = chars.length;
-                            int index = 0;
+                            int length = entry.getValue().getBytes().length;
                             if (flag) {
                                 String[] keys = key.split("\t");
                                 key = keys[2];
-                                index = Math.abs(keys[0].hashCode())%3;
+                                if (!initIndex) {
+                                    index = Math.abs(keys[0].hashCode())%3;
+                                    initIndex =true;
+                                }
                             }
                             queues.get(index).offer(new RecordIndex(path,key,pos,length));
                             pos += length;
