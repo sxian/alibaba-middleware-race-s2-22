@@ -48,7 +48,7 @@ public class FileProcessor {
     private ExecutorService threads;
     private IndexProcessor indexProcessor;
 
-    public void init(final Collection<String> storeFolders) throws InterruptedException {// todo 确认下folders的数量
+    public void init(final Collection<String> storeFolders) throws InterruptedException, IOException {// todo 确认下folders的数量
         // 相同磁盘的路径前缀相同
         threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
         indexProcessor = new IndexProcessor();
@@ -115,7 +115,13 @@ public class FileProcessor {
 
     public void execute(ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> queues, final BufferedWriter[] writers,
                         final CountDownLatch _latch, final int fileSize, final String key,final String pathPrefix,
-                        final boolean flag) {
+                        final boolean flag) throws IOException {
+        for (int i = 0;i<writers.length;i++) {
+            if (writers[i]==null) {
+                writers[i] = writers[i] = Utils.createWriter(pathPrefix+i);
+            }
+        }
+
         for (int i = 0;i<queues.size();i++) {
             final LinkedBlockingQueue<OrderSystemImpl.Row> queue = queues.get(i);
             threads.execute(new Runnable() {
@@ -128,11 +134,7 @@ public class FileProcessor {
                                 break;
                             }
                             int index = Math.abs(row.get(key).valueAsString().hashCode())%fileSize;
-                            if(writers[index] == null) {
-                                writers[index] = Utils.createWriter(pathPrefix+index);
-                            }
-
-                            if (flag) {
+                            if (flag) { //todo 并发写的时候会导致数据丢失
                                 writers[index].write(row.get(key).valueAsString()+"\t"+row.get("amount").valueAsString()
                                         +"\t"+row.get("orderid").valueAsString()+"&"+row.toString());
                             } else {
@@ -170,7 +172,6 @@ public class FileProcessor {
                             treeMap.put(kv[0],kv[1]/*+"\n"*/); // 在hash完的数据中加上pk，在这里就不build
                             line = br.readLine();
                         }
-
                         long pos = 0;
                         String path = prefixPath+"S"+index;
                         bw = Utils.createWriter(path);

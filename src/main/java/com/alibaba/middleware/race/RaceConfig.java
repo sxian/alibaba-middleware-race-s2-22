@@ -13,7 +13,7 @@ public class RaceConfig {
     public static final int ORDER_FILE_SIZE = 3;
     public static final int ORDER_INDEX_FILE_SIZE = 1;
 
-    public static final int BUYER_FILE_SIZE = 2;
+    public static final int BUYER_FILE_SIZE = 1;
     public static final int BUYER_INDEX_FILE_SIZE = 1;
 
     public static final int GOODS_FILE_SIZE = 1;

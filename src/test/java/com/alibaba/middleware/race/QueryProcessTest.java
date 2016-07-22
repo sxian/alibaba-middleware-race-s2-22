@@ -32,7 +32,7 @@ public class QueryProcessTest {
         long start = System.currentTimeMillis();
         int i = 0;
         int size = list.size();
-        while (i++<10000000) {
+        while (i++<1000000) {
             queryProcessor.queryOrder(list.get(random.nextInt(size)));
         }
         System.out.println("Test"+name+" useTime: " + (System.currentTimeMillis() - start));

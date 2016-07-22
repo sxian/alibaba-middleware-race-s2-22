@@ -38,6 +38,7 @@ public class OrderSystemImplTest {
 
         long start = System.currentTimeMillis();
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        QueryProcessor queryProcessor = new QueryProcessor();
         System.out.println("Search useTime: " + (System.currentTimeMillis() - start));
     }
 
