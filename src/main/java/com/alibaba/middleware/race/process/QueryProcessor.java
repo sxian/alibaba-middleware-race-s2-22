@@ -1,8 +1,11 @@
 package com.alibaba.middleware.race.process;
 
+import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
+import com.alibaba.middleware.race.util.Utils;
 
+import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -22,18 +25,25 @@ public class QueryProcessor {
     public static final byte[] _2k = new byte[1024*2];
     public static final byte[] _4k = new byte[1024*4];
     public static final byte[] _8k = new byte[1024*8];
-    HashMap<String,String> orderCache = new HashMap<>();
 
-    BplusTree<RecordIndex> orderTree;
-    BplusTree<RecordIndex> buyerTree;
-    BplusTree<RecordIndex> goodsTree;
+    BplusTree orderTree;
+    BplusTree buyerTree;
+    BplusTree goodsTree;
+
 
     public QueryProcessor() {
         try {
-            orderTree = IndexProcessor.buildIndexTree(Arrays.asList(new String[]{
-                    "t/index/orderIndex_0","t/index/orderIndex_1","t/index/orderIndex_2"}));
-            buyerTree = IndexProcessor.buildIndexTree(Arrays.asList(new String[]{"t/index/buyerIndex_0"}));
-            goodsTree = IndexProcessor.buildIndexTree(Arrays.asList(new String[]{"t/index/goodsIndex_0"}));
+            long time = System.currentTimeMillis();
+            orderTree = IndexProcessor.buildTree(Arrays.asList(new String[]{RaceConfig.DATA_ROOT+"order.0.0", RaceConfig.DATA_ROOT+"order.0.3",
+                    RaceConfig.DATA_ROOT+"order.1.1", RaceConfig.DATA_ROOT+"order.2.2"}));
+            long mid = System.currentTimeMillis();
+            System.out.println("Build Use Time: "+(mid-time));
+            BufferedWriter bw = Utils.createWriter(RaceConfig.STORE_PATH+"tree");
+            long pos = orderTree.getRoot().writeToDisk(0,bw);
+            bw.flush();
+            bw.close();
+            System.out.println("Set Position Use Time: "+(System.currentTimeMillis()-mid));
+            System.out.println();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -56,12 +66,13 @@ public class QueryProcessor {
     }
 
     public String queryOrder(String orderId) throws IOException {
-        String result = orderCache.get(orderId);
-        if (result == null) {
-            RecordIndex index = orderTree.get(orderId);
-            result = queryByIndex(index);
-            orderCache.put(orderId,result);
-        }
-        return result;
+//        String result = orderCache.get(orderId);
+//        if (result == null) {
+////            RecordIndex index = orderTree.get(orderId);
+////            result = queryByIndex(index);
+//            result = queryByIndex(orderMap.get(orderId));
+//            orderCache.put(orderId,result);
+//        }
+        return null;
     }
 }

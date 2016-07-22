@@ -1,7 +1,12 @@
 package com.alibaba.middleware.race.datastruct;
 
+import com.alibaba.middleware.race.OrderSystemImpl.Row;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -31,10 +36,16 @@ public class Node {
     protected Node next;
 
     /** 节点的关键字 */
-    protected List<Entry<Comparable, Object>> entries;
+    protected List<Entry<Comparable, Row>> entries;
 
     /** 子节点 */
     protected List<Node> children;
+
+    /* 存储长度 */
+    protected int length;
+
+    /* 文件位置偏移量 -> 起始处 */
+    long pos;
 
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
@@ -50,10 +61,10 @@ public class Node {
         this.isRoot = isRoot;
     }
 
-    public Object get(Comparable key) {
+    public Row get(Comparable key) {
         //如果是叶子节点
         if (isLeaf) {
-            for (Entry<Comparable, Object> entry : entries) {
+            for (Entry<Comparable, Row> entry : entries) {
                 if (entry.getKey().compareTo(key) == 0) {
                     return entry.getValue();
                 }
@@ -77,7 +88,7 @@ public class Node {
         return null;
     }
 
-    public void insertOrUpdate(Comparable key, Object obj, BplusTree tree){
+    public void insertOrUpdate(Comparable key, Row obj, BplusTree tree){
         //如果是叶子节点
         if (isLeaf){
             //不需要分裂，直接插入或更新
@@ -193,12 +204,12 @@ public class Node {
             //复制子节点到分裂出来的新节点，并更新关键字
             for (int i = 0; i < leftSize; i++){
                 left.getChildren().add(children.get(i));
-                left.getEntries().add(new SimpleEntry<Comparable, Object>(children.get(i).getEntries().get(0).getKey(), null));
+                left.getEntries().add(new SimpleEntry<Comparable, Row>(children.get(i).getEntries().get(0).getKey(), null));
                 children.get(i).setParent(left);
             }
             for (int i = 0; i < rightSize; i++){
                 right.getChildren().add(children.get(leftSize + i));
-                right.getEntries().add(new SimpleEntry<Comparable, Object>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
+                right.getEntries().add(new SimpleEntry<Comparable, Row>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
                 children.get(leftSize + i).setParent(right);
             }
 
@@ -244,7 +255,7 @@ public class Node {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
                 if (node.getEntries().get(i).getKey().compareTo(key) != 0) {
                     node.getEntries().remove(i);
-                    node.getEntries().add(i, new SimpleEntry<Comparable, Object>(key, null));
+                    node.getEntries().add(i, new SimpleEntry<Comparable, Row>(key, null));
                     if(!node.isRoot()){
                         validate(node.getParent(), tree);
                     }
@@ -258,7 +269,7 @@ public class Node {
             node.getEntries().clear();
             for (int i = 0; i < node.getChildren().size(); i++) {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
-                node.getEntries().add(new SimpleEntry<Comparable, Object>(key, null));
+                node.getEntries().add(new SimpleEntry<Comparable, Row>(key, null));
                 if (!node.isRoot()) {
                     validate(node.getParent(), tree);
                 }
@@ -388,7 +399,7 @@ public class Node {
                             && previous.getEntries().size() > 2
                             && previous.getParent() == parent) {
                         int size = previous.getEntries().size();
-                        Entry<Comparable, Object> entry = previous.getEntries().get(size - 1);
+                        Entry<Comparable, Row> entry = previous.getEntries().get(size - 1);
                         previous.getEntries().remove(entry);
                         //添加到首位
                         entries.add(0, entry);
@@ -398,7 +409,7 @@ public class Node {
                             && next.getEntries().size() > tree.getRank() / 2
                             && next.getEntries().size() > 2
                             && next.getParent() == parent) {
-                        Entry<Comparable, Object> entry = next.getEntries().get(0);
+                        Entry<Comparable, Row> entry = next.getEntries().get(0);
                         next.getEntries().remove(entry);
                         //添加到末尾
                         entries.add(entry);
@@ -479,7 +490,7 @@ public class Node {
 
     /** 判断当前节点是否包含该关键字*/
     protected boolean contains(Comparable key) {
-        for (Entry<Comparable, Object> entry : entries) {
+        for (Entry<Comparable, Row> entry : entries) {
             if (entry.getKey().compareTo(key) == 0) {
                 return true;
             }
@@ -488,8 +499,9 @@ public class Node {
     }
 
     /** 插入到当前节点的关键字中*/
-    protected void insertOrUpdate(Comparable key, Object obj){
-        Entry<Comparable, Object> entry = new SimpleEntry<Comparable, Object>(key, obj);
+    protected void insertOrUpdate(Comparable key, Row obj){
+        // todo 事实上，并不关心关键字的顺序，所以这个地方这一对遍历能否直接去掉？
+        Entry<Comparable, Row> entry = new SimpleEntry<>(key, obj);
         //如果关键字列表长度为0，则直接插入
         if (entries.size() == 0) {
             entries.add(entry);
@@ -564,11 +576,11 @@ public class Node {
         this.parent = parent;
     }
 
-    public List<Entry<Comparable, Object>> getEntries() {
+    public List<Entry<Comparable, Row>> getEntries() {
         return entries;
     }
 
-    public void setEntries(List<Entry<Comparable, Object>> entries) {
+    public void setEntries(List<Entry<Comparable, Row>> entries) {
         this.entries = entries;
     }
 
@@ -588,22 +600,49 @@ public class Node {
         this.isRoot = isRoot;
     }
 
+    public long writeToDisk(long position, BufferedWriter bw) throws IOException { //todo 其实可以直接写硬盘
+
+        if (isLeaf) {
+            pos = position;
+            length = toString().getBytes().length;
+            for (Entry<Comparable, Row> entry : entries) {
+                bw.write(entry.getValue().toString().toCharArray());
+            }
+            bw.write(toString().toCharArray()); // 把数据写进去
+            return length; // 子节点只需要把entries的数据弄好就行，所以返回length
+        }
+
+        long chindernPos = 0;
+        for (Node node : children) {
+            chindernPos += node.writeToDisk(position+chindernPos,bw);
+        }
+
+        bw.write(toString().toCharArray());
+        pos = position+chindernPos; // 所有的节点为止应该是子节点的长度加上上面传的长度 -> 内部节点同一级的children后面的加上前面的
+        length = toString().getBytes().length;
+        return chindernPos+length;
+    }
+
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        sb.append("isRoot: ");
-        sb.append(isRoot);
-        sb.append(", ");
-        sb.append("isLeaf: ");
-        sb.append(isLeaf);
-        sb.append(", ");
-        sb.append("keys: ");
-        for (Entry<Comparable, Object> entry : entries){
-            sb.append(entry.getKey());
-            sb.append(", ");
+        if (isLeaf) {
+            sb.append("1.");
+            int offset = 0;
+            for (int i = 0;i<entries.size();i++) {
+                int rowLen = entries.get(i).getValue().toString().getBytes().length;
+                sb.append(entries.get(i).getKey()).append(",").append(pos+offset).append(",") // orderid,pos,length
+                        .append(rowLen).append(".");
+                offset += rowLen;
+            }
+        } else {
+            sb.append("0."); // 标记位，表示为内部节点，1为叶子节点.
+            for (int i = 0;i<children.size();i++) {
+                sb.append(entries.get(i).getKey()).append(",").append(children.get(i).pos).append(",")
+                        .append(children.get(i).length).append(".");
+            }
         }
-        sb.append(", ");
-        return sb.toString();
-
+        return sb.append("\n").toString();
     }
+
 
 }

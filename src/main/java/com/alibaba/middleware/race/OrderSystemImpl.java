@@ -30,10 +30,6 @@ public class OrderSystemImpl implements OrderSystem {
     public static final ArrayList<LinkedBlockingQueue<Row>> buyerQueues = new ArrayList();
     public static final ArrayList<LinkedBlockingQueue<Row>> goodsQueues = new ArrayList();
 
-    public BplusTree<Row> orderTree;
-    public BplusTree<Row> buyerTree;
-    public BplusTree<Row> goodsTree;
-
     // todo 确认一下查询的时候是多个线程持有一个OrderSystemImpl对象查询还是一个线程一个
     public FileProcessor fileProcessor;
 
@@ -325,7 +321,7 @@ public class OrderSystemImpl implements OrderSystem {
         System.out.println("successfully processed!");
     }
 
-    private Row createRow(String line) {
+    public static Row createRow(String line) {
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {

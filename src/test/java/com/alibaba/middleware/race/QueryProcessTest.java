@@ -18,12 +18,7 @@ public class QueryProcessTest {
     public static QueryProcessor queryProcessor;
 
     public static void main(String[] args) throws IOException {
-        ArrayList<String> orderTree = buildQueryCondition(Arrays.asList(new String[]{
-                "t/index/orderIndex_0","t/index/orderIndex_1","t/index/orderIndex_2"}));
-        ArrayList<String> buyerTree = buildQueryCondition(Arrays.asList(new String[]{"t/index/buyerIndex_0"}));
-        ArrayList<String> goodsTree = buildQueryCondition(Arrays.asList(new String[]{"t/index/goodsIndex_0"}));
         queryProcessor = new QueryProcessor();
-        testQuery("OrderMessage", orderTree);
     }
 
     public static void testQuery(String name, ArrayList<String> list) throws IOException {

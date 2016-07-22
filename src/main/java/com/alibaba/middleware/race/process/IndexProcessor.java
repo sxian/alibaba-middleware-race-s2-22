@@ -1,5 +1,7 @@
 package com.alibaba.middleware.race.process;
 
+import com.alibaba.middleware.race.OrderSystemImpl;
+import com.alibaba.middleware.race.OrderSystemImpl.Row;
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
@@ -7,6 +9,7 @@ import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -91,21 +94,36 @@ public class IndexProcessor {
     }
 
 
-    public static BplusTree buildIndexTree(List<String> files) throws IOException {
-        BplusTree<RecordIndex> indexTree = new BplusTree<>(100);
+    public static BplusTree buildTree(List<String> files) throws IOException {
+        BplusTree tree = new BplusTree(60);
+        for (String file : files) {
+            BufferedReader br = Utils.createReader(file);
+            String line = br.readLine();
+            while (line!=null) {
+                Row row = OrderSystemImpl.createRow(line);
+                tree.insertOrUpdate(row.get("orderid").valueAsString(),row);
+                line = br.readLine();
+                int a = 1;
+            }
+            br.close();
+        }
+        return tree;
+    }
+
+    public static HashMap<String,RecordIndex> buildIndexMap(List<String> files) throws IOException {
+        HashMap<String,RecordIndex> map = new HashMap<>();
         for (String file : files) {
             BufferedReader br = Utils.createReader(file);
             String line = br.readLine();
             while (line!=null) {
                 RecordIndex recordIndex = new RecordIndex(line);
-                indexTree.insertOrUpdate(recordIndex.key,recordIndex);
+                map.put(recordIndex.key,recordIndex);
                 line = br.readLine();
             }
             br.close();
         }
-        return indexTree;
+        return map;
     }
-
     public void waitOver() throws InterruptedException {
         latch.await();
         threads.shutdown();

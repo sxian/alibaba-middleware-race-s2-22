@@ -1,5 +1,12 @@
 package com.alibaba.middleware.race.datastruct;
 
+import com.alibaba.middleware.race.OrderSystemImpl.Row;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.LinkedBlockingQueue;
+
 /**
  * descption: B+树
  *
@@ -8,15 +15,15 @@ package com.alibaba.middleware.race.datastruct;
  * @email sxian.wang@gmail.com
  */
 
-public class BplusTree<T> {
+public class BplusTree {
 
-    /** 根节点 */
+    /* 根节点 */
     protected Node root;
 
-    /** 阶数，M值 */
+    /* 阶数，M值 */
     protected int rank;
 
-    /** 叶子节点的链表头*/
+    /* 叶子节点的链表头*/
     protected Node head;
 
     public Node getHead() {
@@ -43,15 +50,15 @@ public class BplusTree<T> {
         this.rank = order;
     }
 
-    public T get(Comparable key) {
-        return (T) root.get(key);
+    public Row get(Comparable key) {
+        return root.get(key);
     }
 
     public void remove(Comparable key) {
         root.remove(key, this);
     }
 
-    public void insertOrUpdate(Comparable key, T rindex) {
+    public void insertOrUpdate(Comparable key, Row rindex) {
         root.insertOrUpdate(key, rindex, this);
     }
 
@@ -62,6 +69,28 @@ public class BplusTree<T> {
         this.rank = rank;
         root = new Node(true, true);
         head = root;
+    }
+
+    public void layerTraver() {
+        LinkedBlockingQueue<Object> queue = new LinkedBlockingQueue<>();
+        TreeMap<Integer,HashMap<Integer,String>> sortedMap = new TreeMap<>();
+        Object node = root;
+        while (node!=null) {
+            if (node instanceof Node) {
+                Node _node = (Node) node;
+                if (_node.isLeaf) {
+                    for (Map.Entry<Comparable, Row> entry : _node.entries) {
+                        queue.offer(entry.getValue());
+                    }
+                } else {
+                    for (Node cnode : _node.children) {
+                        queue.offer(cnode);
+                    }
+//                    _node.children.
+                }
+            }
+            node = queue.poll();
+        }
     }
 
 }
