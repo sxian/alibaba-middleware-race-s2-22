@@ -1,13 +1,6 @@
 package com.alibaba.middleware.race;
 
-import com.alibaba.middleware.race.process.QueryProcessor;
-import com.alibaba.middleware.race.util.Utils;
-
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.util.Random;
+import java.io.IOException;
 
 /**
  * Created by sxian.wang on 2016/7/19.

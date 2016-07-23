@@ -1,11 +1,6 @@
 package com.alibaba.middleware.race;
 
-import com.alibaba.middleware.race.process.QueryProcessor;
-import com.alibaba.middleware.race.util.Utils;
-
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.Random;
 
 /**
  * Created by sxian.wang on 2016/7/22.

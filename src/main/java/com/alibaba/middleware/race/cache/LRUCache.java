@@ -1,6 +1,5 @@
 package com.alibaba.middleware.race.cache;
 
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**

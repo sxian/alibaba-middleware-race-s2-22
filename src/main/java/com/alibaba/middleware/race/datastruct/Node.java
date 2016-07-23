@@ -1,12 +1,9 @@
 package com.alibaba.middleware.race.datastruct;
 
-import com.alibaba.middleware.race.OrderSystemImpl.Row;
-
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
 

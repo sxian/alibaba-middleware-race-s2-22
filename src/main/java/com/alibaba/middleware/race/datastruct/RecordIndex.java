@@ -1,7 +1,5 @@
 package com.alibaba.middleware.race.datastruct;
 
-import java.util.HashSet;
-import com.alibaba.middleware.race.OrderSystemImpl.Row;
 /**
  * descption: 查找到的索引
  *

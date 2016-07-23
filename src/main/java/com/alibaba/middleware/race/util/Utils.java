@@ -1,7 +1,5 @@
 package com.alibaba.middleware.race.util;
 
-import com.alibaba.middleware.race.RaceConfig;
-
 import java.io.*;
 
 /**
