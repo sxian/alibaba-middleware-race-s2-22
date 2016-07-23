@@ -24,7 +24,7 @@ public class IndexProcessor {
     // todo 修改
     private String indexStorePath = RaceConfig.STORE_PATH+"index/";
 
-    private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = new HashMap<>();
+    private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
     private final LinkedBlockingQueue<String[]> buyerid_create_order_queue = new LinkedBlockingQueue<>();
     private final LinkedBlockingQueue<String[]> goodid_orderid_queue = new LinkedBlockingQueue<>();
 

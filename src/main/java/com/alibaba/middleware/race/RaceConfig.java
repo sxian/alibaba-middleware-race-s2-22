@@ -9,6 +9,8 @@ public class RaceConfig {
 
     public static final String DATA_ROOT = "prerun_data/";
     public static final String STORE_PATH = "t/";
+    // 保存排序完的订单数据
+    public static final String ORDER_SOTRED_STORE_PATH = "t/";
 
     public static final int ORDER_FILE_SIZE = 3;
     public static final int ORDER_INDEX_FILE_SIZE = 1;
