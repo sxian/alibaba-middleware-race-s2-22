@@ -50,7 +50,7 @@ public class IndexProcessor {
                         bplusTree.insertOrUpdate(keys[2]+keys[1],keys[0]+" ");
                     }
 
-                    bplusTree.getRoot().writeToDisk(0,bw);
+//                    bplusTree.getRoot().writeToDisk(0,bw);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -78,7 +78,7 @@ public class IndexProcessor {
                         bplusTree.insertOrUpdate(keys[1]+keys[0],keys[0]+" ");
                     }
 
-                    bplusTree.getRoot().writeToDisk(0,bw);
+//                    bplusTree.getRoot().writeToDisk(0,bw);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {

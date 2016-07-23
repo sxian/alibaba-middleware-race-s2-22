@@ -34,14 +34,24 @@ public class QueryProcessor {
     public static OrderSystemImpl.Row queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);
         if (indexCache == null) {
-            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥
-                if (entry.getKey().compareTo((Long.valueOf(id))) <= 0) { // todo 确认下b+树的排序方式
-                    return queryRowByBPT(path,entry.getKey().toString(),entry.getValue()[0],
-                            Integer.valueOf(entry.getValue()[1].toString()));
+            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+            Map.Entry<Long,Long[]> preEntry = null;
+            long orderid = Long.valueOf(id);
+            for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥 todo 线性查找太慢，改算法
+                if (preEntry== null) {
+                    if (entry.getKey().compareTo(orderid) == 1) {
+                        return queryRowByBPT(path,id,entry.getValue()[0],
+                                Integer.valueOf(entry.getValue()[1].toString()));
+                    }
+                } else {
+                    if (preEntry.getKey().compareTo(orderid) <=0 && entry.getKey().compareTo(orderid) == 1) {
+                        return queryRowByBPT(path, id,preEntry.getValue()[0],
+                                Integer.valueOf(preEntry.getValue()[1].toString()));
+                    }
                 }
+                preEntry = entry;
             }
-            return null;
+            return queryRowByBPT(path, id, preEntry.getValue()[0],Integer.valueOf(preEntry.getValue()[1].toString()));
         }
         return queryByIndex(indexCache);
     }
@@ -93,7 +103,7 @@ public class QueryProcessor {
         return OrderSystemImpl.createRow(new String(bytes));
     }
 
-    private static OrderSystemImpl.Row queryRowByBPT(String file, String id, long pos, int length) {
+    private static OrderSystemImpl.Row queryRowByBPT(String file, String orderid, long pos, int length) {
         byte[] bytes = new byte[length];
         boolean findRow = false;
         int rowLen = 0;
@@ -104,43 +114,42 @@ public class QueryProcessor {
                 randomAccessFileHashMap.put(file, raf);
             }
             while (!findRow) {
+
                 raf.seek(pos);
                 raf.read(bytes);
                 String[] bIndexs = new String(bytes,0,length).split(" ");
                 if (bIndexs[0].equals("0")) {
-                    long _pos = 0;
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
-                    if (preIndexPos[0].compareTo(id) == 1) { // 第一个节点满足 todo B+树的节点是是[x,y)吗
-                        _pos = Long.valueOf(preIndexPos[1]);
+                    if (preIndexPos[0].compareTo(orderid) > 0) { // 第一个节点满足
+                        pos = Long.valueOf(preIndexPos[1]);
                         length = Integer.valueOf(preIndexPos[2]);
-                        findIndex = true;
+                        continue;
                     }
                     if (!findIndex) {
-                        for (int i = 1; i<bIndexs.length;i++) {
+                        for (int i = 1; i<bIndexs.length-1;i++) {
                             String[] indexPos = bIndexs[i+1].split(",");
-                            if (i==bIndexs.length-2) {
-                                _pos = Long.valueOf(indexPos[1]);
+                            if (i==bIndexs.length-3) {
+                                if (orderid.compareTo(indexPos[0]) < 0) {
+                                    throw new RuntimeException("compare error");
+                                }
+                                pos = Long.valueOf(indexPos[1]);
                                 length = Integer.valueOf(indexPos[2]);
                                 break;
                             }
 
-                            if (preIndexPos[0].compareTo(id) >= 0 && indexPos[0].compareTo(id) == -1) {
-                                _pos = Long.valueOf(indexPos[1]);
-                                length = Integer.valueOf(indexPos[2]);
+                            if (preIndexPos[0].compareTo(orderid) <= 0 && indexPos[0].compareTo(orderid) > 0) {
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
                                 break;
                             }
+                            preIndexPos = indexPos;
                         }
                     }
-                    raf.seek(_pos);
-                    if (length > bytes.length) {
-                        bytes = new byte[length];
-                    }
-                    raf.read(bytes,0,length);
                 } else {
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
-                        if (rowPos[0].equals(id)) {
+                        if (rowPos[0].equals(orderid)) {
                             raf.seek(Long.valueOf(rowPos[1]));
                             rowLen = Integer.valueOf(rowPos[2]);
                             if (rowLen > bytes.length) {
@@ -148,9 +157,13 @@ public class QueryProcessor {
                             }
                             raf.read(bytes,0,rowLen);
                             findRow = true;
+                            break;
                         }
                     }
                     break;
+                }
+                if (length > bytes.length) {
+                    bytes = new byte[length];
                 }
             }
         } catch (Exception e) {

@@ -597,26 +597,44 @@ public class Node {
         this.isRoot = isRoot;
     }
 
-    public long writeToDisk(long position, BufferedWriter bw) throws IOException { //todo 其实可以直接写硬盘
+    public long getPos() {
+        return pos;
+    }
 
+    public int getLength() {
+        return length;
+    }
+    public long writeToDisk(long position, BufferedWriter bw) throws IOException {
         if (isLeaf) {
-            pos = position;
-            length = toString().getBytes().length;
+            pos = position; // 没有输出前的位置
+            long entryLen = 0;
             for (Entry<Comparable, String> entry : entries) {
-                bw.write(entry.getValue().toString().toCharArray());
+                String row = entry.getValue().toString();
+                entryLen += row.getBytes().length;
+                bw.write(row.toCharArray());
             }
+            length = toString().getBytes().length;
             bw.write(toString().toCharArray()); // 把数据写进去
-            return length; // 子节点只需要把entries的数据弄好就行，所以返回length
+            pos = position + entryLen;
+            if ((entryLen+length)==0) {
+                int a = 1;
+            }
+            return entryLen+length; // 子节点只需要把entries的数据弄好就行，所以返回length
         }
 
         long chindernPos = 0;
-        for (Node node : children) {
-            chindernPos += node.writeToDisk(position+chindernPos,bw);
+        for (Node node : children) { // 是返回给上一层的所以同一级没法知道
+            // 用pos会有一堆0出来 -> 忘了的话改成pos + chindernPos  当root节点的值传过来的时候，pos并没有更新为position，所以会
+            // 多次出现0的错位，纯属手残
+            chindernPos += node.writeToDisk(position + chindernPos,bw);
         }
 
+        pos = position+chindernPos; // 所有的节点位置应该是子节点的长度加上上面传的长度 -> 内部节点同一级的children后面的加上前面的
         bw.write(toString().toCharArray());
-        pos = position+chindernPos; // 所有的节点为止应该是子节点的长度加上上面传的长度 -> 内部节点同一级的children后面的加上前面的
         length = toString().getBytes().length;
+        if ((chindernPos+length)==0) {
+            int a = 1;
+        }
         return chindernPos+length;
     }
 

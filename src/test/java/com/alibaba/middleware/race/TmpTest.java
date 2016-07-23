@@ -1,16 +1,17 @@
 package com.alibaba.middleware.race;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  * Created by sxian.wang on 2016/7/23.
  */
 public class TmpTest {
     public static void main(String[] args) throws IOException {
-        double a = 1.00;
-        String b = "1.520";
-        long c = Long.valueOf(b);
-        System.out.println(b.contains("."));
-        System.out.println(c);
+        RandomAccessFile raf = new RandomAccessFile("t/oS0","r");
+        raf.seek(32597922);
+        byte[] bytes = new byte[187];
+        raf.read(bytes);
+        System.out.println(new String(bytes));
     }
 }

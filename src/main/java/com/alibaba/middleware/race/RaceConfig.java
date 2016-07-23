@@ -12,7 +12,7 @@ public class RaceConfig {
     // 保存排序完的订单数据
     public static final String ORDER_SOTRED_STORE_PATH = "t/";
 
-    public static final int ORDER_FILE_SIZE = 3;
+    public static final int ORDER_FILE_SIZE = 1;
     public static final int ORDER_INDEX_FILE_SIZE = 1;
 
     public static final int BUYER_FILE_SIZE = 1;

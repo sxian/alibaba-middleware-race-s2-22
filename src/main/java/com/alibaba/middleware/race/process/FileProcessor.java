@@ -169,7 +169,7 @@ public class FileProcessor {
                     try {
                         br = Utils.createReader(prefixPath+index);
                         if (flag) {
-                            bplusTree = new BplusTree(80);
+                            bplusTree = new BplusTree(60);
                         } else {
                             treeMap = new TreeMap<>();
                         }
@@ -180,8 +180,7 @@ public class FileProcessor {
                                 throw new RuntimeException("split regex error: "+line);
                             }
                             if (flag) {
-                            bplusTree.insertOrUpdate(kv[0],kv[1]);
-
+                                bplusTree.insertOrUpdate(kv[0],kv[1]);
                             } else {
                                 treeMap.put(kv[0],kv[1]);
                             }
@@ -189,16 +188,19 @@ public class FileProcessor {
                         }
 
                         if (flag) {
-                            // todo 使用flag
                             String path = prefixPath+"S"+index;
                             bw = Utils.createWriter(path);
-                            bplusTree.getRoot().writeToDisk(0,bw);
+                            bplusTree.getRoot().writeToDisk(0,bw); // 写到磁盘
+                            long pos = bplusTree.getRoot().getPos();
+                            if (index == 1) {
+                                Node _node = bplusTree.getHead();
+                            }
+                            int len = bplusTree.getRoot().getLength();
+
                             ArrayList<String> indexs = new ArrayList<String>();
-                            indexs.add(prefixPath+index);
+                            indexs.add(path);
                             for (Node node : bplusTree.getRoot().getChildren()) {
-                                for (Node cnode : node.getChildren()) {
-                                    indexs.add(cnode.toString());
-                                }
+                                indexs.add(node.toString());
                             }
                             queue.offer(indexs);
                         } else {

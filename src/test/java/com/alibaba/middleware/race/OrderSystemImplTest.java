@@ -1,5 +1,7 @@
 package com.alibaba.middleware.race;
 
+import com.alibaba.middleware.race.db.OrderTable;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -35,6 +37,12 @@ public class OrderSystemImplTest {
 
         long start = System.currentTimeMillis();
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
+        OrderTable orderTable = new OrderTable();
+        start = System.currentTimeMillis();
+        orderSystem.queryOrder(604415010,null);
+        OrderSystemImpl.Row result = orderTable.selectRowById("591677717");
+        System.out.println(result);
         System.out.println("Search useTime: " + (System.currentTimeMillis() - start));
     }
 
