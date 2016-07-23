@@ -19,7 +19,7 @@ public class BuyerTable implements Table {
         OrderSystemImpl.Row row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryBuyer(id);
-            rowCache.put(id, row);
+            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }

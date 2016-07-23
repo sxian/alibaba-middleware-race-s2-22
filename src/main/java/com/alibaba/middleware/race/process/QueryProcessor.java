@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Phaser;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -44,13 +45,13 @@ public class QueryProcessor {
         RecordIndex indexCache = buyerIndexCache.get(id);
         if (indexCache == null) {
             String path = RaceConfig.ORDER_SOTRED_STORE_PATH+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            RecordIndex tmpIndex;
             for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥
-                if (entry.getKey().compareTo((Long.valueOf(id))) <= 0) {
-                    tmpIndex = new RecordIndex(path, entry.getKey().toString(),entry.getValue()[0],
+                if (entry.getKey().compareTo((Long.valueOf(id))) <= 0) { // todo 确认下b+树的排序方式
+                    return queryRowByBPT(path,entry.getKey().toString(),entry.getValue()[0],
                             Integer.valueOf(entry.getValue()[1].toString()));
                 }
             }
+            return null;
         }
         return queryByIndex(indexCache);
     }

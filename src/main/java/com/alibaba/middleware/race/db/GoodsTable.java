@@ -21,7 +21,7 @@ public class GoodsTable implements Table {
         OrderSystemImpl.Row row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryGoods(id);
-            rowCache.put(id, row);
+            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }

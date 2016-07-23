@@ -22,7 +22,7 @@ public class OrderTable implements Table{
         Row row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryOrder(id);
-            rowCache.put(id, row);
+            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }
