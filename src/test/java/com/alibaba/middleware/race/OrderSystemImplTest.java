@@ -1,13 +1,13 @@
 package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.db.OrderTable;
+import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by sxian.wang on 2016/7/19.
@@ -39,10 +39,58 @@ public class OrderSystemImplTest {
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
         OrderTable orderTable = new OrderTable();
+        ArrayList<OrderSystemImpl.Row> rows = new ArrayList<>();
+        for (String file : orderFiles) {
+            BufferedReader br = Utils.createReader(file);
+            String str = br.readLine();
+            while (str!=null) {
+                rows.add(OrderSystemImpl.createRow(str));
+                str = br.readLine();
+            }
+        }
+        System.out.println("build test data complete, start query...");
         start = System.currentTimeMillis();
-        orderSystem.queryOrder(604415010,null);
-        OrderSystemImpl.Row result = orderTable.selectRowById("591677717");
-        System.out.println(result);
+        HashMap<String,OrderSystemImpl.Row> map = new HashMap<>();
+        for (int j = 0;j<1;j++) {
+            for (int i = 0;i<rows.size();i++) {
+                String key = rows.get(i).get("orderid").valueAsString();
+                OrderSystemImpl.Row row = orderTable.selectRowById(key);
+//                if (row!=null) {
+//                    map.put(key,row);
+//                }
+            }
+//            System.out.println(" first query complete, useTime: "+(System.currentTimeMillis() - start) );
+
+        }
+        System.out.println("query complete, useTime: "+(System.currentTimeMillis() - start) );
+//        System.out.println("start count success...");
+//
+//        int find = 0;
+//        int matched = 0;
+//        for (int i = 0;i<rows.size();i++) {
+//            OrderSystemImpl.Row row = rows.get(i);
+//            OrderSystemImpl.Row _row = map.get(row.get("orderid").valueAsString());
+//            if (_row!=null) {
+//                find++;
+//                Set<Map.Entry<String, OrderSystemImpl.KV>> entrySet = row.entrySet();
+//                boolean ok = true;
+//                for (Map.Entry<String, OrderSystemImpl.KV> entry : entrySet) {
+//                    OrderSystemImpl.KV kv = _row.getKV(entry.getKey());
+//                    if (kv==null || !kv.valueAsString().equals(entry.getValue().valueAsString())) {
+//                        ok = false;
+//                        break;
+//                    }
+//                }
+//                if (ok) {
+//                    matched++;
+//                } else {
+//                    int a = 5;
+//                }
+//            }
+//        }
+//        System.out.println("find data: "+ find+"\nmatched data: "+matched);
+
+
         System.out.println("Search useTime: " + (System.currentTimeMillis() - start));
     }
 

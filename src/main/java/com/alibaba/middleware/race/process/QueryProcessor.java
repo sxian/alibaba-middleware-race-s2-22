@@ -39,19 +39,19 @@ public class QueryProcessor {
             long orderid = Long.valueOf(id);
             for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥 todo 线性查找太慢，改算法
                 if (preEntry== null) {
-                    if (entry.getKey().compareTo(orderid) == 1) {
-                        return queryRowByBPT(path,id,entry.getValue()[0],
+                    if (entry.getKey() > orderid) {
+                        return queryRowByBPT(path,orderid,entry.getValue()[0],
                                 Integer.valueOf(entry.getValue()[1].toString()));
                     }
                 } else {
-                    if (preEntry.getKey().compareTo(orderid) <=0 && entry.getKey().compareTo(orderid) == 1) {
-                        return queryRowByBPT(path, id,preEntry.getValue()[0],
+                    if (preEntry.getKey() <= orderid && entry.getKey() > orderid) {
+                        return queryRowByBPT(path, orderid,preEntry.getValue()[0],
                                 Integer.valueOf(preEntry.getValue()[1].toString()));
                     }
                 }
                 preEntry = entry;
             }
-            return queryRowByBPT(path, id, preEntry.getValue()[0],Integer.valueOf(preEntry.getValue()[1].toString()));
+            return queryRowByBPT(path, orderid, preEntry.getValue()[0],Integer.valueOf(preEntry.getValue()[1].toString()));
         }
         return queryByIndex(indexCache);
     }
@@ -103,7 +103,7 @@ public class QueryProcessor {
         return OrderSystemImpl.createRow(new String(bytes));
     }
 
-    private static OrderSystemImpl.Row queryRowByBPT(String file, String orderid, long pos, int length) {
+    private static OrderSystemImpl.Row queryRowByBPT(String file, long orderid, long pos, int length) {
         byte[] bytes = new byte[length];
         boolean findRow = false;
         int rowLen = 0;
@@ -114,14 +114,13 @@ public class QueryProcessor {
                 randomAccessFileHashMap.put(file, raf);
             }
             while (!findRow) {
-
                 raf.seek(pos);
                 raf.read(bytes);
                 String[] bIndexs = new String(bytes,0,length).split(" ");
                 if (bIndexs[0].equals("0")) {
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
-                    if (preIndexPos[0].compareTo(orderid) > 0) { // 第一个节点满足
+                    if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
                         pos = Long.valueOf(preIndexPos[1]);
                         length = Integer.valueOf(preIndexPos[2]);
                         continue;
@@ -129,16 +128,16 @@ public class QueryProcessor {
                     if (!findIndex) {
                         for (int i = 1; i<bIndexs.length-1;i++) {
                             String[] indexPos = bIndexs[i+1].split(",");
-                            if (i==bIndexs.length-3) {
-                                if (orderid.compareTo(indexPos[0]) < 0) {
+                            if (i==bIndexs.length-2) {
+                                if (orderid < Long.valueOf(preIndexPos[0])) {
                                     throw new RuntimeException("compare error");
                                 }
-                                pos = Long.valueOf(indexPos[1]);
-                                length = Integer.valueOf(indexPos[2]);
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
                                 break;
                             }
 
-                            if (preIndexPos[0].compareTo(orderid) <= 0 && indexPos[0].compareTo(orderid) > 0) {
+                            if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
                                 pos = Long.valueOf(preIndexPos[1]);
                                 length = Integer.valueOf(preIndexPos[2]);
                                 break;
@@ -149,7 +148,7 @@ public class QueryProcessor {
                 } else {
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
-                        if (rowPos[0].equals(orderid)) {
+                        if (Long.valueOf(rowPos[0])==orderid) {
                             raf.seek(Long.valueOf(rowPos[1]));
                             rowLen = Integer.valueOf(rowPos[2]);
                             if (rowLen > bytes.length) {

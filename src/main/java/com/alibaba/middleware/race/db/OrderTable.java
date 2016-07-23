@@ -10,17 +10,17 @@ import java.util.List;
  * Created by sxian.wang on 2016/7/21.
  */
 public class OrderTable {
-    private LRUCache<String, Row> rowCache; // todo 计算一个entry的大小
+    public LRUCache<String, Row> rowCache; // todo 计算一个entry的大小
 
     public OrderTable() {
-        rowCache = new LRUCache<>(100000);
+        rowCache = new LRUCache<>(400000);
     }
 
     public Row selectRowById(String id) {
         Row row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryOrder(id);
-            if (row!=null) rowCache.put(id, row);
+//            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }
