@@ -2,5 +2,6 @@
 *.iml
 .idea
 target/
-prerun_data
+prerun_data/
 t/
+test_data/

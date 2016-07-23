@@ -7,6 +7,7 @@ import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.RandomAccessFile;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,15 +36,6 @@ public class QueryProcessor {
     public static OrderSystemImpl.Row queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);
         if (indexCache == null) {
-
-        }
-        return queryByIndex(indexCache);
-    }
-
-    //
-    public static OrderSystemImpl.Row queryBuyer(String id) {
-        RecordIndex indexCache = buyerIndexCache.get(id);
-        if (indexCache == null) {
             String path = RaceConfig.ORDER_SOTRED_STORE_PATH+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
             for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥
                 if (entry.getKey().compareTo((Long.valueOf(id))) <= 0) { // todo 确认下b+树的排序方式
@@ -56,10 +48,29 @@ public class QueryProcessor {
         return queryByIndex(indexCache);
     }
 
+    public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) {
+        // todo
+        return null;
+    }
+
+    public static List<String> queryOrderidsByGoodsid(String goodid) {
+        // todo
+        return null;
+    }
+
+    // buyer和goods的索引全在内存里面。
+    public static OrderSystemImpl.Row queryBuyer(String id) {
+        RecordIndex indexCache = buyerIndexCache.get(id);
+        if (indexCache == null) {
+            throw new RuntimeException("buyerid index error");
+        }
+        return queryByIndex(indexCache);
+    }
+
     public static OrderSystemImpl.Row queryGoods(String id) {
         RecordIndex indexCache = goodsIndexCache.get(id);
         if (indexCache == null) {
-
+            throw new RuntimeException("goodsid index error");
         }
         return queryByIndex(indexCache);
     }
@@ -150,4 +161,5 @@ public class QueryProcessor {
 
         return findRow ? OrderSystemImpl.createRow(new String(bytes,0,rowLen)) : null;
     }
+
 }

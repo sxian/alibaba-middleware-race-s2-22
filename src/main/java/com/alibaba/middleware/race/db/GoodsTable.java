@@ -5,18 +5,18 @@ import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
-public class GoodsTable implements Table {
+public class GoodsTable {
     private LRUCache<String, OrderSystemImpl.Row> rowCache; // todo 计算一个entry的大小
 
     public GoodsTable() {
         rowCache = new LRUCache<>(100000);
     }
 
-    @Override
     public OrderSystemImpl.Row selectRowById(String id) {
         OrderSystemImpl.Row row = rowCache.get(id);
         if (row == null) {

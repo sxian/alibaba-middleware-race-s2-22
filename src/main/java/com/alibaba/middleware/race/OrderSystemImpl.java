@@ -1,6 +1,9 @@
 package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.datastruct.BplusTree;
+import com.alibaba.middleware.race.db.BuyerTable;
+import com.alibaba.middleware.race.db.GoodsTable;
+import com.alibaba.middleware.race.db.OrderTable;
 import com.alibaba.middleware.race.process.FileProcessor;
 import com.alibaba.middleware.race.process.IndexProcessor;
 import com.alibaba.middleware.race.util.Utils;
@@ -39,6 +42,10 @@ public class OrderSystemImpl implements OrderSystem {
     public static int goodsQueueNum;
 
     IndexProcessor indexProcessor;
+    private OrderTable orderTable;
+    private BuyerTable buyerTable;
+    private GoodsTable goodsTable;
+
 
     public OrderSystemImpl() {
         fileProcessor = new FileProcessor();
@@ -322,6 +329,9 @@ public class OrderSystemImpl implements OrderSystem {
         sendEndMsg(); // 发送结束信号
         fileProcessor.waitOver(); // 等待队列处理完毕
         constructThreads.shutdown();  // 销毁construct线程池
+        orderTable = new OrderTable();
+        buyerTable = new BuyerTable();
+        goodsTable = new GoodsTable();
         System.out.println("successfully processed!");
     }
 
@@ -378,21 +388,42 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        return null;
+        Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
+        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+        Row goodsRow = buyerTable.selectRowById(orderRow.get("goodid").valueAsString());
+        return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<String>(keys));
     }
 
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
-        return null;
+        ArrayList<Result> results = new ArrayList<>();
+        for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
+            results.add(queryOrder(Long.valueOf(orderId),null)); // todo 没有给keys怎么办, 而且需要排序
+        }
+        return results.iterator();
     }
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
-        return null;
+        ArrayList<Result> results = new ArrayList<>();
+        for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
+            results.add(queryOrder(Long.valueOf(orderId),keys));
+        }
+        return results.iterator();
     }
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
-        return null;
+        ArrayList<Result> results = new ArrayList<>();
+        double sum = 0;  // todo 求和的类型如何处理
+        try {
+            for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
+                Row orderRow = orderTable.selectRowById(orderId);
+                sum += orderRow.get(key).valueAsDouble();
+            }
+        } catch (TypeException e) {
+            e.printStackTrace();
+        }
+        return new KV(key,String.valueOf(sum));
     }
 }

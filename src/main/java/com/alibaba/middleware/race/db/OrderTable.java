@@ -6,18 +6,18 @@ import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
-public class OrderTable implements Table{
+public class OrderTable {
     private LRUCache<String, Row> rowCache; // todo 计算一个entry的大小
 
     public OrderTable() {
         rowCache = new LRUCache<>(100000);
     }
 
-    @Override
     public Row selectRowById(String id) {
         Row row = rowCache.get(id);
         if (row == null) {
@@ -25,5 +25,14 @@ public class OrderTable implements Table{
             if (row!=null) rowCache.put(id, row);
         }
         return row;
+    }
+
+
+    public List<String> selectOrderIDByBuyerID(String buyerid, long start, long end) {
+        return QueryProcessor.queryOrderidsByBuyerid(buyerid, start, end);
+    }
+
+    public List<String> selectOrderIDByGoodsID(String goodid) {
+        return QueryProcessor.queryOrderidsByGoodsid(goodid);
     }
 }
