@@ -1,23 +1,22 @@
 package com.alibaba.middleware.race.process;
 
-import com.alibaba.middleware.race.RaceConfig;
-import com.alibaba.middleware.race.datastruct.BplusTree;
+import com.alibaba.middleware.race.OrderSystemImpl;
+import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
-import com.alibaba.middleware.race.util.Utils;
 
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
-    public static HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
+    private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
+
+    private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000);
+    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(100000);
+    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(100000);
+
 
     // todo 貌似优化这个地方没卵用
     public static final byte[] _05k = new byte[512];
@@ -26,53 +25,47 @@ public class QueryProcessor {
     public static final byte[] _4k = new byte[1024*4];
     public static final byte[] _8k = new byte[1024*8];
 
-    BplusTree orderTree;
-    BplusTree buyerTree;
-    BplusTree goodsTree;
+    public static OrderSystemImpl.Row queryOrder(String id) {
+        RecordIndex indexCache = orderIndexCache.get(id);
+        if (indexCache == null) {
 
-
-    public QueryProcessor() {
-//        try {
-//            long time = System.currentTimeMillis();
-//            orderTree = IndexProcessor.buildTree(Arrays.asList(new String[]{RaceConfig.DATA_ROOT+"order.0.0", RaceConfig.DATA_ROOT+"order.0.3",
-//                    RaceConfig.DATA_ROOT+"order.1.1", RaceConfig.DATA_ROOT+"order.2.2"}));
-//            long mid = System.currentTimeMillis();
-//            System.out.println("Build Use Time: "+(mid-time));
-//            BufferedWriter bw = Utils.createWriter(RaceConfig.STORE_PATH+"tree");
-//            long pos = orderTree.getRoot().writeToDisk(0,bw);
-//            bw.flush();
-//            bw.close();
-//            System.out.println("Set Position Use Time: "+(System.currentTimeMillis()-mid));
-//            System.out.println();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-    }
-
-    private static String query(String file, long pos, int length) throws IOException {
-        RandomAccessFile raf = randomAccessFileHashMap.get(file);
-        byte[] bytes = new byte[length];
-        if (raf == null) {
-            raf = new RandomAccessFile(file,"r");
-            randomAccessFileHashMap.put(file, raf);
         }
-        raf.seek(pos);
-        raf.read(bytes);
-        return new String(bytes);
+        return queryByIndex(indexCache);
     }
 
-    public static String queryByIndex(RecordIndex index) throws IOException {
-        return query(index.filePath, index.position, index.length);
+    public static OrderSystemImpl.Row queryBuyer(String id) {
+        RecordIndex indexCache = buyerIndexCache.get(id);
+        if (indexCache == null) {
+
+        }
+        return queryByIndex(indexCache);
     }
 
-    public String queryOrder(String orderId) throws IOException {
-//        String result = orderCache.get(orderId);
-//        if (result == null) {
-////            RecordIndex index = orderTree.get(orderId);
-////            result = queryByIndex(index);
-//            result = queryByIndex(orderMap.get(orderId));
-//            orderCache.put(orderId,result);
-//        }
-        return null;
+    public static OrderSystemImpl.Row queryGoods(String id) {
+        RecordIndex indexCache = goodsIndexCache.get(id);
+        if (indexCache == null) {
+
+        }
+        return queryByIndex(indexCache);
+    }
+
+    private static OrderSystemImpl.Row queryByIndex(RecordIndex index) {
+        return queryRow(index.filePath, index.position, index.length);
+    }
+
+    private static OrderSystemImpl.Row queryRow(String file, long pos, int length) {
+        byte[] bytes = new byte[length];
+        try {
+            RandomAccessFile raf = randomAccessFileHashMap.get(file);
+            if (raf == null) {
+                raf = new RandomAccessFile(file,"r");
+                randomAccessFileHashMap.put(file, raf);
+            }
+            raf.seek(pos);
+            raf.read(bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return OrderSystemImpl.createRow(new String(bytes));
     }
 }
