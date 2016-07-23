@@ -7,8 +7,10 @@ import java.io.IOException;
  */
 public class TmpTest {
     public static void main(String[] args) throws IOException {
-        String str = "1.1m,4,5.584m.56";
-        String[] srts = str.split("");
-        System.currentTimeMillis();
+        double a = 1.00;
+        String b = "1.520";
+        long c = Long.valueOf(b);
+        System.out.println(b.contains("."));
+        System.out.println(c);
     }
 }

@@ -181,6 +181,9 @@ public class OrderSystemImpl implements OrderSystem {
                 throw new RuntimeException("Bad data!");
             }
 
+            if (queryingKeys.size()==0)
+                return new ResultImpl(orderid, allkv);
+
             for (KV kv : orderData.values()) {
                 if (queryingKeys == null || queryingKeys.contains(kv.key)) {
                     allkv.put(kv.key(), kv);
@@ -386,6 +389,8 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
         Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
+        if (orderRow  == null)
+            return null;
         Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
         Row goodsRow = buyerTable.selectRowById(orderRow.get("goodid").valueAsString());
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<String>(keys));
@@ -395,7 +400,7 @@ public class OrderSystemImpl implements OrderSystem {
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
-            results.add(queryOrder(Long.valueOf(orderId),null)); // todo 没有给keys怎么办, 而且需要排序
+            results.add(queryOrder(Long.valueOf(orderId),null)); // todo 按照createtime大到小排列
         }
         return results.iterator();
     }
@@ -412,15 +417,50 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
         ArrayList<Result> results = new ArrayList<>();
-        double sum = 0;  // todo 求和的类型如何处理
-        try {
-            for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
-                Row orderRow = orderTable.selectRowById(orderId);
-                sum += orderRow.get(key).valueAsDouble();
+        List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
+        double sumDouble = 0;
+        long sumLong = 0;
+        boolean existKey = false;
+        boolean existDouble = false;
+        boolean existStr = false;
+        if (list == null)
+            return null;
+
+        for (String orderId : list) {
+            Row orderRow = orderTable.selectRowById(orderId); // todo 肯定不为空
+            KV kv = orderRow.get(key);
+            if (kv == null)
+                continue;
+            if (!existKey) {
+                existKey = true;
             }
-        } catch (TypeException e) {
-            e.printStackTrace();
+            try {
+                if (existDouble) {
+                    double tmp = kv.valueAsDouble();
+                    sumDouble += tmp;
+                } else {
+                    long tmp = kv.valueAsLong();
+                    sumLong += tmp;
+                }
+            } catch (TypeException e) {
+                if (!existDouble) { // 如果exitDoube为true, 上面肯定转型的是double，double转型失败必然为string
+                    try {
+                        double tmp = kv.valueAsDouble();
+                        sumDouble = tmp + sumLong;
+                        existDouble = true;
+                    } catch (TypeException e1) {
+                        e1.printStackTrace(); // 通过测试后可以删掉
+                    }
+                }
+                e.printStackTrace();
+                existStr = true;
+                break;
+            }
         }
-        return new KV(key,String.valueOf(sum));
+
+        if (existDouble) {
+            return new KV(key,String.valueOf(sumDouble));
+        }
+        return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 }
