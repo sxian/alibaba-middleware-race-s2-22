@@ -22,13 +22,6 @@ public class QueryProcessor {
     public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
     public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
 
-    // todo 貌似优化这个地方没卵用
-    public static final byte[] _05k = new byte[512];
-    public static final byte[] _1k = new byte[1024];
-    public static final byte[] _2k = new byte[1024*2];
-    public static final byte[] _4k = new byte[1024*4];
-    public static final byte[] _8k = new byte[1024*8];
-
     public static String queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);
         if (indexCache == null) {
