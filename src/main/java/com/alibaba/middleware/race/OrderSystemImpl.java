@@ -363,6 +363,9 @@ public class OrderSystemImpl implements OrderSystem {
         return kvMap;
     }
 
+    public static KV createKV(String key, String value) {
+        return new KV(key,value);
+    }
     private abstract class DataFileHandler {
         abstract void handleRow(String key, String[][] row) throws InterruptedException;
 
