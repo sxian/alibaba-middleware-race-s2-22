@@ -107,7 +107,7 @@ public class OrderSystemImplTest {
         HashMap<String,OrderSystemImpl.Row> map =new HashMap<>();
         for (int i = 0;i<rows.size();i++) {
             String key = rows.get(i).get(id).valueAsString();
-            OrderSystemImpl.Row row = table.selectRowById(key);
+            OrderSystemImpl.Row row = OrderSystemImpl.createRow(table.selectRowById(key));
             if (row!=null) {
                 map.put(key,row);
             }
