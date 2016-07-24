@@ -5,21 +5,21 @@ package com.alibaba.middleware.race;
  */
 public class RaceConfig {
 
-    public static final boolean ONLINE = false;
+    public static boolean ONLINE = false;
 
-    public static final String DATA_ROOT = "prerun_data/";
-    public static final String STORE_PATH = "t/";
+    public static String DATA_ROOT = "prerun_data/";
+    public static String STORE_PATH = "t/";
     // 保存排序完的订单数据
-    public static final String ORDER_SOTRED_STORE_PATH = "t/";
+    public static String ORDER_SOTRED_STORE_PATH = "t/";
 
-    public static final int ORDER_FILE_SIZE = 1;
-    public static final int ORDER_INDEX_FILE_SIZE = 1;
+    public static int ORDER_FILE_SIZE = 1;
+    public static int ORDER_INDEX_FILE_SIZE = 1;
 
-    public static final int BUYER_FILE_SIZE = 1;
-    public static final int BUYER_INDEX_FILE_SIZE = 1;
+    public static int BUYER_FILE_SIZE = 1;
+    public static int BUYER_INDEX_FILE_SIZE = 1;
 
-    public static final int GOODS_FILE_SIZE = 1;
-    public static final int GOODS_INDEX_FILE_SIZE  = 1;
+    public static int GOODS_FILE_SIZE = 1;
+    public static int GOODS_INDEX_FILE_SIZE  = 1;
     // 多少个文件对应一个数据队列，亦即一个线程处理多少个文件
-    public static final int CONSTRUCT_MOD_NUM = 3;
+    public static int CONSTRUCT_MOD_NUM = 3;
 }

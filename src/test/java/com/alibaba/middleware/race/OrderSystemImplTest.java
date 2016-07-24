@@ -38,7 +38,6 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
-
         OrderTable orderTable = new OrderTable();
         HashMap<String,OrderSystemImpl.Row> map = new HashMap<>();
         ArrayList<OrderSystemImpl.Row> rows = new ArrayList<>();

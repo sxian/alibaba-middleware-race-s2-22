@@ -50,7 +50,7 @@ public class IndexProcessor {
                         bplusTree.insertOrUpdate(keys[2]+keys[1],keys[0]+" ");
                     }
 
-//                    bplusTree.getRoot().writeToDisk(0,bw);
+                    bplusTree.getRoot().writeToDisk(0,bw);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -78,7 +78,7 @@ public class IndexProcessor {
                         bplusTree.insertOrUpdate(keys[1]+keys[0],keys[0]+" ");
                     }
 
-//                    bplusTree.getRoot().writeToDisk(0,bw);
+                    bplusTree.getRoot().writeToDisk(0,bw);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -110,7 +110,7 @@ public class IndexProcessor {
                             break;
                         }
                         String path = list.get(0);
-                        bw.write("file "+path+"\n");
+                        StringBuilder sb = new StringBuilder("file "+path+"\n");
                         TreeMap<Long,Long[]> treeMap = new TreeMap<>();
                         for (int i = 1;i<list.size();i++) {
                             String[] indexs = list.get(i).split(" ");
@@ -128,8 +128,9 @@ public class IndexProcessor {
                                     e.printStackTrace();
                                 }
                             }
-                            bw.write(list.get(i));
+                            sb.append(list.get(i));
                         }
+                        bw.write(sb.toString().toCharArray());
                         orderIndexs.put(path,treeMap);
                     }
                     bw.flush();

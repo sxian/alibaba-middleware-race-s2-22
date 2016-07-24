@@ -168,11 +168,7 @@ public class FileProcessor {
                                 indexProcessor.addBuyeridAndCreateTime(id, createtime, buyerid);
                                 indexProcessor.addGoodidToOrderid(id, goodid);
                             }
-                            if (set.contains(id)) {
-                                int i = 0;
-                            } else {
-                                set.add(id);
-                            }
+
                             int index = Math.abs(id.hashCode())%fileSize;
                             sbs[index].append(id).append("&").append(row[0][0]).append("\n");
                             if (count[index]++==200){
@@ -235,7 +231,8 @@ public class FileProcessor {
                             ArrayList<String> indexs = new ArrayList<String>();
                             indexs.add(path);
                             for (Node node : bplusTree.getRoot().getChildren()) {
-                                indexs.add(node.toString());
+                                for (Node _node : node.getChildren())
+                                    indexs.add(_node.toString());
                             }
                             queue.offer(indexs);
                         } else { // 买家订单数据不构建b+树，因为所有的索引放入内存了
