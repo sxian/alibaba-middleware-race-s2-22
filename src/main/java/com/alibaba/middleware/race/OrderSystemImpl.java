@@ -289,7 +289,19 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-
+        System.out.println("----------- orderFiles ------------");
+        for (String storePath : orderFiles) {
+            System.out.println("*** "+storePath+" ***");
+        }
+        System.out.println("----------- buyerFiles ------------");
+        for (String storePath : buyerFiles) {
+            System.out.println("*** "+storePath+" ***");
+        }
+        System.out.println("----------- goodFiles ------------");
+        for (String storePath : goodFiles) {
+            System.out.println("*** "+storePath+" ***");
+        }
+        System.out.println("----------- storeFolders ------------");
         for (String storePath : storeFolders) {
             System.out.println("*** "+storePath+" ***");
         }
