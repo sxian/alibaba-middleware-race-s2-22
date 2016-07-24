@@ -155,43 +155,43 @@ public class IndexProcessor {
 
     // buyer good 还是使用原来的索引
     public void createBuyerIndex(LinkedBlockingQueue<Object> queue) throws IOException {
-        createIndex(queue, Utils.createWriter(indexStorePath+"buyerIndex_0"));
+        createIndex(queue, 0);
+//        createIndex(queue, indexStorePath+"buyerIndex_0");
     }
 
     public void createGoodsIndex(LinkedBlockingQueue<Object> queue) throws IOException {
-        createIndex(queue, Utils.createWriter(indexStorePath+"goodsIndex_0"));
+        createIndex(queue, 1);
     }
 
-    private void createIndex(final LinkedBlockingQueue<Object> queue, final BufferedWriter bw) {
+    private void createIndex(final LinkedBlockingQueue<Object> queue, final int flag) throws IOException {
         threads.execute(new Runnable() {
             @Override
             public void run() {
                 long pos = 0;
                 try {
+                    int count = 0;
                     while (true) {
                             RecordIndex recordIndex = (RecordIndex) queue.take();
                             if (recordIndex.length == -1) {
                                 break;
                             }
-                            char[] chars = recordIndex.toString().toCharArray();
-                            int length = chars.length;
-
-                            bw.write(chars);
-                            pos += length;
+//                            char[] chars = recordIndex.toString().toCharArray();
+//                            int length = chars.length;
+                            QueryProcessor.addIndexCache(recordIndex,flag);
+//                            pos += length;
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
+                }catch (Exception e) {
                     e.printStackTrace();
                 } finally {
-                    try {
-                        if (bw!=null){
-                            bw.flush();
-                            bw.close();
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+//
+//                    try {
+//                        if (bw!=null){
+//                            bw.flush();
+//                            bw.close();
+//                        }
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
                     latch.countDown();
                 }
             }
@@ -200,32 +200,11 @@ public class IndexProcessor {
 
     public static BplusTree buildTree(List<String> files) throws IOException {
         BplusTree tree = new BplusTree(60);
-//        for (String file : files) {
-//            BufferedReader br = Utils.createReader(file);
-//            String line = br.readLine();
-//            while (line!=null) {
-//                Row row = OrderSystemImpl.createRow(line);
-//                tree.insertOrUpdate(row.get("orderid").valueAsString(),row);
-//                line = br.readLine();
-//                int a = 1;
-//            }
-//            br.close();
-//        }
         return tree;
     }
 
     public static HashMap<String,RecordIndex> buildIndexMap(List<String> files) throws IOException {
         HashMap<String,RecordIndex> map = new HashMap<>();
-//        for (String file : files) {
-//            BufferedReader br = Utils.createReader(file);
-//            String line = br.readLine();
-//            while (line!=null) {
-//                RecordIndex recordIndex = new RecordIndex(line);
-//                map.put(recordIndex.key,recordIndex);
-//                line = br.readLine();
-//            }
-//            br.close();
-//        }
         return map;
     }
     public void waitOver() throws InterruptedException {

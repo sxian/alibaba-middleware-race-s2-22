@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Created by sxian.wang on 2016/7/21.
  */
-public class OrderTable {
+public class OrderTable implements Table {
     public LRUCache<String, String> rowCache; // todo 计算一个entry的大小
 
     public OrderTable() {

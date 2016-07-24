@@ -15,15 +15,23 @@ public class QueryProcessor {
     // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗
     private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
 
-    private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000);
-    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(100000); // 这两个貌似是1000万条，看下内存占用
-    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(100000);
+    private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
+    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(100000); // buyerid 800w 看下内存占用
+    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(100000); // goodid 400w
 
     public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
     public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
 
+    public static void addIndexCache(RecordIndex index, int flag) {
+        if (flag == 0) {
+            buyerIndexCache.put(index.key,index);
+        } else {
+            goodsIndexCache.put(index.key,index);
+        }
+    }
+
     public static String queryOrder(String id) {
-        RecordIndex indexCache = orderIndexCache.get(id);
+        RecordIndex indexCache = orderIndexCache.get(id);  // todo orderid的索引缓存是有问题的，和rawdata重叠了
         if (indexCache == null) {
             String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
             long orderid = Long.valueOf(id);
