@@ -289,23 +289,6 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-        System.out.println("----------- orderFiles ------------");
-        for (String storePath : orderFiles) {
-            System.out.println("*** "+storePath+" ***");
-        }
-        System.out.println("----------- buyerFiles ------------");
-        for (String storePath : buyerFiles) {
-            System.out.println("*** "+storePath+" ***");
-        }
-        System.out.println("----------- goodFiles ------------");
-        for (String storePath : goodFiles) {
-            System.out.println("*** "+storePath+" ***");
-        }
-        System.out.println("----------- storeFolders ------------");
-        for (String storePath : storeFolders) {
-            System.out.println("*** "+storePath+" ***");
-        }
-
         for (String storePath : storeFolders) {
             if (!storePath.endsWith("/")) {
                 RaceConfig.STORE_PATH = storePath + "/";
@@ -365,7 +348,6 @@ public class OrderSystemImpl implements OrderSystem {
     }
 
     public static Row createRow(String line) {
-        System.out.println("create row");
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {
@@ -431,14 +413,14 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        System.out.println("query order");
         Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
         if (orderRow  == null)
             return null;
-        System.out.println("query buyer");
         Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
-        System.out.println("query goods");
         Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
+        if (keys == null) {
+            return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
+        }
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
