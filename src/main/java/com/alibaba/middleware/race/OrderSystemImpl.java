@@ -289,6 +289,21 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
+
+        for (String storePath : storeFolders) {
+            System.out.println("*** "+storePath+" ***");
+        }
+
+        for (String storePath : storeFolders) {
+            if (!storePath.endsWith("/")) {
+                RaceConfig.STORE_PATH = storePath + "/";
+                RaceConfig.ORDER_SOTRED_STORE_PATH = storePath+ "/";
+            } else {
+                RaceConfig.STORE_PATH = storePath;
+                RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
+            }
+            break;
+        }
         int modNum = RaceConfig.CONSTRUCT_MOD_NUM;
         orderQueueNum = orderFiles.size()/modNum+1;
         buyerQueueNum = buyerFiles.size()/modNum+1;
