@@ -1,5 +1,6 @@
 package com.alibaba.middleware.race.db;
 
+import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.OrderSystemImpl.Row;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
@@ -10,19 +11,19 @@ import java.util.List;
  * Created by sxian.wang on 2016/7/21.
  */
 public class OrderTable {
-    public LRUCache<String, Row> rowCache; // todo 计算一个entry的大小
+    public LRUCache<String, String> rowCache; // todo 计算一个entry的大小
 
     public OrderTable() {
         rowCache = new LRUCache<>(400000);
     }
 
-    public Row selectRowById(String id) {
-        Row row = rowCache.get(id);
+    public OrderSystemImpl.Row selectRowById(String id) {
+        String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryOrder(id);
-//            if (row!=null) rowCache.put(id, row);
+            if (row!=null) rowCache.put(id, row);
         }
-        return row;
+        return OrderSystemImpl.createRow(row);
     }
 
 

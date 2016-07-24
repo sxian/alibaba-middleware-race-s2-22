@@ -25,6 +25,7 @@ public class IndexProcessor {
     private String indexStorePath = RaceConfig.STORE_PATH+"index/";
 
     private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
+    private HashMap<String, Long[]> orderIndexsKeys = QueryProcessor.filesIndexKey;
     private final LinkedBlockingQueue<String[]> buyerid_create_order_queue = new LinkedBlockingQueue<>();
     private final LinkedBlockingQueue<String[]> goodid_orderid_queue = new LinkedBlockingQueue<>();
 
@@ -132,6 +133,12 @@ public class IndexProcessor {
                         }
                         bw.write(sb.toString().toCharArray());
                         orderIndexs.put(path,treeMap);
+                        Object[] objects =  treeMap.keySet().toArray();
+                        Long[] keys = new Long[objects.length];
+                        for (int i = 0;i<objects.length;i++) {
+                            keys[i]= (Long) objects[i];
+                        }
+                        orderIndexsKeys.put(path, keys);
                     }
                     bw.flush();
                     bw.close();

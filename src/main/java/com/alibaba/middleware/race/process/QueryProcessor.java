@@ -6,10 +6,7 @@ import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.RandomAccessFile;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -23,6 +20,7 @@ public class QueryProcessor {
     private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(100000);
 
     public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
+    public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
 
     // todo 貌似优化这个地方没卵用
     public static final byte[] _05k = new byte[512];
@@ -31,27 +29,28 @@ public class QueryProcessor {
     public static final byte[] _4k = new byte[1024*4];
     public static final byte[] _8k = new byte[1024*8];
 
-    public static OrderSystemImpl.Row queryOrder(String id) {
+    public static String queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);
         if (indexCache == null) {
             String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            Map.Entry<Long,Long[]> preEntry = null;
             long orderid = Long.valueOf(id);
-            for (Map.Entry<Long,Long[]> entry : filesIndex.get(path).entrySet()) { // long是啥 todo 线性查找太慢，改算法
-                if (preEntry== null) {
-                    if (entry.getKey() > orderid) {
-                        return queryRowByBPT(path,orderid,entry.getValue()[0],
-                                Integer.valueOf(entry.getValue()[1].toString()));
-                    }
-                } else {
-                    if (preEntry.getKey() <= orderid && entry.getKey() > orderid) {
-                        return queryRowByBPT(path, orderid,preEntry.getValue()[0],
-                                Integer.valueOf(preEntry.getValue()[1].toString()));
-                    }
-                }
-                preEntry = entry;
+
+            Long[] idKeys = filesIndexKey.get(path);
+            if (idKeys==null) {
+                idKeys = (Long[]) filesIndex.get(path).keySet().toArray();
+                filesIndexKey.put(path, idKeys);
             }
-            return queryRowByBPT(path, orderid, preEntry.getValue()[0],Integer.valueOf(preEntry.getValue()[1].toString()));
+
+            long key;
+            if (orderid<idKeys[0]) {
+                key = idKeys[0];
+            } else if(orderid>idKeys[idKeys.length-1]) {
+                key = idKeys[idKeys.length-1];
+            } else {
+                key = binarySearch(idKeys,orderid);
+            }
+            Long[] pos = filesIndex.get(path).get(key);
+            return queryRowByBPT(path, orderid, pos[0],Integer.valueOf(String.valueOf(pos[1])));
         }
         return queryByIndex(indexCache);
     }
@@ -67,7 +66,7 @@ public class QueryProcessor {
     }
 
     // buyer和goods的索引全在内存里面。
-    public static OrderSystemImpl.Row queryBuyer(String id) {
+    public static String queryBuyer(String id) {
         RecordIndex indexCache = buyerIndexCache.get(id);
         if (indexCache == null) {
             throw new RuntimeException("buyerid index error");
@@ -75,7 +74,7 @@ public class QueryProcessor {
         return queryByIndex(indexCache);
     }
 
-    public static OrderSystemImpl.Row queryGoods(String id) {
+    public static String queryGoods(String id) {
         RecordIndex indexCache = goodsIndexCache.get(id);
         if (indexCache == null) {
             throw new RuntimeException("goodsid index error");
@@ -83,11 +82,11 @@ public class QueryProcessor {
         return queryByIndex(indexCache);
     }
 
-    private static OrderSystemImpl.Row queryByIndex(RecordIndex index) {
+    private static String queryByIndex(RecordIndex index) {
         return queryRow(index.filePath, index.position, index.length);
     }
 
-    private static OrderSystemImpl.Row queryRow(String file, long pos, int length) {
+    private static String queryRow(String file, long pos, int length) {
         byte[] bytes = new byte[length];
         try {
             RandomAccessFile raf = randomAccessFileHashMap.get(file);
@@ -100,10 +99,11 @@ public class QueryProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return OrderSystemImpl.createRow(new String(bytes));
+        return new String(bytes);
     }
 
-    private static OrderSystemImpl.Row queryRowByBPT(String file, long orderid, long pos, int length) {
+    private static String queryRowByBPT(String file, long orderid, long pos, int length) {
+
         byte[] bytes = new byte[length];
         boolean findRow = false;
         int rowLen = 0;
@@ -174,7 +174,27 @@ public class QueryProcessor {
             e.printStackTrace();
         }
 
-        return findRow ? OrderSystemImpl.createRow(new String(bytes,0,rowLen)) : null;
+        return findRow ? new String(bytes,0,rowLen) : null;
     }
 
+    public static long binarySearch(Long[] data, long key) {
+        int min, max, mid;
+        min = 0;
+        max = data.length - 1;
+        while(!((max-min)== 1)){
+            mid = (min + max) / 2;
+            if(key < data[mid]){
+                max = mid;  // 因为不清楚data[mid-1]是不是满足 key<data[mid-1],可能存在key>=data[min+1]的情况
+            }else if (key > data[mid]){
+                min = mid;  // 因为不清楚data[mid+1]是不是满足 key>=data[mid+1],可能存在data[min+1]>key的情况
+            }else if(key == data[mid]){
+                return data[mid];
+            }
+        }
+
+        if (data[max] <= key) {
+            return data[max];
+        }
+        return data[min];
+    }
 }
