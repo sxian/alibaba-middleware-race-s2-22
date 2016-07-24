@@ -365,6 +365,7 @@ public class OrderSystemImpl implements OrderSystem {
     }
 
     public static Row createRow(String line) {
+        System.out.println("create row");
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {
@@ -430,10 +431,13 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
+        System.out.println("query order");
         Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
         if (orderRow  == null)
             return null;
+        System.out.println("query buyer");
         Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+        System.out.println("query goods");
         Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
