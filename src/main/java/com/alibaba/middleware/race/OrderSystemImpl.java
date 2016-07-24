@@ -175,6 +175,7 @@ public class OrderSystemImpl implements OrderSystem {
                 throw new RuntimeException("Bad data!");
             }
             Row allkv = new Row();
+
             long orderid;
             try {
                 orderid = orderData.get("orderid").valueAsLong();
@@ -182,7 +183,7 @@ public class OrderSystemImpl implements OrderSystem {
                 throw new RuntimeException("Bad data!");
             }
 
-            if (queryingKeys.size()==0)
+            if (queryingKeys!=null && queryingKeys.size()==0)
                 return new ResultImpl(orderid, allkv);
 
             for (KV kv : orderData.values()) {
@@ -413,7 +414,7 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
         String orderRowStr = orderTable.selectRowById(String.valueOf(orderId));
-
+        // todo 官方的借口demo改了一下，方便build result 看着改下
         if (orderRowStr  == null)
             return null;
         Row orderRow = createRow(orderRowStr);
