@@ -1,7 +1,6 @@
 package com.alibaba.middleware.race.db;
 
 import com.alibaba.middleware.race.OrderSystemImpl;
-import com.alibaba.middleware.race.OrderSystemImpl.Row;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
 

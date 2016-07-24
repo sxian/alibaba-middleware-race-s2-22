@@ -415,7 +415,7 @@ public class OrderSystemImpl implements OrderSystem {
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
-            results.add(queryOrder(Long.valueOf(orderId),null)); // todo 按照createtime大到小排列
+            results.add(queryOrder(Long.valueOf(orderId.split(",")[1]),null));
         }
         return results.iterator();
     }

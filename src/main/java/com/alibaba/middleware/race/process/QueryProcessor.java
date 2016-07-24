@@ -1,12 +1,10 @@
 package com.alibaba.middleware.race.process;
 
-import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.RandomAccessFile;
-import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -101,12 +99,19 @@ public class QueryProcessor {
                 String[] kv = str.split(",");
                 long time = Long.valueOf(kv[1]);
                 if (time>= start && time < end){
-                    newList.add(str); // 因为要按时间排序，所以返回有序的结果
+                    // todo 在处理文件数据的时候换下位置
+                    newList.add(kv[1]+","+kv[0]); // 因为要按时间排序，所以返回有序的结果 -> 不能光添加订单，否则会按照订单排序
                 }
             }
-            Collections.sort(newList);
+            Collections.sort(newList, new Comparator<String>() {
+                @Override
+                public int compare(String o1, String o2) {
+                    return -(o1.compareTo(o2));
+                }
+            });
             return newList;
         }
+        Collections.sort(newList);  // 光有订单id, 按照订单id升序排列(从小到大)
         return orderList;
     }
 

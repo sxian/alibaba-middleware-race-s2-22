@@ -117,7 +117,7 @@ public interface OrderSystem {
      * @param endTime 订单创建时间的上界
      * @param buyerid
      *          买家Id
-     * @return 符合条件的订单集合，按照createtime大到小排列
+     * @return 符合条件的订单集合，按照createtime大到小排列 todo 检查顺序
      */
     Iterator<Result> queryOrdersByBuyer(long startTime, long endTime,
                                         String buyerid);
