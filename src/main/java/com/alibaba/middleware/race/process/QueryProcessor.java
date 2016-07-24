@@ -20,9 +20,11 @@ public class QueryProcessor {
     private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
     private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(4000000); // goodid 400w
 
+    // todo 不同文件的B+树索引能否合并
     public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
     public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
 
+    // 把所有的索引使用的B+树的前提是B+树中有所有的信息节点
     public static TreeMap<String,Long[]>  buyerOrderFilesIndex = new TreeMap<>();
     public static ArrayList<String> buyerOrderFilesIndexKey = new ArrayList<>();
 
@@ -75,21 +77,35 @@ public class QueryProcessor {
 
     public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
                                                String id, Long start, Long end){
-        String key;
-        if (id.compareTo(list.get(0)) < 0) {
-            key = list.get(0);
-        } else if(id.compareTo(list.get(list.size()-1)) > 0) {
-            key = list.get(list.size()-1);
-        } else {
-            key = binarySearchString(list, id);
+//        String key;
+//        if (id.compareTo(list.get(0)) < 0) {
+//            key = list.get(0);
+//        } else if(id.compareTo(list.get(list.size()-1)) > 0) {
+//            key = list.get(list.size()-1);
+//        } else {
+//            key = binarySearchString(list, id);
+//        }
+        Long[] pos = map.get(id);
+        if (pos == null) {
+            throw new RuntimeException("range query order id error");
         }
-        Long[] pos = map.get(key);
-        String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
 
+        String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
+        if (result == null) {
+            return null;
+        }
         List<String> orderList = Arrays.asList(result.split(" "));
+        List<String> newList = new ArrayList<>();
         if (start != null) {
-            TreeSet<String> set = new TreeSet<>(orderList);
-            return new ArrayList<>(set.subSet(String.valueOf(start),String.valueOf(end)));  // 默认前闭后开
+            for (String str : orderList) {  // orderList 是无序的
+                String[] kv = str.split(",");
+                long time = Long.valueOf(kv[1]);
+                if (time>= start && time < end){
+                    newList.add(str); // 因为要按时间排序，所以返回有序的结果
+                }
+            }
+            Collections.sort(newList);
+            return newList;
         }
         return orderList;
     }
@@ -244,7 +260,7 @@ public class QueryProcessor {
                             preIndexPos = indexPos;
                         }
                     }
-                } else {
+                } else if (bIndexs[0].equals("1")){
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
                         if (rowPos[0].equals(id)) {
@@ -259,6 +275,8 @@ public class QueryProcessor {
                         }
                     }
                     break;
+                } else {
+                    return new String(bytes,0,length);
                 }
                 if (length > bytes.length) {
                     bytes = new byte[length];
@@ -311,5 +329,4 @@ public class QueryProcessor {
         }
         return data.get(min);
     }
-
 }

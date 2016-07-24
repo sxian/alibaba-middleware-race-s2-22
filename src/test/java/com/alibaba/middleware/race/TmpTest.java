@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,11 +16,13 @@ import java.util.regex.Pattern;
  */
 public class TmpTest {
     public static void main(String[] args) throws IOException {
-//        RandomAccessFile raf = new RandomAccessFile("t/oS0","r");
-//        raf.seek(32597922);
-//        byte[] bytes = new byte[187];
-//        raf.read(bytes);
-//        System.out.println(new String(bytes));
+        RandomAccessFile raf = new RandomAccessFile("t/buyerid_create_order","r");
+        String st1 = "";
+
+        raf.seek(5475486); // ap-804e-6f1c7d177abd,25468,470
+        byte[] bytes = new byte[4284];
+        raf.read(bytes);
+        System.out.println(new String(bytes));
 
 //        String str = "orderid:592084336\tcreatetime:1470982941\tbuyerid:ap-a3a3-4dc3d77d2a79\tgoodid:dd-a6b7-d85a6829f798\tamount:17\tdone:true\ta_o_4699:8495\ta_o_7517:true\ta_o_15325:0.74\ta_o_22304:0.4\ta_o_12368:true";
 //        String reg = "(orderid|buyerid|goodid|createtime):([\\w|-]+)";
@@ -32,6 +35,8 @@ public class TmpTest {
 //            System.out.println("***********");
 //        }
 
-        System.out.println(9/10);
+//        System.out.println(9/10);
     }
+
+
 }

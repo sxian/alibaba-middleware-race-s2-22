@@ -222,22 +222,25 @@ public class IndexProcessor {
     // 设置辅助索引
     public void setCache(BplusTree bplusTree,TreeMap<String,Long[]> tree,ArrayList<String> list) {
         for (Node node : bplusTree.getRoot().getChildren()) {
-            for (Node _node : node.getChildren()) {
-                String[] indexs = _node.toString().split(" ");
-                for (int j = 1;j<indexs.length;j++) {
-                    try {
-                        if (indexs[j].equals("\n")) {
-                            continue;// 线上可以删了
+                for (Node _node : node.getChildren()) {
+                    // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
+                    // 所以在二次对叶子节点toString的时候，会偏移叶子节点的length长度个单位，这是因为writeToDisk方法
+                    // 被调用后pos被更新为输出所有entries以及自身后的长度
+                    String[] indexs = _node.toString().split(" ");
+                    for (int j = 1;j<indexs.length;j++) {
+                        try {
+                            if (indexs[j].equals("\n")) {
+                                continue;// 线上可以删了
+                            }
+                            String[] index = indexs[j].split(",");
+                            tree.put(index[0],new Long[]{Long.valueOf(index[1]),
+                                    Long.valueOf(index[2])});
+                            list.add(index[0]);
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                        String[] index = indexs[j].split(",");
-                        tree.put(index[0],new Long[]{Long.valueOf(index[1]),
-                                Long.valueOf(index[2])});
-                        list.add(index[0]);
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
                 }
-            }
         }
     }
 

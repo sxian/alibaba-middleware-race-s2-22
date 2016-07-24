@@ -44,6 +44,9 @@ public class Node {
     /* 文件位置偏移量 -> 起始处 */
     long pos;
 
+    /* 未输出raw data时的长度，即起始*/
+    long startPos;
+
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
         entries = new ArrayList<>();
@@ -606,7 +609,7 @@ public class Node {
     }
     public long writeToDisk(long position, BufferedWriter bw) throws IOException {
         if (isLeaf) {
-            pos = position; // 没有输出前的位置
+            startPos = position; // 没有输出前的位置
             long entryLen = 0;
             StringBuilder sb = new StringBuilder();
             for (Entry<Comparable, String> entry : entries) {
@@ -640,7 +643,7 @@ public class Node {
             int offset = 0;
             for (int i = 0;i<entries.size();i++) {
                 int rowLen = entries.get(i).getValue().toString().getBytes().length;
-                sb.append(entries.get(i).getKey()).append(",").append(pos+offset).append(",") // orderid,pos,length
+                sb.append(entries.get(i).getKey()).append(",").append(startPos+offset).append(",") // orderid,pos,length
                         .append(rowLen).append(" ");
                 offset += rowLen;
             }
