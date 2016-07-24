@@ -8,7 +8,7 @@ import com.alibaba.middleware.race.process.QueryProcessor;
  * Created by sxian.wang on 2016/7/21.
  */
 public class GoodsTable {
-    private LRUCache<String, OrderSystemImpl.Row> rowCache; // todo 计算一个entry的大小
+    private LRUCache<String, OrderSystemImpl.Row> rowCache;
 
     public GoodsTable() {
         rowCache = new LRUCache<>(100000);

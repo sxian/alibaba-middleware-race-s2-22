@@ -372,7 +372,7 @@ public class OrderSystemImpl implements OrderSystem {
                                 String id = "";
                                 strings[0][0] = line;
                                 int i = 1;
-                                while (matcher.find()) { // todo 能不能直接把这些东西传过去
+                                while (matcher.find()) {
                                     strings[i][0] = matcher.group(1);
                                     strings[i][1] = matcher.group(2);
                                     if (strings[i][0].equals(key)) {

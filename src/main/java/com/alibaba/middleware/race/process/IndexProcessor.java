@@ -65,7 +65,7 @@ public class IndexProcessor {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                String path = RaceConfig.STORE_PATH+"goodid_orderid"; // todo 要构建B+树，这个地方应该是拆分的，如果要拆分，在放入队列的时候拆
+                String path = RaceConfig.STORE_PATH+"goodid_orderid"; // todo 要构建B+树，这个地方应该是拆分的，如果要拆分，在放入队列的时候拆 -> 线上数据很大
                 BufferedWriter bw;
                 try {
                     bw = Utils.createWriter(path);
@@ -167,7 +167,6 @@ public class IndexProcessor {
                                 break;
                             }
                             char[] chars = recordIndex.toString().toCharArray();
-                            String key = recordIndex.key;
                             int length = chars.length;
 
                             bw.write(chars);
@@ -210,16 +209,16 @@ public class IndexProcessor {
 
     public static HashMap<String,RecordIndex> buildIndexMap(List<String> files) throws IOException {
         HashMap<String,RecordIndex> map = new HashMap<>();
-        for (String file : files) {
-            BufferedReader br = Utils.createReader(file);
-            String line = br.readLine();
-            while (line!=null) {
-                RecordIndex recordIndex = new RecordIndex(line);
-                map.put(recordIndex.key,recordIndex);
-                line = br.readLine();
-            }
-            br.close();
-        }
+//        for (String file : files) {
+//            BufferedReader br = Utils.createReader(file);
+//            String line = br.readLine();
+//            while (line!=null) {
+//                RecordIndex recordIndex = new RecordIndex(line);
+//                map.put(recordIndex.key,recordIndex);
+//                line = br.readLine();
+//            }
+//            br.close();
+//        }
         return map;
     }
     public void waitOver() throws InterruptedException {
