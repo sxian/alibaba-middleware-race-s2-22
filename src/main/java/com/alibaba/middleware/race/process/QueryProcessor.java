@@ -146,17 +146,22 @@ public class QueryProcessor {
                         }
                     }
                 } else {
+
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
-                        if (Long.valueOf(rowPos[0])==orderid) {
-                            raf.seek(Long.valueOf(rowPos[1]));
-                            rowLen = Integer.valueOf(rowPos[2]);
-                            if (rowLen > bytes.length) {
-                                bytes = new byte[rowLen];
+                        try {
+                            if (Long.valueOf(rowPos[0])==orderid) {
+                                raf.seek(Long.valueOf(rowPos[1]));
+                                rowLen = Integer.valueOf(rowPos[2]);
+                                if (rowLen > bytes.length) {
+                                    bytes = new byte[rowLen];
+                                }
+                                raf.read(bytes,0,rowLen);
+                                findRow = true;
+                                break;
                             }
-                            raf.read(bytes,0,rowLen);
-                            findRow = true;
-                            break;
+                        } catch (Exception e) {
+                            int a =0;
                         }
                     }
                     break;

@@ -608,17 +608,15 @@ public class Node {
         if (isLeaf) {
             pos = position; // 没有输出前的位置
             long entryLen = 0;
+            StringBuilder sb = new StringBuilder();
             for (Entry<Comparable, String> entry : entries) {
-                String row = entry.getValue().toString();
-                entryLen += row.getBytes().length;
-                bw.write(row.toCharArray());
+                sb.append(entry.getValue());
+                entryLen += entry.getValue().getBytes().length;
             }
             length = toString().getBytes().length;
-            bw.write(toString().toCharArray()); // 把数据写进去
+            sb.append(toString());
+            bw.write(sb.toString().toCharArray()); // 把数据写进去
             pos = position + entryLen;
-            if ((entryLen+length)==0) {
-                int a = 1;
-            }
             return entryLen+length; // 子节点只需要把entries的数据弄好就行，所以返回length
         }
 
@@ -632,9 +630,6 @@ public class Node {
         pos = position+chindernPos; // 所有的节点位置应该是子节点的长度加上上面传的长度 -> 内部节点同一级的children后面的加上前面的
         bw.write(toString().toCharArray());
         length = toString().getBytes().length;
-        if ((chindernPos+length)==0) {
-            int a = 1;
-        }
         return chindernPos+length;
     }
 

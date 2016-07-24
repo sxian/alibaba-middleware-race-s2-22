@@ -129,6 +129,12 @@ public class FileProcessor {
             threads.execute(new Runnable() {
                 @Override
                 public void run() {
+                    StringBuilder[] sbs = new StringBuilder[fileSize];
+                    int[] count = new int[fileSize];
+                    for (int i = 0;i<fileSize;i++) {
+                        sbs[i] = new StringBuilder();
+                        count[i] = 0;
+                    }
                     try {
                         while (true) {
                             OrderSystemImpl.Row row = queue.take();
@@ -142,7 +148,15 @@ public class FileProcessor {
                                 indexProcessor.addGoodidToOrderid(row.get("orderid").valueAsString(),
                                         row.get("goodid").valueAsString());
                             }
-                            writers[index].write(row.get(key).valueAsString()+"&"+row.toString());
+                            sbs[index].append(row.get(key).valueAsString()+"&"+row.toString());
+                            if (count[index]++==200){
+                                writers[index].write(sbs[index].toString());
+                                count[index] = 0;
+                                sbs[index].delete(0,sbs[index].length());
+                            }
+                        }
+                        for (int i = 0;i<sbs.length;i++) {
+                            writers[i].write(sbs[i].toString().toCharArray());
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -203,13 +217,14 @@ public class FileProcessor {
                                 indexs.add(node.toString());
                             }
                             queue.offer(indexs);
-                        } else {
+                        } else { // 买家订单数据不构建b+树，因为所有的索引放入内存了
                             long pos = 0;
                             String path = prefixPath+"S"+index;
                             bw = Utils.createWriter(path);
                             Set<Map.Entry<String,String>> entrySet = treeMap.entrySet();
+                            StringBuilder sb = new StringBuilder();
+                            int count = 0;
                             for (Map.Entry<String,String> entry : entrySet) {
-                                char[] chars = entry.getValue().toCharArray();
                                 String key = entry.getKey();
                                 int length = entry.getValue().getBytes().length;
                                 if (flag) {
@@ -218,8 +233,14 @@ public class FileProcessor {
                                 }
                                 queue.offer(new RecordIndex(path,key,pos,length));
                                 pos += length;
-                                bw.write(chars);
+                                sb.append(entry.getValue());
+                                if (count++==200){
+                                    bw.write(sb.toString().toCharArray());
+                                    sb.delete(0,sb.length());
+                                    count = 0;
+                                }
                             }
+                            bw.write(sb.toString().toCharArray());
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
