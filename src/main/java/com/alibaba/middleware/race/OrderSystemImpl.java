@@ -45,7 +45,6 @@ public class OrderSystemImpl implements OrderSystem {
     private BuyerTable buyerTable;
     private GoodsTable goodsTable;
 
-
     public OrderSystemImpl() {
         fileProcessor = new FileProcessor();
 //        orderTree = fileProcessor.orderTree;
@@ -413,11 +412,13 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
-        if (orderRow  == null)
+        String orderRowStr = orderTable.selectRowById(String.valueOf(orderId));
+
+        if (orderRowStr  == null)
             return null;
-        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
-        Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
+        Row orderRow = createRow(orderRowStr);
+        Row buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
+        Row goodsRow = createRow(goodsTable.selectRowById(orderRow.get("goodid").valueAsString()));
         if (keys == null) {
             return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
         }
@@ -455,7 +456,7 @@ public class OrderSystemImpl implements OrderSystem {
             return null;
 
         for (String orderId : list) {
-            Row orderRow = orderTable.selectRowById(orderId); // todo 肯定不为空
+            Row orderRow = createRow(orderTable.selectRowById(orderId)); // todo 肯定不为空
             KV kv = orderRow.get(key);
             if (kv == null)
                 continue;

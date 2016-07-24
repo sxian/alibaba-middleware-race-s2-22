@@ -16,13 +16,13 @@ public class OrderTable implements Table {
         rowCache = new LRUCache<>(400000);
     }
 
-    public OrderSystemImpl.Row selectRowById(String id) {
+    public String selectRowById(String id) {
         String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryOrder(id);
             if (row!=null) rowCache.put(id, row);
         }
-        return OrderSystemImpl.createRow(row);
+        return row;
     }
 
 

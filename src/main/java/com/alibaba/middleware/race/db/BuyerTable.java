@@ -14,12 +14,12 @@ public class BuyerTable implements Table {
         rowCache = new LRUCache<>(100000);
     }
 
-    public OrderSystemImpl.Row selectRowById(String id) {
+    public String selectRowById(String id) {
         String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryBuyer(id);
             if (row!=null) rowCache.put(id, row);
         }
-        return OrderSystemImpl.createRow(row);
+        return row;
     }
 }

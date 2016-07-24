@@ -8,5 +8,5 @@ import com.alibaba.middleware.race.cache.LRUCache;
  */
 public interface Table {
     LRUCache<String, OrderSystemImpl.Row> rowCache = null;
-    OrderSystemImpl.Row selectRowById(String id);
+    String selectRowById(String id);
 }
