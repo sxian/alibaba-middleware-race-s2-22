@@ -6,6 +6,7 @@ import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.RandomAccessFile;
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -16,11 +17,17 @@ public class QueryProcessor {
     private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
 
     private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
-    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(100000); // buyerid 800w 看下内存占用
-    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(100000); // goodid 400w
+    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
+    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(4000000); // goodid 400w
 
     public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
     public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
+
+    public static TreeMap<String,Long[]>  buyerOrderFilesIndex = new TreeMap<>();
+    public static ArrayList<String> buyerOrderFilesIndexKey = new ArrayList<>();
+
+    public static TreeMap<String,Long[]>  goodsOrderFilesIndex = new TreeMap<>();
+    public static ArrayList<String> goodsOrderFilesIndexKey = new ArrayList<>();
 
     public static void addIndexCache(RecordIndex index, int flag) {
         if (flag == 0) {
@@ -57,13 +64,34 @@ public class QueryProcessor {
     }
 
     public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) {
-        // todo
-        return null;
+        String path = RaceConfig.STORE_PATH+"buyerid_create_order";
+        return queryRangeOrder(buyerOrderFilesIndex,buyerOrderFilesIndexKey,path,buyerid,start,end);
     }
 
     public static List<String> queryOrderidsByGoodsid(String goodid) {
-        // todo
-        return null;
+        String path = RaceConfig.STORE_PATH+"goodid_orderid";
+        return queryRangeOrder(goodsOrderFilesIndex,goodsOrderFilesIndexKey,path,goodid,null,null);
+    }
+
+    public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
+                                               String id, Long start, Long end){
+        String key;
+        if (id.compareTo(list.get(0)) < 0) {
+            key = list.get(0);
+        } else if(id.compareTo(list.get(list.size()-1)) > 0) {
+            key = list.get(list.size()-1);
+        } else {
+            key = binarySearchString(list, id);
+        }
+        Long[] pos = map.get(key);
+        String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
+
+        List<String> orderList = Arrays.asList(result.split(" "));
+        if (start != null) {
+            TreeSet<String> set = new TreeSet<>(orderList);
+            return new ArrayList<>(set.subSet(String.valueOf(start),String.valueOf(end)));  // 默认前闭后开
+        }
+        return orderList;
     }
 
     // buyer和goods的索引全在内存里面。
@@ -103,8 +131,8 @@ public class QueryProcessor {
         return new String(bytes);
     }
 
+    // todo 可以用queryRowStringByBPT替代queryRowByBPT
     private static String queryRowByBPT(String file, long orderid, long pos, int length) {
-
         byte[] bytes = new byte[length];
         boolean findRow = false;
         int rowLen = 0;
@@ -147,22 +175,17 @@ public class QueryProcessor {
                         }
                     }
                 } else {
-
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
-                        try {
-                            if (Long.valueOf(rowPos[0])==orderid) {
-                                raf.seek(Long.valueOf(rowPos[1]));
-                                rowLen = Integer.valueOf(rowPos[2]);
-                                if (rowLen > bytes.length) {
-                                    bytes = new byte[rowLen];
-                                }
-                                raf.read(bytes,0,rowLen);
-                                findRow = true;
-                                break;
+                        if (Long.valueOf(rowPos[0])==orderid) {
+                            raf.seek(Long.valueOf(rowPos[1]));
+                            rowLen = Integer.valueOf(rowPos[2]);
+                            if (rowLen > bytes.length) {
+                                bytes = new byte[rowLen];
                             }
-                        } catch (Exception e) {
-                            int a =0;
+                            raf.read(bytes,0,rowLen);
+                            findRow = true;
+                            break;
                         }
                     }
                     break;
@@ -175,6 +198,75 @@ public class QueryProcessor {
             e.printStackTrace();
         }
 
+        return findRow ? new String(bytes,0,rowLen) : null;
+    }
+
+    private static String queryRowStringByBPT(String file, String id, long pos, int length) {
+        byte[] bytes = new byte[length];
+        boolean findRow = false;
+        int rowLen = 0;
+        try {
+            RandomAccessFile raf = randomAccessFileHashMap.get(file);
+            if (raf == null) {
+                raf = new RandomAccessFile(file,"r");
+                randomAccessFileHashMap.put(file, raf);
+            }
+            while (!findRow) {
+                raf.seek(pos);
+                raf.read(bytes);
+                String[] bIndexs = new String(bytes,0,length).split(" ");
+
+                if (bIndexs[0].equals("0")) {
+                    boolean findIndex = false;
+                    String[] preIndexPos = bIndexs[1].split(",");
+                    if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
+                        pos = Long.valueOf(preIndexPos[1]);
+                        length = Integer.valueOf(preIndexPos[2]);
+                        continue;
+                    }
+                    if (!findIndex) {
+                        for (int i = 1; i<bIndexs.length-1;i++) {
+                            String[] indexPos = bIndexs[i+1].split(",");
+                            if (i==bIndexs.length-2) {
+                                if (id.compareTo(preIndexPos[0]) < 0) {
+                                    throw new RuntimeException("compare error");
+                                }
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
+                                break;
+                            }
+
+                            if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
+                                break;
+                            }
+                            preIndexPos = indexPos;
+                        }
+                    }
+                } else {
+                    for (int i = 1; i<bIndexs.length;i++) {
+                        String[] rowPos = bIndexs[i].split(",");
+                        if (rowPos[0].equals(id)) {
+                            raf.seek(Long.valueOf(rowPos[1]));
+                            rowLen = Integer.valueOf(rowPos[2]);
+                            if (rowLen > bytes.length) {
+                                bytes = new byte[rowLen];
+                            }
+                            raf.read(bytes,0,rowLen);
+                            findRow = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                if (length > bytes.length) {
+                    bytes = new byte[length];
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return findRow ? new String(bytes,0,rowLen) : null;
     }
 
@@ -198,4 +290,26 @@ public class QueryProcessor {
         }
         return data[min];
     }
+
+    private static String binarySearchString(ArrayList<String> data, String key) {
+        int min, max, mid;
+        min = 0;
+        max = data.size() - 1;
+        while(!((max-min)== 1)){
+            mid = (min + max) / 2;
+            if(key.compareTo(data.get(mid))<0){
+                max = mid;  // 因为不清楚data[mid-1]是不是满足 key<data[mid-1],可能存在key>=data[min+1]的情况
+            }else if (key.compareTo(data.get(mid))>0){
+                min = mid;  // 因为不清楚data[mid+1]是不是满足 key>=data[mid+1],可能存在data[min+1]>key的情况
+            }else if(key.equals(data.get(mid))){
+                return data.get(mid);
+            }
+        }
+
+        if (data.get(min).compareTo(key) <=0 ) {
+            return data.get(min);
+        }
+        return data.get(min);
+    }
+
 }

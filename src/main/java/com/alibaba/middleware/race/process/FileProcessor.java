@@ -136,7 +136,6 @@ public class FileProcessor {
                         count[i] = 0;
                     }
                     try {
-                        HashSet<String> set = new HashSet<>();
                         while (true) {
                             String[][] row = queue.take();
                             if (row.length==0) {

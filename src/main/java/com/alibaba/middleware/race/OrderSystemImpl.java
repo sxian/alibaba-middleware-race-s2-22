@@ -406,10 +406,9 @@ public class OrderSystemImpl implements OrderSystem {
         Row orderRow = orderTable.selectRowById(String.valueOf(orderId));
         if (orderRow  == null)
             return null;
-        System.out.println("*****   "+orderRow);
-//        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
-//        Row goodsRow = buyerTable.selectRowById(orderRow.get("goodid").valueAsString());
-        return null;//ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<String>(keys));
+        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+        Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
+        return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
     @Override

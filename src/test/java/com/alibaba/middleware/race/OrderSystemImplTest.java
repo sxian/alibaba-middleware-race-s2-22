@@ -38,36 +38,36 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
-        OrderTable orderTable = new OrderTable();
-        BuyerTable buyerTable = new BuyerTable();
-        GoodsTable goodsTable = new GoodsTable();
-
-        ArrayList<OrderSystemImpl.Row> orderRows = buildQueryList(orderFiles);
-        System.out.println("build order data complete, start query...");
-        ArrayList<OrderSystemImpl.Row> buyerRows = buildQueryList(buyerFiles);
-        System.out.println("build buyer data complete, start query...");
-        ArrayList<OrderSystemImpl.Row> goodsRows = buildQueryList(goodsFiles);
-        System.out.println("build test data complete, start query...");
-
-        start = System.currentTimeMillis();
-        HashMap<String,OrderSystemImpl.Row> orderMap = buildQueryMap(orderTable,orderRows,"orderid");
-        System.out.println("query order complete, useTime: "+(System.currentTimeMillis() - start) );
-        System.out.println("start count order success...");
-        countSuccess(orderRows, orderMap,"orderid");
-        System.out.println("****************************************");
-
-        start = System.currentTimeMillis();
-        HashMap<String,OrderSystemImpl.Row> buyerMap = buildQueryMap(buyerTable,buyerRows,"buyerid");
-        System.out.println("query buyer complete, useTime: "+(System.currentTimeMillis() - start) );
-        System.out.println("start count buyer success...");
-        countSuccess(buyerRows, buyerMap,"buyerid");
-        System.out.println("****************************************");
-
-        start = System.currentTimeMillis();
-        HashMap<String,OrderSystemImpl.Row> goodsMap = buildQueryMap(goodsTable,goodsRows,"goodid");
-        System.out.println("query goods complete, useTime: "+(System.currentTimeMillis() - start) );
-        System.out.println("start count goods success...");
-        countSuccess(goodsRows, goodsMap,"goodid");
+//        OrderTable orderTable = new OrderTable();
+//        BuyerTable buyerTable = new BuyerTable();
+//        GoodsTable goodsTable = new GoodsTable();
+//
+//        ArrayList<OrderSystemImpl.Row> orderRows = buildQueryList(orderFiles);
+//        System.out.println("build order data complete, start query...");
+//        ArrayList<OrderSystemImpl.Row> buyerRows = buildQueryList(buyerFiles);
+//        System.out.println("build buyer data complete, start query...");
+//        ArrayList<OrderSystemImpl.Row> goodsRows = buildQueryList(goodsFiles);
+//        System.out.println("build goods data complete, start query...");
+//
+//        start = System.currentTimeMillis();
+//        HashMap<String,OrderSystemImpl.Row> orderMap = buildQueryMap(orderTable,orderRows,"orderid");
+//        System.out.println("query order complete, useTime: "+(System.currentTimeMillis() - start) );
+//        System.out.println("start count order success...");
+//        countSuccess(orderRows, orderMap,"orderid");
+//        System.out.println("****************************************");
+//
+//        start = System.currentTimeMillis();
+//        HashMap<String,OrderSystemImpl.Row> buyerMap = buildQueryMap(buyerTable,buyerRows,"buyerid");
+//        System.out.println("query buyer complete, useTime: "+(System.currentTimeMillis() - start) );
+//        System.out.println("start count buyer success...");
+//        countSuccess(buyerRows, buyerMap,"buyerid");
+//        System.out.println("****************************************");
+//
+//        start = System.currentTimeMillis();
+//        HashMap<String,OrderSystemImpl.Row> goodsMap = buildQueryMap(goodsTable,goodsRows,"goodid");
+//        System.out.println("query goods complete, useTime: "+(System.currentTimeMillis() - start) );
+//        System.out.println("start count goods success...");
+//        countSuccess(goodsRows, goodsMap,"goodid");
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {

@@ -2,16 +2,14 @@ package com.alibaba.middleware.race.process;
 
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.datastruct.BplusTree;
+import com.alibaba.middleware.race.datastruct.Node;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,22 +34,33 @@ public class IndexProcessor {
         // 处理BuyeridAndCreateTime
         new Thread(new Runnable() {
             @Override
-            public void run() {
-                String path = RaceConfig.STORE_PATH+"buyerid_create_order"; // todo 要构建B+树，这个地方应该是拆分的，如果要拆分，在放入队列的时候拆
-                                                                            // todo 有没有用户同一时间两个订单?
+            public void run() { // todo 线上测试实际数据的时候，生成的数据量会非常大，无法直接构架B+树,
+                                     // todo 所以要使用队列对这个数据切分. 另外有没有用户同一时间两个订单?
+                String path = RaceConfig.STORE_PATH+"buyerid_create_order";
                 BufferedWriter bw;
-                try { // todo 有问题
+                try { // todo 有问题 -> 啥问题?
                     bw = Utils.createWriter(path);
-                    BplusTree bplusTree = new BplusTree(50); // todo 线上这个值应该考虑
+                    HashMap<String,StringBuilder> map = new HashMap<>();
                     while (true) {
                         String[] keys = buyerid_create_order_queue.take();
                         if ("".equals(keys[0])&&"".equals(keys[1])&&"".equals(keys[2])) {
                             break;
                         }
-                        bplusTree.insertOrUpdate(keys[2]+keys[1],keys[0]+" ");
-                    }
 
+                        StringBuilder sb = map.get(keys[2]);
+                        if (sb == null) {
+                            sb = new StringBuilder(keys[0]+","+keys[1]+" ");
+                            map.put(keys[2],sb);
+                        } else {
+                            sb.append(keys[0]).append(",").append(keys[1]).append(" ");
+                        }
+                    }
+                    BplusTree bplusTree = new BplusTree(50);
+                    for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
+                        bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
+                    }
                     bplusTree.getRoot().writeToDisk(0,bw);
+                    setCache(bplusTree, QueryProcessor.buyerOrderFilesIndex,QueryProcessor.buyerOrderFilesIndexKey);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -66,20 +75,32 @@ public class IndexProcessor {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                String path = RaceConfig.STORE_PATH+"goodid_orderid"; // todo 要构建B+树，这个地方应该是拆分的，如果要拆分，在放入队列的时候拆 -> 线上数据很大
+                String path = RaceConfig.STORE_PATH+"goodid_orderid";
                 BufferedWriter bw;
                 try {
                     bw = Utils.createWriter(path);
-                    BplusTree bplusTree = new BplusTree(50);
+                    HashMap<String,StringBuilder> map = new HashMap<>();
+
                     while (true) {
                         String[] keys = goodid_orderid_queue.take();
                         if ("".equals(keys[0])&&"".equals(keys[1])) {
                             break;
                         }
-                        bplusTree.insertOrUpdate(keys[1]+keys[0],keys[0]+" ");
-                    }
 
+                        StringBuilder sb = map.get(keys[1]);
+                        if (sb == null) {
+                            sb = new StringBuilder(keys[0]+" ");
+                            map.put(keys[1],sb);
+                        } else {
+                            sb.append(keys[0]).append(" ");
+                        }
+                    }
+                    BplusTree bplusTree = new BplusTree(50);
+                    for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
+                        bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
+                    }
                     bplusTree.getRoot().writeToDisk(0,bw);
+                    setCache(bplusTree, QueryProcessor.goodsOrderFilesIndex,QueryProcessor.goodsOrderFilesIndexKey);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -198,6 +219,28 @@ public class IndexProcessor {
         });
     }
 
+    // 设置辅助索引
+    public void setCache(BplusTree bplusTree,TreeMap<String,Long[]> tree,ArrayList<String> list) {
+        for (Node node : bplusTree.getRoot().getChildren()) {
+            for (Node _node : node.getChildren()) {
+                String[] indexs = _node.toString().split(" ");
+                for (int j = 1;j<indexs.length;j++) {
+                    try {
+                        if (indexs[j].equals("\n")) {
+                            continue;// 线上可以删了
+                        }
+                        String[] index = indexs[j].split(",");
+                        tree.put(index[0],new Long[]{Long.valueOf(index[1]),
+                                Long.valueOf(index[2])});
+                        list.add(index[0]);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
     public static BplusTree buildTree(List<String> files) throws IOException {
         BplusTree tree = new BplusTree(60);
         return tree;
@@ -207,6 +250,7 @@ public class IndexProcessor {
         HashMap<String,RecordIndex> map = new HashMap<>();
         return map;
     }
+
     public void waitOver() throws InterruptedException {
         latch.await();
         threads.shutdown();
