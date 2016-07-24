@@ -73,8 +73,9 @@ public class OrderSystemImplTest {
                 Set<Map.Entry<String, OrderSystemImpl.KV>> entrySet = row.entrySet();
                 boolean ok = true;
                 for (Map.Entry<String, OrderSystemImpl.KV> entry : entrySet) {
-                    OrderSystemImpl.KV kv = _row.getKV(entry.getKey());
-                    if (kv==null || !kv.valueAsString().equals(entry.getValue().valueAsString())) {
+                    try {
+                        OrderSystemImpl.KV kv = _row.getKV(entry.getKey());
+                    } catch (Exception e) {
                         ok = false;
                         break;
                     }

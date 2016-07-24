@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by sxian.wang on 2016/7/23.
@@ -18,29 +20,17 @@ public class TmpTest {
 //        byte[] bytes = new byte[187];
 //        raf.read(bytes);
 //        System.out.println(new String(bytes));
-        String[]  orderFiles = new String[]{RaceConfig.DATA_ROOT+"order.0.0", RaceConfig.DATA_ROOT+"order.0.3",
-                RaceConfig.DATA_ROOT+"order.1.1", RaceConfig.DATA_ROOT+"order.2.2"};
-        HashMap<String,String> map = new HashMap<>();
-        String[] strs = new String[400000];
-        ArrayList<String> rows = new ArrayList<>();
-        long start =System.currentTimeMillis();
-        for (int a = 0;a<1;a++) {
-            int i = 0;
-            for (String file : orderFiles) {
-                BufferedReader br = Utils.createReader(file);
-                String str = br.readLine();
-                while (str!=null) {
-//                    OrderSystemImpl.Row row = OrderSystemImpl.createRow(str);
-    //                map.put("sdfsdfasdsd",str);
-                    map.put(String.valueOf(i++),str);
-//                    strs[400000*a+i++] = str;
-                    str = br.readLine();
-                }
-                System.gc();
-                br.close();
-            }
+
+        String str = "orderid:592084336\tcreatetime:1470982941\tbuyerid:ap-a3a3-4dc3d77d2a79\tgoodid:dd-a6b7-d85a6829f798\tamount:17\tdone:true\ta_o_4699:8495\ta_o_7517:true\ta_o_15325:0.74\ta_o_22304:0.4\ta_o_12368:true";
+        String reg = "(orderid|buyerid|goodid|createtime):([\\w|-]+)";
+        Pattern pattern = Pattern.compile(reg);
+        Matcher matcher = pattern.matcher(str);
+        while (matcher.find()) {
+            System.out.println(matcher.group(0));
+            System.out.println(matcher.group(1));
+            System.out.println(matcher.group(2));
+            System.out.println("***********");
         }
-        System.out.println("build test data complete: "+(System.currentTimeMillis()-start)+", start query...");
 
     }
 }

@@ -22,9 +22,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class FileProcessor {
 
     // 接收原始数据的队列
-    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> orderQueues = OrderSystemImpl.orderQueues;
-    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> buyerQueues = OrderSystemImpl.buyerQueues;
-    public final ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> goodsQueues = OrderSystemImpl.goodsQueues;
+    public final ArrayList<LinkedBlockingQueue<String[][]>> orderQueues = OrderSystemImpl.orderQueues;
+    public final ArrayList<LinkedBlockingQueue<String[][]>> buyerQueues = OrderSystemImpl.buyerQueues;
+    public final ArrayList<LinkedBlockingQueue<String[][]>> goodsQueues = OrderSystemImpl.goodsQueues;
 
     // 排序后发送索引信息的队列
     public final LinkedBlockingQueue<Object> orderIndexQueue = new LinkedBlockingQueue<>();
@@ -115,7 +115,7 @@ public class FileProcessor {
         }).start();
     }
 
-    public void execute(ArrayList<LinkedBlockingQueue<OrderSystemImpl.Row>> queues, final BufferedWriter[] writers,
+    public void execute(ArrayList<LinkedBlockingQueue<String[][]>> queues, final BufferedWriter[] writers,
                         final CountDownLatch _latch, final int fileSize, final String key,final String pathPrefix,
                         final boolean flag) throws IOException {
         for (int i = 0;i<writers.length;i++) {
@@ -125,7 +125,7 @@ public class FileProcessor {
         }
 
         for (int i = 0;i<queues.size();i++) {
-            final LinkedBlockingQueue<OrderSystemImpl.Row> queue = queues.get(i);
+            final LinkedBlockingQueue<String[][]> queue = queues.get(i);
             threads.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -136,19 +136,45 @@ public class FileProcessor {
                         count[i] = 0;
                     }
                     try {
+                        HashSet<String> set = new HashSet<>();
                         while (true) {
-                            OrderSystemImpl.Row row = queue.take();
-                            if (row.size() == 0) {
+                            String[][] row = queue.take();
+                            if (row.length==0) {
                                 break;
                             }
-                            int index = Math.abs(row.get(key).valueAsString().hashCode())%fileSize;
-                            if (flag) {
-                                indexProcessor.addBuyeridAndCreateTime(row.get("orderid").valueAsString(),
-                                        row.get("createtime").valueAsString(),row.get("buyerid").valueAsString());
-                                indexProcessor.addGoodidToOrderid(row.get("orderid").valueAsString(),
-                                        row.get("goodid").valueAsString());
+
+                            String id = "";
+                            if (row.length == 2) {
+                                id   = row[1][1];
+                            } else {
+                                String buyerid,goodid,createtime;
+                                buyerid=goodid=createtime = "";
+                                for (int i = 1;i<5;i++) {
+                                    switch (row[i][0]) {
+                                        case "orderid":
+                                            id = row[i][1];
+                                            break;
+                                        case "buyerid":
+                                            buyerid = row[i][1];
+                                            break;
+                                        case "goodid":
+                                            goodid = row[i][1];
+                                            break;
+                                        case "createtime":
+                                            createtime = row[i][1];
+                                            break;
+                                    }
+                                }
+                                indexProcessor.addBuyeridAndCreateTime(id, createtime, buyerid);
+                                indexProcessor.addGoodidToOrderid(id, goodid);
                             }
-                            sbs[index].append(row.get(key).valueAsString()+"&"+row.toString());
+                            if (set.contains(id)) {
+                                int i = 0;
+                            } else {
+                                set.add(id);
+                            }
+                            int index = Math.abs(id.hashCode())%fileSize;
+                            sbs[index].append(id).append("&").append(row[0][0]).append("\n");
                             if (count[index]++==200){
                                 writers[index].write(sbs[index].toString());
                                 count[index] = 0;
@@ -205,11 +231,6 @@ public class FileProcessor {
                             String path = prefixPath+"S"+index;
                             bw = Utils.createWriter(path);
                             bplusTree.getRoot().writeToDisk(0,bw); // 写到磁盘
-                            long pos = bplusTree.getRoot().getPos();
-                            if (index == 1) {
-                                Node _node = bplusTree.getHead();
-                            }
-                            int len = bplusTree.getRoot().getLength();
 
                             ArrayList<String> indexs = new ArrayList<String>();
                             indexs.add(path);

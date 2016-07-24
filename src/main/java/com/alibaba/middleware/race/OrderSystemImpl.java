@@ -11,6 +11,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 订单系统的demo实现，订单数据全部存放在内存中，用简单的方式实现数据存储和查询功能
@@ -27,9 +29,9 @@ public class OrderSystemImpl implements OrderSystem {
     private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
     private ExecutorService constructThreads;
 
-    public static final ArrayList<LinkedBlockingQueue<Row>> orderQueues = new ArrayList();
-    public static final ArrayList<LinkedBlockingQueue<Row>> buyerQueues = new ArrayList();
-    public static final ArrayList<LinkedBlockingQueue<Row>> goodsQueues = new ArrayList();
+    public static final ArrayList<LinkedBlockingQueue<String[][]>> orderQueues = new ArrayList();
+    public static final ArrayList<LinkedBlockingQueue<String[][]>> buyerQueues = new ArrayList();
+    public static final ArrayList<LinkedBlockingQueue<String[][]>> goodsQueues = new ArrayList();
 
     // todo 确认一下查询的时候是多个线程持有一个OrderSystemImpl对象查询还是一个线程一个
     public FileProcessor fileProcessor;
@@ -262,25 +264,25 @@ public class OrderSystemImpl implements OrderSystem {
 
     private void initQueues() {
         for (int i = 0;i<orderQueueNum;i++) {
-            orderQueues.add(new LinkedBlockingQueue<Row>());
+            orderQueues.add(new LinkedBlockingQueue<String[][]>());
         }
         for (int i = 0;i<buyerQueueNum;i++) {
-            buyerQueues.add(new LinkedBlockingQueue<Row>());
+            buyerQueues.add(new LinkedBlockingQueue<String[][]>());
         }
         for (int i = 0;i<goodsQueueNum;i++) {
-            goodsQueues.add(new LinkedBlockingQueue<Row>());
+            goodsQueues.add(new LinkedBlockingQueue<String[][]>());
         }
     }
 
     private void sendEndMsg() {
-        for (LinkedBlockingQueue<Row> linkedBlockingQueue : orderQueues) {
-            linkedBlockingQueue.offer(new Row());
+        for (LinkedBlockingQueue<String[][]> linkedBlockingQueue : orderQueues) {
+            linkedBlockingQueue.offer(new String[0][0]);
         }
-        for (LinkedBlockingQueue<Row> linkedBlockingQueue : buyerQueues) {
-            linkedBlockingQueue.offer(new Row());
+        for (LinkedBlockingQueue<String[][]> linkedBlockingQueue : buyerQueues) {
+            linkedBlockingQueue.offer(new String[0][0]);
         }
-        for (LinkedBlockingQueue<Row> linkedBlockingQueue : goodsQueues) {
-            linkedBlockingQueue.offer(new Row());
+        for (LinkedBlockingQueue<String[][]> linkedBlockingQueue : goodsQueues) {
+            linkedBlockingQueue.offer(new String[0][0]);
         }
     }
 
@@ -303,27 +305,27 @@ public class OrderSystemImpl implements OrderSystem {
         final CountDownLatch latch = new CountDownLatch(orderFiles.size()+buyerFiles.size()+goodFiles.size());
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) throws InterruptedException {
-                int index = Math.abs(row.get("goodid").rawValue.hashCode())%orderQueueNum;
+            void handleRow(String key, String[][] row) throws InterruptedException {
+                int index = Math.abs(key.hashCode())%orderQueueNum;
                 orderQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(orderFiles, latch);
+        }.handle(orderFiles, "orderid", 4, latch,"(orderid|buyerid|goodid|createtime):([\\w|-]+)");
 
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) throws InterruptedException {
-                int index = Math.abs(row.get("buyerid").rawValue.hashCode())%buyerQueueNum;
+            void handleRow(String key, String[][] row) throws InterruptedException {
+                int index = Math.abs(key.hashCode())%buyerQueueNum;
                 buyerQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(buyerFiles, latch);
+        }.handle(buyerFiles, "buyerid", 1, latch,"(buyerid):([\\w|-]+)");
 
         new DataFileHandler() {
             @Override
-            void handleRow(Row row) throws InterruptedException {
-                int index = Math.abs(row.get("goodid").rawValue.hashCode())%goodsQueueNum;
+            void handleRow(String key, String[][] row) throws InterruptedException {
+                int index = Math.abs(key.hashCode())%goodsQueueNum;
                 goodsQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(goodFiles, latch);
+        }.handle(goodFiles, "goodid", 1, latch,"(goodid):([\\w|-]+)");
 
         latch.await(); // 等待处理完所有文件
         sendEndMsg(); // 发送结束信号
@@ -352,20 +354,33 @@ public class OrderSystemImpl implements OrderSystem {
     }
 
     private abstract class DataFileHandler {
-        abstract void handleRow(Row row) throws InterruptedException;
+        abstract void handleRow(String key, String[][] row) throws InterruptedException;
 
-        void handle(Collection<String> files, final CountDownLatch latch) {
+        void handle(Collection<String> files, final String key, final int keyNum, final CountDownLatch latch, final String regx) {
             for (final String file : files) {
                 constructThreads.execute(new Runnable() {
                     @Override
                     public void run() {
                         BufferedReader bfr = null;
+                        Pattern pattern = Pattern.compile(regx);
                         try {
                             bfr = Utils.createReader(file);
                             String line = bfr.readLine();
                             while (line != null) {
-                                Row kvMap = createRow(line);
-                                handleRow(kvMap);
+                                String[][] strings = new String[keyNum+1][2];
+                                Matcher matcher = pattern.matcher(line);
+                                String id = "";
+                                strings[0][0] = line;
+                                int i = 1;
+                                while (matcher.find()) { // todo 能不能直接把这些东西传过去
+                                    strings[i][0] = matcher.group(1);
+                                    strings[i][1] = matcher.group(2);
+                                    if (strings[i][0].equals(key)) {
+                                        id = strings[i][1];
+                                    }
+                                    i++;
+                                }
+                                handleRow(id, strings);
                                 line = bfr.readLine();
                             }
                         } catch (Exception e) {
