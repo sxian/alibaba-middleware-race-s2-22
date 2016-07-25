@@ -40,18 +40,20 @@ public class QueryProcessor {
     public static String queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);  // todo orderid的索引缓存是有问题的，和rawdata重叠了
         if (indexCache == null) {
-            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
             long orderid = -1;
             try {
-
                 orderid = Long.valueOf(id);
             } catch (Exception e) {
-                int i = 0;
             }
 
             Long[] idKeys = filesIndexKey.get(path);
             if (idKeys==null) {
+                try {
                 idKeys = (Long[]) filesIndex.get(path).keySet().toArray();
+                } catch (Exception e) {
+                    int i = 0;
+                }
                 filesIndexKey.put(path, idKeys);
             }
 
@@ -178,7 +180,8 @@ public class QueryProcessor {
             while (!findRow) {
                 raf.seek(pos);
                 raf.read(bytes);
-                String[] bIndexs = new String(bytes,0,length).split(" ");
+                String rawStr = new String(bytes,0,length);
+                String[] bIndexs = rawStr.split(" ");
                 if (bIndexs[0].equals("0")) {
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
@@ -207,15 +210,13 @@ public class QueryProcessor {
                             preIndexPos = indexPos;
                         }
                     }
-                } else {
+                } else if (bIndexs[0].equals("1")) {
                     for (int i = 1; i<bIndexs.length;i++) {
                         if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
                             continue;
                         }
                         String[] rowPos = bIndexs[i].split(",");
-                        try {
                         if (Long.valueOf(rowPos[0])==orderid) {
-
                             raf.seek(Long.valueOf(rowPos[1]));
                             rowLen = Integer.valueOf(rowPos[2]);
                             if (rowLen > bytes.length) {
@@ -225,12 +226,13 @@ public class QueryProcessor {
                             findRow = true;
                             break;
                         }
-                        } catch (Exception e) {
-                            int as = 0;
-                        }
-
                     }
                     break;
+                } else {
+                    if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
+                        return rawStr;
+                    }
+                    return null;
                 }
                 if (length > bytes.length) {
                     bytes = new byte[length];
@@ -256,8 +258,8 @@ public class QueryProcessor {
             while (!findRow) {
                 raf.seek(pos);
                 raf.read(bytes);
-                String[] bIndexs = new String(bytes,0,length).split(" ");
-
+                String rawStr = new String(bytes,0,length);
+                String[] bIndexs = rawStr.split(" ");
                 if (bIndexs[0].equals("0")) { // todo 在读取goodid_orderid的时候会超出范围
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
@@ -302,7 +304,8 @@ public class QueryProcessor {
                     }
                     break;
                 } else {
-                    return new String(bytes,0,length);
+                    // todo 参照上面 -> 因外全加载到内存了，所以可以直接return
+                    return rawStr;
                 }
                 if (length > bytes.length) {
                     bytes = new byte[length];

@@ -20,7 +20,13 @@ public class OrderTable implements Table {
         String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryOrder(id);
-            if (row!=null) rowCache.put(id, row);
+            if (row!=null) {
+                if (!row.split("\t")[0].split(":")[1].equals(id)) {
+                    row = QueryProcessor.queryOrder(id);
+                    return null;
+                }
+                rowCache.put(id, row);
+            }
         }
         return row;
     }

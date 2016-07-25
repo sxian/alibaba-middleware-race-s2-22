@@ -8,6 +8,7 @@ import com.alibaba.middleware.race.util.Utils;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
 
@@ -17,8 +18,10 @@ import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
 public class OrderSystemImplTest {
     public static int querySum = 0;
     public static int successSum = 0;
-    private static final LinkedBlockingQueue<Query> queryQueue = new LinkedBlockingQueue<>();
-    private static final LinkedBlockingQueue<Query> resultQueue = new LinkedBlockingQueue<>();
+    public static int failed = 0;
+    private static final LinkedBlockingQueue<Query> queryQueue = new LinkedBlockingQueue<>(2000);
+    private static final LinkedBlockingQueue<Query> resultQueue = new LinkedBlockingQueue<>(2000);
+    public static OrderSystemImpl osi;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -34,7 +37,7 @@ public class OrderSystemImplTest {
 
 
         OrderSystemImpl orderSystem = new OrderSystemImpl();
-
+        osi = orderSystem;
         List<String> orderList = Arrays.asList(orderFiles);
         List<String> buyerList = Arrays.asList(buyerFiles);
         List<String> goodsList = Arrays.asList(goodsFiles);
@@ -44,10 +47,10 @@ public class OrderSystemImplTest {
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
         Thread buildThread = new Thread(new BuildQuery());
-        Thread compareThread = new Thread(new CompareResult());
         buildThread.start();
+        Thread compareThread = new Thread(new CompareResult());
         compareThread.start();
-        Thread.sleep(10000);
+//        Thread.sleep(10000);
         start = System.currentTimeMillis();
         while (true) {
             Query query = queryQueue.take();
@@ -66,16 +69,17 @@ public class OrderSystemImplTest {
                     break;
                 case 2:
                     query.result1 = orderSystem.queryOrdersBySaler("",query.id,query.keys);
-
                     break;
                 case 3:
-                    query.kv =  orderSystem.sumOrdersByGood(query.id,query.keys.get(0));
+                    query.kv =  orderSystem.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
                     break;
             }
-            resultQueue.offer(query);
+            resultQueue.offer(query,600,TimeUnit.SECONDS);
         }
-        System.out.println("query number is: "+querySum+", success num is: "+successSum);
+        System.out.println("query number is: "+querySum+", success num is: "+successSum+", failed num is: " +failed);
         System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
+        buildThread.interrupt();
+        compareThread.interrupt();
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {
@@ -169,7 +173,9 @@ public class OrderSystemImplTest {
         String orderid = String.valueOf(result.orderId());
 
         boolean queryok = true;
+
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);
+
         for (int i = 0;i<list.size();i++) {
             OrderSystemImpl.KV kv = list.get(i);
             OrderSystemImpl.KV kv1 = (OrderSystemImpl.KV) result.get(kv.key());
@@ -191,7 +197,6 @@ public class OrderSystemImplTest {
                     } catch (OrderSystem.TypeException e1) {
                     }
                 }
-
                 queryok = false;
                 System.out.println("queryOrder kv error, should: " + kv.valueAsString() +
                         ", but is: "+result.get(kv.key()).valueAsString()+"***");
@@ -211,14 +216,18 @@ public class OrderSystemImplTest {
                 boolean resultFlag = false;
                 boolean queryed = false;
                 Query query = new Query();
-
                 String record = br.readLine();
+                long start = System.currentTimeMillis();
+                int queryNum = 0;
                 while (record!=null) {
                     query.recordList.add(record);
                     if ((record.equals("}")||record.equals(""))) { // todo 执行查询
                         if (!queryed) {
-                            querySum++;
-                            queryQueue.offer(query);
+                            if (queryNum++%1000 == 0) {
+                                System.out.println("Already build query num: "+queryNum+", use time: "+
+                                        (System.currentTimeMillis()-start)+"queue size: " + queryQueue.size());
+                            }
+                            queryQueue.offer(query,60, TimeUnit.SECONDS);
                             query = new Query();
                             resultFlag = false;
                             queryed = true;
@@ -309,11 +318,12 @@ public class OrderSystemImplTest {
                                 }
                             }
                             break;
-
                     }
                     record = br.readLine();
                 }
-            } catch (IOException e) {
+
+                System.out.println("build Test data use time: " +(System.currentTimeMillis()-start)+", build query num: "+queryNum);
+            } catch (Exception e) {
                 e.printStackTrace();
             } finally {
                 Query query = new Query();
@@ -338,21 +348,29 @@ public class OrderSystemImplTest {
                     if (query.queryEnd) break;
                     switch (query.queryFlag) {
                         case 0:
-                            OrderSystem.Result result = query.result;//osi.queryOrder(Long.valueOf(query.id),query.keys);
-                            if (result==null) {
-                                if (query.resultMap.size()==0) {
+                            OrderSystem.Result result = query.result;
+                            if (query.resultMap.size()==0) {
+                                if (result==null) {
                                     successSum++;
                                 } else {
+                                    failed++;
+                                    osi.queryOrder(Long.valueOf(query.id),query.keys);
                                     System.out.println("result is null, but exist data");
                                 }
                                 break;
                             }
+                            if (!query.id.equals(String.valueOf(result.orderId()))) {
+                                failed++;
+                                osi.queryOrder(Long.valueOf(query.id),query.keys);
+                            }
                             if (compareOrder(query.id,query.resultMap ,result)){
                                 successSum++;
+                            }else {
+                                failed++;
                             }
                             break;
                         case 1:
-                            Iterator<OrderSystem.Result> result1 = query.result1;//osi.queryOrdersByBuyer(query.start,query.end,query.id);
+                            Iterator<OrderSystem.Result> result1 = query.result1;
                             boolean queryok = true;
                             while (result1.hasNext()) {
                                 if (!compareOrder(query.id,query.resultMap ,result1.next()) && queryok) {
@@ -360,9 +378,10 @@ public class OrderSystemImplTest {
                                 }
                             }
                             if (queryok) successSum++;
+                            else failed++;
                             break;
                         case 2:
-                            Iterator<OrderSystem.Result> result2 =query.result1; //osi.queryOrdersBySaler("",query.id,query.keys);
+                            Iterator<OrderSystem.Result> result2 =query.result1;
                             boolean queryok1 = true;
                             while (result2.hasNext()) {
                                 if (!compareOrder(query.id,query.resultMap ,result2.next()) && queryok1) {
@@ -372,12 +391,13 @@ public class OrderSystemImplTest {
                             if (queryok1) successSum++;
                             break;
                         case 3:
-                            OrderSystem.KeyValue kv = query.kv;//osi.sumOrdersByGood(query.id,query.keys.get(0));
+                            OrderSystem.KeyValue kv = query.kv;
                             if (kv==null) {
                                 if (query.sumIsNull) {
                                     successSum++;
                                 } else {
-                                    System.out.println("sum error: " + query.id +", should: (Long) "+query.resultLong+" / (Double) "+query.resultDouble+", but is not contains key: "+ query.keys.get(0));
+                                    failed++;
+//                                    System.out.println("sum error: " + query.id +", should: (Long) "+query.resultLong+" / (Double) "+query.resultDouble+", but is not contains key: "+ query.keys.get(0));
                                 }
                                 break;
                             }
@@ -405,9 +425,9 @@ public class OrderSystemImplTest {
                                     }
                                 } catch (OrderSystem.TypeException e) {
                                 }
-
                             }
                             if (queryok2) successSum++;
+                            else failed++;
                             break;
                     }
                 } catch (InterruptedException e) {

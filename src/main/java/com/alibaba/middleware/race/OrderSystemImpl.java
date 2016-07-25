@@ -289,18 +289,23 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
+        if (RaceConfig.ONLINE) {
 
-        // todo 磁盘优化，把相同磁盘的归类到一起
-        for (String storePath : storeFolders) {
-            if (storePath.startsWith("/disk1")) {
-                RaceConfig.DISK1 = storePath;
-                RaceConfig.STORE_PATH = storePath;
-                RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
-            } else if (storePath.startsWith("/disk2")) {
-                RaceConfig.DISK2 = storePath;
-            } else {
-                RaceConfig.DISK3 = storePath;
+            // todo 磁盘优化，把相同磁盘的归类到一起
+            for (String storePath : storeFolders) {
+                if (storePath.startsWith("/disk1")) {
+                    RaceConfig.DISK1 = storePath;
+                    RaceConfig.STORE_PATH = storePath;
+                    RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
+                } else if (storePath.startsWith("/disk2")) {
+                    RaceConfig.DISK2 = storePath;
+                } else {
+                    RaceConfig.DISK3 = storePath;
+                }
             }
+        } else {
+            RaceConfig.STORE_PATH = RaceConfig.LOCAL_STORE_PATH;
+            RaceConfig.ORDER_SOTRED_STORE_PATH = RaceConfig.LOCAL_STORE_PATH;
         }
         int modNum = RaceConfig.CONSTRUCT_MOD_NUM;
         orderQueueNum = orderFiles.size()/modNum+1;
@@ -424,7 +429,7 @@ public class OrderSystemImpl implements OrderSystem {
         // todo 官方的借口demo改了一下，方便build result 看着改下
         if (orderRowStr  == null)
             return null;
-        Row orderRow = createRow(orderRowStr);
+        Row orderRow = createRow(orderRowStr); // todo 一直build真特么费时间 -> 判断join不join很重要
         Row buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
         Row goodsRow = createRow(goodsTable.selectRowById(orderRow.get("goodid").valueAsString()));
         if (keys == null) {
@@ -471,9 +476,15 @@ public class OrderSystemImpl implements OrderSystem {
             return null;
 
         for (String orderId : list) {
-            Result result = queryOrder(Long.valueOf(orderId),_list);
-//            Row orderRow = createRow(orderTable.selectRowById(orderId)); // todo 肯定不为空
-            KV kv = (KV) result.get(key);
+            Result result = queryOrder(Long.valueOf(orderId),_list); // todo 肯定不为空 所有字段都是join后的
+            KV kv = null;
+
+            if (result != null) {
+                kv = (KV) result.get(key);
+            } else {
+                result = queryOrder(Long.valueOf(orderId),_list);
+                continue;
+            }
             if (kv == null)
                 continue;
             if (!existKey) {
@@ -493,6 +504,7 @@ public class OrderSystemImpl implements OrderSystem {
                         double tmp = kv.valueAsDouble();
                         sumDouble = tmp + sumLong;
                         existDouble = true;
+                        continue;
                     } catch (TypeException e1) {
                         e1.printStackTrace(); // 通过测试后可以删掉
                     }
@@ -504,7 +516,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
-        }
+        } // todo 大量的未包含元素查找
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 }
