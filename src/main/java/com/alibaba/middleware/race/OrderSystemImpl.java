@@ -432,6 +432,7 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
+
         for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
             results.add(queryOrder(Long.valueOf(orderId.split(",")[1]),null));
         }
@@ -442,7 +443,12 @@ public class OrderSystemImpl implements OrderSystem {
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
-            results.add(queryOrder(Long.valueOf(orderId),keys));
+            try {
+                results.add(queryOrder(Long.valueOf(orderId),keys));
+            } catch (Exception e ) {
+                int i = 0;
+//                orderTable.selectOrderIDByGoodsID(goodid);
+            }
         }
         return results.iterator();
     }

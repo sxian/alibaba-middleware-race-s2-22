@@ -13,7 +13,8 @@ import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
  * Created by sxian.wang on 2016/7/19.
  */
 public class OrderSystemImplTest {
-
+    public static int querySum = 0;
+    public static int successSum = 0;
     public static void main(String[] args) throws IOException, InterruptedException {
 
         String[]  orderFiles = new String[]{DATA_ROOT+"order.0.0", DATA_ROOT+"order.0.3",
@@ -39,7 +40,13 @@ public class OrderSystemImplTest {
         orderSystem.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
         start = System.currentTimeMillis();
-        testCase(caseFile,orderSystem);
+//        testCase(caseFile,orderSystem);
+//        OrderTable order = new OrderTable();
+//        List<String> list = order.selectOrderIDByGoodsID("gd-bf9f-a61f9127e18f");
+//        System.out.println();
+
+        System.out.println("query number is: "+querySum+", success num is: "+successSum);
+        System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
 
     }
 
@@ -130,68 +137,111 @@ public class OrderSystemImplTest {
     }
     public static void testCase(String filePath, OrderSystemImpl osi) throws IOException {
         BufferedReader br = Utils.createReader(filePath);
-        String record = br.readLine();
         int queryFlag = 0; // 0,QUERY_ORDER 1,QUERY_BUYER_TSRANGE  2,QUERY_SALER_GOOD  3,QUERY_GOOD_SUM
         boolean resultFlag = false;
         boolean queryed = false;
         boolean sumIsDoube = false;
+        boolean sumIsNull = false;
+
         String id = "";
         ArrayList<String> keys = new ArrayList<>();
         long start,end;
         start=end=0;
         HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap = new HashMap<>();
 
+        String record = br.readLine();
         long resultLong = 0;
         double resultDouble = 0.0;
+        ArrayList<String> recordList = new ArrayList<>();
         while (record!=null) {
+            recordList.add(record);
             if ((record.equals("}")||record.equals(""))) { // todo 执行查询
                 if (!queryed) {
+                    querySum++;
                     switch (queryFlag) {
                         case 0:
                             OrderSystem.Result result = osi.queryOrder(Long.valueOf(id),keys);
-                            compareOrder(id,resultMap ,result);
+                            if (result==null) {
+                                System.out.println("result is null");
+
+                            }
+                            if (compareOrder(id,resultMap ,result)){
+                                successSum++;
+                            }
                             break;
                         case 1:
                             Iterator<OrderSystem.Result> result1 = osi.queryOrdersByBuyer(start,end,id);
+                            boolean queryok = true;
                             while (result1.hasNext()) {
-                                compareOrder(id,resultMap ,result1.next());
+                                if (!compareOrder(id,resultMap ,result1.next()) && queryok) {
+                                    queryok = false;
+                                }
                             }
+                            if (queryok) successSum++;
                             break;
                         case 2:
-                            Iterator<OrderSystem.Result> result2 = osi.queryOrdersBySaler("",id,keys);
-                            while (result2.hasNext()) {
-                                compareOrder(id,resultMap ,result2.next());
-                            }
+//                            Iterator<OrderSystem.Result> result2 = osi.queryOrdersBySaler("",id,keys);
+//                            boolean queryok1 = true;
+//                            while (result2.hasNext()) {
+//                                if (!compareOrder(id,resultMap ,result2.next()) && queryok1) {
+//                                    queryok1 = false;
+//                                }
+//                            }
+//                            if (queryok1) successSum++;
                             break;
                         case 3:
-                            OrderSystem.KeyValue kv = osi.sumOrdersByGood(id,keys.get(0));
-                            String key = kv.key();
-                            if (!keys.get(0).equals(key)) {
-                                System.out.println("key no match: " + id +", should: "+keys.get(0)+", but is " + key);
-                            }
-                            if (sumIsDoube) {
-                                try {
-                                    double res = kv.valueAsDouble();
-                                    if (res != resultDouble) {
-                                        System.out.println("sum error: " + id +", should: "+resultDouble+", but is " + res);
-                                    }
-                                } catch (OrderSystem.TypeException e) {
-                                    e.printStackTrace();
-                                }
-                            } else {
-                                try {
-                                    long res = kv.valueAsLong();
-                                    if (res != resultLong) {
-                                        System.out.println("sum error: " + id +", should: "+resultLong+", but is " + res);
-                                    }
-                                } catch (OrderSystem.TypeException e) {
-                                    e.printStackTrace();
-                                }
-
-                            }
+//                            OrderSystem.KeyValue kv = osi.sumOrdersByGood(id,keys.get(0));
+//                            if (kv==null) {
+//                                if (sumIsNull) {
+//                                    successSum++;
+//                                } else {
+//                                    System.out.println("sum error: " + id +", should: (Long) "+resultLong+" / (Double) "+resultDouble+", but is not contains key: "+ keys.get(0));
+//                                }
+//                                break;
+//                            }
+//                            String key = kv.key();
+//                            boolean queryok2 = true;
+//                            if (!keys.get(0).equals(key)) {
+//                                System.out.println("key no match: " + id +", should: "+keys.get(0)+", but is " + key);
+//                                queryok2 = false;
+//                            }
+//                            if (sumIsDoube) {
+//                                try {
+//                                    double res = kv.valueAsDouble();
+//                                    if (Math.abs(res - resultDouble) >= 0.0001) {
+//                                        System.out.println("sum error: " + id +", should: "+resultDouble+", but is " + res);
+//                                        queryok2 = false;
+//                                    }
+//                                } catch (OrderSystem.TypeException e) {
+//                                    e.printStackTrace();
+//                                }
+//                            } else {
+//                                try {
+//                                    long res = kv.valueAsLong();
+//                                    if (res != resultLong) {
+//                                        System.out.println("sum error: " + id +", should: "+resultLong+", but is " + res);
+//                                        queryok2 = false;
+//                                    }
+//                                } catch (OrderSystem.TypeException e) {
+//                                    e.printStackTrace();
+//                                }
+//
+//                            }
+//                            if (queryok2) successSum++;
                             break;
                     }
+                    queryFlag = 0; // 0,QUERY_ORDER 1,QUERY_BUYER_TSRANGE  2,QUERY_SALER_GOOD  3,QUERY_GOOD_SUM
+                    resultFlag = false;
                     queryed = true;
+                    sumIsDoube = false;
+                    sumIsNull = false;
+                    id = "";
+                    keys = new ArrayList<>();
+                    start=end=0;
+                    resultDouble = 0;
+                    resultLong = 0;
+                    resultMap = new HashMap<>();
+                    recordList = new ArrayList<>();
                 }
                 record = br.readLine();
                 continue;
@@ -199,11 +249,13 @@ public class OrderSystemImplTest {
 
             if (resultFlag) {
                 String str = record.replace("{","").replace("}","");
-                String[] strs = record.replace("{","").replace("}","").split(", ");
+                String[] strs = record.replace("{","").replace("}","").split(", KV:");
                 String key = strs[0].split(":")[1];
                 ArrayList<OrderSystemImpl.KV> list = new ArrayList<>();
                 for (String kvStr : strs[1].replace("[","").replace("]","").split(",")) {
                     String[] kv = kvStr.split(":");
+                    if (kv.length <= 1) continue;
+
                     list.add(OrderSystemImpl.createKV(kv[0],kv[1]));
                 }
                 resultMap.put(key, list);
@@ -243,6 +295,10 @@ public class OrderSystemImplTest {
                     String str = kv[1].replace("[","").replace("]","");
                     if (str.contains(",")) {
                         for (String k : str.split(",")) {
+                            if (k.equals("*")) {
+                                keys = null;
+                                break;
+                            }
                             keys.add(k);
                         }
                     } else {
@@ -257,37 +313,64 @@ public class OrderSystemImplTest {
                     break;
                 case "Result":
                     resultFlag = true;
-                    if (queryFlag == 3) {
-                        if (kv[1].contains(".")) {
-                            sumIsDoube = true;
+                    break;
+                case "RESULT":
+                    if (kv[1].contains(".")) {
+                        sumIsDoube = true;
+                        try {
                             resultDouble = Double.valueOf(kv[1]);
-                        } else {
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        try {
                             resultLong = Long.valueOf(kv[1]);
+                        } catch (Exception e) {
+                            sumIsNull = true;
                         }
                     }
                     break;
+
             }
             record = br.readLine();
         }
         br.close();
     }
 
-    private static void compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
+    private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
-        String orderid = result.get("orderid").valueAsString();
-        if (!id.equals(orderid)) {
-            System.out.println("queryOrder error, should: " + id+", but is: " + orderid);
+        String orderid = String.valueOf(result.orderId());
 
-            return;
-        }
+        boolean queryok = true;
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);
         for (int i = 0;i<list.size();i++) {
             OrderSystemImpl.KV kv = list.get(i);
-            if (kv.valueAsString().equals(result.get(kv.key()).valueAsString())) {
+            OrderSystemImpl.KV kv1 = (OrderSystemImpl.KV) result.get(kv.key());
+            if (kv1==null) {
+                System.out.println("queryOrder kv is null. shoud: " +kv.valueAsString());
+                queryok = false;
+                continue;
+            }
+            if (!kv.valueAsString().equals(kv1.valueAsString())) {
+                try {
+                    if (kv.valueAsLong() == kv1.valueAsLong()) {
+                        return queryok;
+                    }
+                } catch (OrderSystem.TypeException e) {
+                    try {
+                        if (kv.valueAsDouble() == kv1.valueAsDouble()) {
+                            return queryok;
+                        }
+                    } catch (OrderSystem.TypeException e1) {
+                    }
+                }
+
+                queryok = false;
                 System.out.println("queryOrder kv error, should: " + kv.valueAsString() +
                         ", but is: "+result.get(kv.key()).valueAsString()+"***");
             }
         }
+        return queryok;
     }
 
 }

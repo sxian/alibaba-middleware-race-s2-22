@@ -41,7 +41,13 @@ public class QueryProcessor {
         RecordIndex indexCache = orderIndexCache.get(id);  // todo orderid的索引缓存是有问题的，和rawdata重叠了
         if (indexCache == null) {
             String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            long orderid = Long.valueOf(id);
+            long orderid = -1;
+            try {
+
+                orderid = Long.valueOf(id);
+            } catch (Exception e) {
+                int i = 0;
+            }
 
             Long[] idKeys = filesIndexKey.get(path);
             if (idKeys==null) {
@@ -85,7 +91,8 @@ public class QueryProcessor {
 //        }
         Long[] pos = map.get(id);
         if (pos == null) {
-            throw new RuntimeException("range query order id error");
+            return new ArrayList<>(); // todo 索引全加载到内存可以这样做，如果分开的话return null的操作不应该在这里
+//            throw new RuntimeException("range query order id error");
         }
 
         String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
@@ -97,7 +104,13 @@ public class QueryProcessor {
         if (start != null) {
             for (String str : orderList) {  // orderList 是无序的
                 String[] kv = str.split(",");
-                long time = Long.valueOf(kv[1]);
+                long time = 0;
+                try {
+
+                    time = Long.valueOf(kv[1]);
+                } catch (Exception e) {
+                    int i = 1;
+                }
                 if (time>= start && time < end){
                     // todo 在处理文件数据的时候换下位置
                     newList.add(kv[1]+","+kv[0]); // 因为要按时间排序，所以返回有序的结果 -> 不能光添加订单，否则会按照订单排序
@@ -237,7 +250,7 @@ public class QueryProcessor {
                 raf.read(bytes);
                 String[] bIndexs = new String(bytes,0,length).split(" ");
 
-                if (bIndexs[0].equals("0")) {
+                if (bIndexs[0].equals("0")) { // todo 在读取goodid_orderid的时候会超出范围
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
                     if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
