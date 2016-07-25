@@ -106,7 +106,6 @@ public class QueryProcessor {
                 String[] kv = str.split(",");
                 long time = 0;
                 try {
-
                     time = Long.valueOf(kv[1]);
                 } catch (Exception e) {
                     int i = 1;
@@ -210,8 +209,13 @@ public class QueryProcessor {
                     }
                 } else {
                     for (int i = 1; i<bIndexs.length;i++) {
+                        if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
+                            continue;
+                        }
                         String[] rowPos = bIndexs[i].split(",");
+                        try {
                         if (Long.valueOf(rowPos[0])==orderid) {
+
                             raf.seek(Long.valueOf(rowPos[1]));
                             rowLen = Integer.valueOf(rowPos[2]);
                             if (rowLen > bytes.length) {
@@ -221,6 +225,10 @@ public class QueryProcessor {
                             findRow = true;
                             break;
                         }
+                        } catch (Exception e) {
+                            int as = 0;
+                        }
+
                     }
                     break;
                 }

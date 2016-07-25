@@ -47,6 +47,10 @@ public class Node {
     /* 未输出raw data时的长度，即起始*/
     long startPos;
 
+    /* 是否已经toString*/
+    private boolean isToString = false;
+    private String _string;
+
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
         entries = new ArrayList<>();
@@ -610,6 +614,7 @@ public class Node {
     public long writeToDisk(long position, BufferedWriter bw) throws IOException {
         if (isLeaf) {
             startPos = position; // 没有输出前的位置
+            pos = position;
             long entryLen = 0;
             StringBuilder sb = new StringBuilder();
             for (Entry<Comparable, String> entry : entries) {
@@ -638,23 +643,27 @@ public class Node {
 
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        if (isLeaf) {
-            sb.append("1 ");
-            int offset = 0;
-            for (int i = 0;i<entries.size();i++) {
-                int rowLen = entries.get(i).getValue().toString().getBytes().length;
-                sb.append(entries.get(i).getKey()).append(",").append(startPos+offset).append(",") // orderid,pos,length
-                        .append(rowLen).append(" ");
-                offset += rowLen;
+        if (!isToString) {  // todo 空间换时间 -> 确认下会不会造成额外的内存消耗，以及导致full gc
+            isToString = true;
+            if (isLeaf) {
+                sb.append("1 ");
+                int offset = 0;
+                for (int i = 0;i<entries.size();i++) {
+                    int rowLen = entries.get(i).getValue().toString().getBytes().length;
+                    sb.append(entries.get(i).getKey()).append(",").append(pos+offset).append(",") // orderid,pos,length
+                            .append(rowLen).append(" ");
+                    offset += rowLen;
+                }
+            } else {
+                sb.append("0 "); // 标记位，表示为内部节点，1为叶子节点.
+                for (int i = 0;i<children.size();i++) {
+                    sb.append(entries.get(i).getKey()).append(",").append(children.get(i).pos).append(",")
+                            .append(children.get(i).length).append(" ");
+                }
             }
-        } else {
-            sb.append("0 "); // 标记位，表示为内部节点，1为叶子节点.
-            for (int i = 0;i<children.size();i++) {
-                sb.append(entries.get(i).getKey()).append(",").append(children.get(i).pos).append(",")
-                        .append(children.get(i).length).append(" ");
-            }
+            _string = sb.append("\n").toString();
         }
-        return sb.append("\n").toString();
+        return _string;
     }
 
 

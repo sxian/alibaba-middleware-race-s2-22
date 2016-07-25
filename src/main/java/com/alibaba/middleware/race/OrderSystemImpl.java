@@ -289,15 +289,18 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
+
+        // todo 磁盘优化，把相同磁盘的归类到一起
         for (String storePath : storeFolders) {
-            if (!storePath.endsWith("/")) {
-                RaceConfig.STORE_PATH = storePath + "/";
-                RaceConfig.ORDER_SOTRED_STORE_PATH = storePath+ "/";
-            } else {
+            if (storePath.startsWith("/disk1")) {
+                RaceConfig.DISK1 = storePath;
                 RaceConfig.STORE_PATH = storePath;
                 RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
+            } else if (storePath.startsWith("/disk2")) {
+                RaceConfig.DISK2 = storePath;
+            } else {
+                RaceConfig.DISK3 = storePath;
             }
-            break;
         }
         int modNum = RaceConfig.CONSTRUCT_MOD_NUM;
         orderQueueNum = orderFiles.size()/modNum+1;
@@ -313,6 +316,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         // 设置latch数目，确保所有数据都处理完
         final CountDownLatch latch = new CountDownLatch(orderFiles.size()+buyerFiles.size()+goodFiles.size());
+        // todo 不能线性提交 要保证order和buyer、goods同时运行
         new DataFileHandler() {
             @Override
             void handleRow(String key, String[][] row) throws InterruptedException {
@@ -455,8 +459,9 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
-        ArrayList<Result> results = new ArrayList<>();
         List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
+        List<String> _list = new ArrayList<>();
+        _list.add(key);
         double sumDouble = 0;
         long sumLong = 0;
         boolean existKey = false;
@@ -466,8 +471,9 @@ public class OrderSystemImpl implements OrderSystem {
             return null;
 
         for (String orderId : list) {
-            Row orderRow = createRow(orderTable.selectRowById(orderId)); // todo 肯定不为空
-            KV kv = orderRow.get(key);
+            Result result = queryOrder(Long.valueOf(orderId),_list);
+//            Row orderRow = createRow(orderTable.selectRowById(orderId)); // todo 肯定不为空
+            KV kv = (KV) result.get(key);
             if (kv == null)
                 continue;
             if (!existKey) {
@@ -491,7 +497,6 @@ public class OrderSystemImpl implements OrderSystem {
                         e1.printStackTrace(); // 通过测试后可以删掉
                     }
                 }
-                e.printStackTrace();
                 existStr = true;
                 break;
             }

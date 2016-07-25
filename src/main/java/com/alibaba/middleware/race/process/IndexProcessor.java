@@ -35,8 +35,9 @@ public class IndexProcessor {
             @Override
             public void run() { // todo 线上测试实际数据的时候，生成的数据量会非常大，无法直接构架B+树,
                                      // todo 所以要使用队列对这个数据切分. 另外有没有用户同一时间两个订单?
+                                     // todo 合并代码
                 String path = RaceConfig.STORE_PATH+"buyerid_create_order";
-                BufferedWriter bw;
+                BufferedWriter bw = null;
                 try { // todo 有问题 -> 啥问题?
                     bw = Utils.createWriter(path);
                     HashMap<String,StringBuilder> map = new HashMap<>();
@@ -65,6 +66,14 @@ public class IndexProcessor {
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
+                    if (bw!=null) {
+                        try {
+                            bw.flush();
+                            bw.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                     latch.countDown();
                 }
             }
@@ -75,7 +84,7 @@ public class IndexProcessor {
             @Override
             public void run() {
                 String path = RaceConfig.STORE_PATH+"goodid_orderid";
-                BufferedWriter bw;
+                BufferedWriter bw = null;
                 try {
                     bw = Utils.createWriter(path);
                     HashMap<String,StringBuilder> map = new HashMap<>();
@@ -105,6 +114,14 @@ public class IndexProcessor {
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
+                    if (bw!=null) {
+                        try {
+                            bw.flush();
+                            bw.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                     latch.countDown();
                 }
             }

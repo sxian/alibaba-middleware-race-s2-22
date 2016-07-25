@@ -23,8 +23,9 @@ public class TmpTest {
 //
 //        }
 
-        raf.seek(7259995); // ap-804e-6f1c7d177abd,25468,470
-        byte[] bytes = new byte[798];
+        long leg = raf.length();
+        raf.seek(8667668); // ap-804e-6f1c7d177abd,25468,470
+        byte[] bytes = new byte[714];
         raf.read(bytes);
         System.out.println(new String(bytes));
 
