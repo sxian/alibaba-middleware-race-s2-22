@@ -2,7 +2,6 @@ package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.datastruct.Query;
 import com.alibaba.middleware.race.db.OrderTable;
-import com.alibaba.middleware.race.db.Table;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
@@ -95,18 +94,6 @@ public class OrderSystemImplTest {
             }
         }
         return rows;
-    }
-
-    public static HashMap<String,OrderSystemImpl.Row> buildQueryMap(Table table, List<OrderSystemImpl.Row> rows, String id) {
-        HashMap<String,OrderSystemImpl.Row> map =new HashMap<>();
-        for (int i = 0;i<rows.size();i++) {
-            String key = rows.get(i).get(id).valueAsString();
-            OrderSystemImpl.Row row = OrderSystemImpl.createRow(table.selectRowById(key));
-            if (row!=null) {
-                map.put(key,row);
-            }
-        }
-        return map;
     }
 
     public static void testSelectOrderIDByBuyerID(String id, Random random, String strs,OrderTable table) {

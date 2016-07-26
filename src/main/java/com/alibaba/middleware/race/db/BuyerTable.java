@@ -7,7 +7,7 @@ import com.alibaba.middleware.race.process.QueryProcessor;
 /**
  * Created by sxian.wang on 2016/7/21.
  */
-public class BuyerTable implements Table {
+public class BuyerTable {
     private LRUCache<String, String> rowCache;
 
     public BuyerTable() {

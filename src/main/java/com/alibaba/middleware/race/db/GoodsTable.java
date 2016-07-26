@@ -7,7 +7,7 @@ import com.alibaba.middleware.race.process.QueryProcessor;
 /**
  * Created by sxian.wang on 2016/7/21.
  */
-public class GoodsTable implements Table {
+public class GoodsTable {
     private LRUCache<String, String> rowCache;
 
     public GoodsTable() {
