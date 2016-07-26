@@ -7,21 +7,20 @@ public class RaceConfig {
 
     public static final boolean ONLINE = true;
 
-    public static String LOCAL_STORE_PATH = "t/index/";
     public static String ORDER_SOTRED_STORE_PATH = "t/index/";
     public static String STORE_PATH = "t/index/";
     public static String DATA_ROOT = "prerun_data/";
-    public static String DISK1 = "";
-    public static String DISK2 = "";
-    public static String DISK3 = "";
+    public static String DISK1 = "t/index/";
+    public static String DISK2 = "t/index/";
+    public static String DISK3 = "t/index/";
 
     // 保存排序完的订单数据
 
-    public static int ORDER_FILE_SIZE = 10; // 线上200
+    public static int ORDER_FILE_SIZE = 1; // 线上200
 
-    public static int BUYER_FILE_SIZE = 5; // 5
+    public static int BUYER_FILE_SIZE = 1; // 10
 
-    public static int GOODS_FILE_SIZE = 5; // 5
+    public static int GOODS_FILE_SIZE = 1; // 10
     // 多少个文件对应一个数据队列，亦即一个线程处理多少个文件
-    public static int CONSTRUCT_MOD_NUM = 3; // 5
+    public static int CONSTRUCT_MOD_NUM = 2; // 10
 }
