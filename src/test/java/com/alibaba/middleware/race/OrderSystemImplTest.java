@@ -6,8 +6,10 @@ import com.alibaba.middleware.race.util.Utils;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
 
@@ -15,11 +17,18 @@ import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
  * Created by sxian.wang on 2016/7/19.
  */
 public class OrderSystemImplTest {
-    public static int querySum = 0;
-    public static int successSum = 0;
-    public static int failed = 0;
-    private static final LinkedBlockingQueue<Query> queryQueue = new LinkedBlockingQueue<>(2000);
-    private static final LinkedBlockingQueue<Query> resultQueue = new LinkedBlockingQueue<>(2000);
+    public static AtomicInteger querySum = new AtomicInteger(0);
+    public static AtomicInteger successSum = new AtomicInteger(0);
+    public static AtomicInteger failed = new AtomicInteger(0);
+    public static AtomicInteger buildCaseThreadCount = new AtomicInteger(0);
+    public static AtomicInteger compareCaseThreadCount = new AtomicInteger(0);
+    public static AtomicInteger executeQueryThreadCount = new AtomicInteger(0);
+    public static int spiltCaseFileNum = 1;
+    public static CountDownLatch latch = new CountDownLatch(spiltCaseFileNum);
+    public static String CASE_ROOT = RaceConfig.STORE_PATH+"case/";
+    private static final LinkedBlockingQueue<Query>[] queryQueues = new LinkedBlockingQueue[spiltCaseFileNum];
+    private static final LinkedBlockingQueue<Query>[] resultQueues = new LinkedBlockingQueue[spiltCaseFileNum];
+
     public static OrderSystemImpl osi;
 
     public static void main(String[] args) throws IOException, InterruptedException {
@@ -34,51 +43,28 @@ public class OrderSystemImplTest {
 
         String[] storeFiles = new String[]{"t/index"};
 
-
-        OrderSystemImpl orderSystem = new OrderSystemImpl();
-        osi = orderSystem;
+        osi = new OrderSystemImpl();
         List<String> orderList = Arrays.asList(orderFiles);
         List<String> buyerList = Arrays.asList(buyerFiles);
         List<String> goodsList = Arrays.asList(goodsFiles);
         List<String> storeList = Arrays.asList(storeFiles);
 
         long start = System.currentTimeMillis();
-        orderSystem.construct(orderList, buyerList, goodsList, storeList);
+        osi.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
-        Thread buildThread = new Thread(new BuildQuery());
-        buildThread.start();
-        Thread compareThread = new Thread(new CompareResult());
-        compareThread.start();
-//        Thread.sleep(10000);
+        Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
         start = System.currentTimeMillis();
-        while (true) {
-            Query query = queryQueue.take();
-            if (query.queryEnd) {
-                resultQueue.offer(query);
-                break;
-            }
-            querySum++;
-            switch (query.queryFlag) {
-                case 0:
-                    query.result =  orderSystem.queryOrder(Long.valueOf(query.id),query.keys);
-                    break;
-                case 1:
-                    query.result1 = orderSystem.queryOrdersByBuyer(query.start,query.end,query.id);
+        for (int i = 0;i<spiltCaseFileNum;i++) {
+            queryQueues[i] = new LinkedBlockingQueue<>(1000);
+            resultQueues[i] = new LinkedBlockingQueue<>(1000);
 
-                    break;
-                case 2:
-                    query.result1 = orderSystem.queryOrdersBySaler("",query.id,query.keys);
-                    break;
-                case 3:
-                    query.kv =  orderSystem.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
-                    break;
-            }
-            resultQueue.offer(query,600,TimeUnit.SECONDS);
+            new Thread(new BuildQuery()).start();
+            new Thread(new ExecuteQuery()).start();
+            new Thread(new CompareResult()).start();
         }
+        latch.await();
         System.out.println("query number is: "+querySum+", success num is: "+successSum+", failed num is: " +failed);
         System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
-        buildThread.interrupt();
-        compareThread.interrupt();
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {
@@ -196,7 +182,9 @@ public class OrderSystemImplTest {
 
         @Override
         public void run() {
-            String filePath = DATA_ROOT+"case.0";
+            int index = buildCaseThreadCount.getAndAdd(1);
+            String filePath = CASE_ROOT+index;
+            LinkedBlockingQueue<Query> queryQueue = queryQueues[index];
             BufferedReader br = null;
             try {
                 br = Utils.createReader(filePath);
@@ -326,9 +314,47 @@ public class OrderSystemImplTest {
         }
     }
 
+    static class ExecuteQuery implements Runnable {
+
+        @Override
+        public void run() {
+            int index = executeQueryThreadCount.getAndAdd(1);
+            LinkedBlockingQueue<Query> queryQueue = queryQueues[index];
+            LinkedBlockingQueue<Query> resultQueue = resultQueues[index];
+            while (true) {
+                try {
+                    Query query = queryQueue.take();
+                    if (query.queryEnd) {
+                        resultQueue.offer(query);
+                        break;
+                    }
+                    querySum.getAndAdd(1);
+                    switch (query.queryFlag) {
+                        case 0:
+                            query.result =  osi.queryOrder(Long.valueOf(query.id),query.keys);
+                            break;
+                        case 1:
+                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
+
+                            break;
+                        case 2:
+                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
+                            break;
+                        case 3:
+                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
+                            break;
+                    }
+                    resultQueue.offer(query,600,TimeUnit.SECONDS);
+                }catch (Exception e) {
+                }
+            }
+        }
+    }
     static class  CompareResult implements Runnable {
         @Override
         public void run() {
+            int index = compareCaseThreadCount.getAndAdd(1);
+            LinkedBlockingQueue<Query> resultQueue = resultQueues[index];
             while (true) {
                 try {
                     Query query = resultQueue.take(); // 0 是查询结果 1是答案
@@ -338,22 +364,22 @@ public class OrderSystemImplTest {
                             OrderSystem.Result result = query.result;
                             if (query.resultMap.size()==0) {
                                 if (result==null) {
-                                    successSum++;
+                                    successSum.getAndAdd(1);
                                 } else {
-                                    failed++;
+                                    failed.getAndAdd(1);
                                     osi.queryOrder(Long.valueOf(query.id),query.keys);
                                     System.out.println("result is null, but exist data");
                                 }
                                 break;
                             }
                             if (!query.id.equals(String.valueOf(result.orderId()))) {
-                                failed++;
+                                failed.getAndAdd(1);
                                 osi.queryOrder(Long.valueOf(query.id),query.keys);
                             }
                             if (compareOrder(query.id,query.resultMap ,result)){
-                                successSum++;
+                                successSum.getAndAdd(1);
                             }else {
-                                failed++;
+                                failed.getAndAdd(1);
                             }
                             break;
                         case 1:
@@ -364,8 +390,8 @@ public class OrderSystemImplTest {
                                     queryok = false;
                                 }
                             }
-                            if (queryok) successSum++;
-                            else failed++;
+                            if (queryok) successSum.getAndAdd(1);
+                            else failed.getAndAdd(1);
                             break;
                         case 2:
                             Iterator<OrderSystem.Result> result2 =query.result1;
@@ -375,15 +401,15 @@ public class OrderSystemImplTest {
                                     queryok1 = false;
                                 }
                             }
-                            if (queryok1) successSum++;
+                            if (queryok1) successSum.getAndAdd(1);
                             break;
                         case 3:
                             OrderSystem.KeyValue kv = query.kv;
                             if (kv==null) {
                                 if (query.sumIsNull) {
-                                    successSum++;
+                                    successSum.getAndAdd(1);
                                 } else {
-                                    failed++;
+                                    failed.getAndAdd(1);
 //                                    System.out.println("sum error: " + query.id +", should: (Long) "+query.resultLong+" / (Double) "+query.resultDouble+", but is not contains key: "+ query.keys.get(0));
                                 }
                                 break;
@@ -413,14 +439,15 @@ public class OrderSystemImplTest {
                                 } catch (OrderSystem.TypeException e) {
                                 }
                             }
-                            if (queryok2) successSum++;
-                            else failed++;
+                            if (queryok2) successSum.getAndAdd(1);
+                            else failed.getAndAdd(1);
                             break;
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
+            latch.countDown();
         }
     }
 }
