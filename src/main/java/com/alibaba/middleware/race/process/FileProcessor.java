@@ -46,13 +46,10 @@ public class FileProcessor {
     public final CountDownLatch buyerSortLatch = new CountDownLatch(RaceConfig.BUYER_FILE_SIZE);
     public final CountDownLatch goodsSortLatch = new CountDownLatch(RaceConfig.GOODS_FILE_SIZE);
 
-    // 不同硬盘上的存储路径
-    public final String[] storeDiskPath = new String[3];
-
     private ExecutorService threads;
     private IndexProcessor indexProcessor;
 
-    public void init(final Collection<String> storeFolders, final IndexProcessor indexProcessor) throws InterruptedException, IOException {// todo 确认下folders的数量
+    public void init(final Collection<String> storeFolders, final IndexProcessor indexProcessor) throws InterruptedException, IOException {
         // 相同磁盘的路径前缀相同
         threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
         this.indexProcessor = indexProcessor;

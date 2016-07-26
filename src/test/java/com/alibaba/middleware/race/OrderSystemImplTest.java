@@ -221,7 +221,7 @@ public class OrderSystemImplTest {
                 int queryNum = 0;
                 while (record!=null) {
                     query.recordList.add(record);
-                    if ((record.equals("}")||record.equals(""))) { // todo 执行查询
+                    if ((record.equals("}")||record.equals(""))) {
                         if (!queryed) {
                             if (queryNum++%1000 == 0) {
                                 System.out.println("Already build query num: "+queryNum+", use time: "+

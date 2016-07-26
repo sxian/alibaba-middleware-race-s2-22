@@ -26,14 +26,12 @@ public class OrderSystemImpl implements OrderSystem {
     private static String booleanFalseValue = "false";
 
     // todo 优化线程数量，减少上下文切换开销
-    private ExecutorService queryThreads = Executors.newFixedThreadPool(20);
     private ExecutorService constructThreads;
 
     public static final ArrayList<LinkedBlockingQueue<String[][]>> orderQueues = new ArrayList();
     public static final ArrayList<LinkedBlockingQueue<String[][]>> buyerQueues = new ArrayList();
     public static final ArrayList<LinkedBlockingQueue<String[][]>> goodsQueues = new ArrayList();
 
-    // todo 确认一下查询的时候是多个线程持有一个OrderSystemImpl对象查询还是一个线程一个
     public FileProcessor fileProcessor;
 
     public static int orderQueueNum;

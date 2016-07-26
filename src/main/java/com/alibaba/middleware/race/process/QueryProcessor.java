@@ -260,7 +260,7 @@ public class QueryProcessor {
                 raf.read(bytes);
                 String rawStr = new String(bytes,0,length);
                 String[] bIndexs = rawStr.split(" ");
-                if (bIndexs[0].equals("0")) { // todo 在读取goodid_orderid的时候会超出范围
+                if (bIndexs[0].equals("0")) {
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[1].split(",");
                     if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足

@@ -18,8 +18,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Created by sxian.wang on 2016/7/21.
  */
 public class IndexProcessor {
-    // todo 修改
-    private String indexStorePath = RaceConfig.STORE_PATH+"index/";
 
     private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
     private HashMap<String, Long[]> orderIndexsKeys = QueryProcessor.filesIndexKey;
