@@ -283,11 +283,10 @@ public class OrderSystemImpl implements OrderSystem {
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
         if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 200;
-            RaceConfig.BUYER_FILE_SIZE = 10; // 貌似有点多
-            RaceConfig.GOODS_FILE_SIZE = 10; // 貌似有点多
+            RaceConfig.ORDER_FILE_SIZE = 200; // todo 要分到3个磁盘，所以实际文件数量是三倍
+            RaceConfig.BUYER_FILE_SIZE = 5; // 貌似有点多
+            RaceConfig.GOODS_FILE_SIZE = 5; // 貌似有点多
             RaceConfig.CONSTRUCT_MOD_NUM = 5; // 这个看文件数量吧
-            // todo 磁盘优化，把相同磁盘的归类到一起、 完成文件夹相关的创建操作
             for (String storePath : storeFolders) {
                 if (storePath.startsWith("/disk1")) {
                     RaceConfig.DISK1 = storePath;
@@ -296,9 +295,9 @@ public class OrderSystemImpl implements OrderSystem {
                 } else {
                     RaceConfig.DISK3 = storePath;
                 }
-                new File(storePath+"order/").mkdirs();
-                new File(storePath+"buyer/").mkdirs();
-                new File(storePath+"goods/").mkdirs();
+                new File(storePath+"o/").mkdirs();
+                new File(storePath+"b/").mkdirs();
+                new File(storePath+"g/").mkdirs();
             }
         }
         orderQueueNum = orderFiles.size()/RaceConfig.CONSTRUCT_MOD_NUM+1;
@@ -320,10 +319,11 @@ public class OrderSystemImpl implements OrderSystem {
         new DataFileHandler() {
             @Override
             void handleRow(String key, String[][] row) throws InterruptedException {
+                // 把相同商品的订单hash到一起去
                 int index = Math.abs(key.hashCode())%orderQueueNum;
                 orderQueues.get(index).offer(row,60,TimeUnit.SECONDS);
             }
-        }.handle(orderFiles, "orderid", 4, orderLatch,"(orderid|buyerid|goodid|createtime):([\\w|-]+)");
+        }.handle(orderFiles, "goodid", 4, orderLatch,"(orderid|buyerid|goodid|createtime):([\\w|-]+)");
 
         new Thread(new FileHandler(1,"buyerid",buyerFiles,"(buyerid):([\\w|-]+)",buyerLatch,
                 new DataFileHandler() {

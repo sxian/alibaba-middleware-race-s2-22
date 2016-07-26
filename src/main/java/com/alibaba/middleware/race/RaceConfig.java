@@ -10,9 +10,9 @@ public class RaceConfig {
     public static String ORDER_SOTRED_STORE_PATH = "t/index/";
     public static String STORE_PATH = "t/index/";
     public static String DATA_ROOT = "prerun_data/";
-    public static String DISK1 = "t/index/";
-    public static String DISK2 = "t/index/";
-    public static String DISK3 = "t/index/";
+    public static String DISK1 = "t/d1/";
+    public static String DISK2 = "t/d2/";
+    public static String DISK3 = "t/d3/";
 
     // 保存排序完的订单数据
 
