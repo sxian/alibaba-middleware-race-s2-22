@@ -18,7 +18,7 @@ public class GoodsTable {
         String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryGoods(id);
-//            if (row!=null) rowCache.put(id, row);
+            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }

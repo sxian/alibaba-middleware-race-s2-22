@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
-    // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗
+    // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗 -> 并发下使用不安全
     private static final ConcurrentHashMap<String, RandomAccessFile> randomAccessFileHashMap = new ConcurrentHashMap<>();
 
     private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
