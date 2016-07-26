@@ -20,11 +20,15 @@ public class OrderSystemImplTest {
     public static AtomicInteger querySum = new AtomicInteger(0);
     public static AtomicInteger successSum = new AtomicInteger(0);
     public static AtomicInteger failed = new AtomicInteger(0);
+    public static AtomicInteger queryNum = new AtomicInteger(0);
     public static AtomicInteger buildCaseThreadCount = new AtomicInteger(0);
     public static AtomicInteger compareCaseThreadCount = new AtomicInteger(0);
     public static AtomicInteger executeQueryThreadCount = new AtomicInteger(0);
-    public static int spiltCaseFileNum = 1;
-    public static CountDownLatch latch = new CountDownLatch(spiltCaseFileNum);
+    public static long buildStart;
+    public static int spiltCaseFileNum = 10;
+    public static CountDownLatch queryLatch = new CountDownLatch(spiltCaseFileNum);
+    public static CountDownLatch compareLatch = new CountDownLatch(spiltCaseFileNum);
+
     public static String CASE_ROOT = RaceConfig.STORE_PATH+"case/";
     private static final LinkedBlockingQueue<Query>[] queryQueues = new LinkedBlockingQueue[spiltCaseFileNum];
     private static final LinkedBlockingQueue<Query>[] resultQueues = new LinkedBlockingQueue[spiltCaseFileNum];
@@ -54,17 +58,19 @@ public class OrderSystemImplTest {
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
         Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
         start = System.currentTimeMillis();
+        buildStart = start;
         for (int i = 0;i<spiltCaseFileNum;i++) {
             queryQueues[i] = new LinkedBlockingQueue<>(1000);
             resultQueues[i] = new LinkedBlockingQueue<>(1000);
-
             new Thread(new BuildQuery()).start();
             new Thread(new ExecuteQuery()).start();
             new Thread(new CompareResult()).start();
         }
-        latch.await();
-        System.out.println("query number is: "+querySum+", success num is: "+successSum+", failed num is: " +failed);
+        queryLatch.await();
         System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
+        compareLatch.await();
+        System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
+                ", failed num is: " +failed.get());
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {
@@ -192,15 +198,13 @@ public class OrderSystemImplTest {
                 boolean queryed = false;
                 Query query = new Query();
                 String record = br.readLine();
-                long start = System.currentTimeMillis();
-                int queryNum = 0;
-                while (record!=null) {
                     query.recordList.add(record);
+                while (record!=null) {
                     if ((record.equals("}")||record.equals(""))) {
                         if (!queryed) {
-                            if (queryNum++%1000 == 0) {
+                            if (queryNum.getAndAdd(1)%1000 == 0) {
                                 System.out.println("Already build query num: "+queryNum+", use time: "+
-                                        (System.currentTimeMillis()-start)+"queue size: " + queryQueue.size());
+                                        (System.currentTimeMillis()-buildStart)+"queue size: " + queryQueue.size());
                             }
                             queryQueue.offer(query,60, TimeUnit.SECONDS);
                             query = new Query();
@@ -296,18 +300,19 @@ public class OrderSystemImplTest {
                     }
                     record = br.readLine();
                 }
-
-                System.out.println("build Test data use time: " +(System.currentTimeMillis()-start)+", build query num: "+queryNum);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
+                System.out.println("build Test data use time: " +(System.currentTimeMillis()-buildStart)+", build query num: "+queryNum);
                 Query query = new Query();
                 query.queryEnd = true;
-                queryQueue.offer(query);
                 try {
+                    queryQueue.offer(query,60,TimeUnit.SECONDS);
                     if (br!=null)
                         br.close();
                 } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -315,14 +320,13 @@ public class OrderSystemImplTest {
     }
 
     static class ExecuteQuery implements Runnable {
-
         @Override
         public void run() {
             int index = executeQueryThreadCount.getAndAdd(1);
             LinkedBlockingQueue<Query> queryQueue = queryQueues[index];
             LinkedBlockingQueue<Query> resultQueue = resultQueues[index];
-            while (true) {
-                try {
+            try {
+                while (true) {
                     Query query = queryQueue.take();
                     if (query.queryEnd) {
                         resultQueue.offer(query);
@@ -345,18 +349,22 @@ public class OrderSystemImplTest {
                             break;
                     }
                     resultQueue.offer(query,600,TimeUnit.SECONDS);
-                }catch (Exception e) {
                 }
+            }catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                queryLatch.countDown();
             }
         }
     }
+
     static class  CompareResult implements Runnable {
         @Override
         public void run() {
             int index = compareCaseThreadCount.getAndAdd(1);
             LinkedBlockingQueue<Query> resultQueue = resultQueues[index];
-            while (true) {
-                try {
+            try {
+                while (true) {
                     Query query = resultQueue.take(); // 0 是查询结果 1是答案
                     if (query.queryEnd) break;
                     switch (query.queryFlag) {
@@ -443,11 +451,12 @@ public class OrderSystemImplTest {
                             else failed.getAndAdd(1);
                             break;
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                compareLatch.countDown();
             }
-            latch.countDown();
         }
     }
 }

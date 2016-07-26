@@ -25,7 +25,7 @@ public class OrderTable {
                     row = QueryProcessor.queryOrder(id);
                     return null;
                 }
-                rowCache.put(id, row);
+//                rowCache.put(id, row);
             }
         }
         return row;

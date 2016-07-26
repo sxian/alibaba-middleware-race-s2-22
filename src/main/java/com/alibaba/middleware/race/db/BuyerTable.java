@@ -18,7 +18,7 @@ public class BuyerTable {
         String row = rowCache.get(id);
         if (row == null) {
             row = QueryProcessor.queryBuyer(id);
-            if (row!=null) rowCache.put(id, row);
+//            if (row!=null) rowCache.put(id, row);
         }
         return row;
     }

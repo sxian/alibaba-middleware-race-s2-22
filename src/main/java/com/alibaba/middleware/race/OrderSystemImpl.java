@@ -507,7 +507,6 @@ public class OrderSystemImpl implements OrderSystem {
                         existDouble = true;
                         continue;
                     } catch (TypeException e1) {
-                        e1.printStackTrace(); // 通过测试后可以删掉
                     }
                 }
                 existStr = true;

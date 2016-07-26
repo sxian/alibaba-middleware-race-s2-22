@@ -6,13 +6,14 @@ import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.RandomAccessFile;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
     // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗
-    private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
+    private static final ConcurrentHashMap<String, RandomAccessFile> randomAccessFileHashMap = new ConcurrentHashMap<>();
 
     private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
     private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
@@ -155,11 +156,18 @@ public class QueryProcessor {
         try {
             RandomAccessFile raf = randomAccessFileHashMap.get(file);
             if (raf == null) {
-                raf = new RandomAccessFile(file,"r");
-                randomAccessFileHashMap.put(file, raf);
+                synchronized (QueryProcessor.class) {
+                    raf = randomAccessFileHashMap.get(file);
+                    if (raf == null) {
+                        raf = new RandomAccessFile(file,"r");
+                        randomAccessFileHashMap.put(file, raf);
+                    }
+                }
             }
-            raf.seek(pos);
-            raf.read(bytes);
+            synchronized (raf) {
+                raf.seek(pos);
+                raf.read(bytes);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -174,68 +182,76 @@ public class QueryProcessor {
         try {
             RandomAccessFile raf = randomAccessFileHashMap.get(file);
             if (raf == null) {
-                raf = new RandomAccessFile(file,"r");
-                randomAccessFileHashMap.put(file, raf);
+                synchronized (QueryProcessor.class) {
+                    raf = randomAccessFileHashMap.get(file);
+                    if (raf == null) {
+                        raf = new RandomAccessFile(file,"r");
+                        randomAccessFileHashMap.put(file, raf);
+                    }
+                }
             }
-            while (!findRow) {
-                raf.seek(pos);
-                raf.read(bytes);
-                String rawStr = new String(bytes,0,length);
-                String[] bIndexs = rawStr.split(" ");
-                if (bIndexs[0].equals("0")) {
-                    boolean findIndex = false;
-                    String[] preIndexPos = bIndexs[1].split(",");
-                    if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
-                        pos = Long.valueOf(preIndexPos[1]);
-                        length = Integer.valueOf(preIndexPos[2]);
-                        continue;
-                    }
-                    if (!findIndex) {
-                        for (int i = 1; i<bIndexs.length-1;i++) {
-                            String[] indexPos = bIndexs[i+1].split(",");
-                            if (i==bIndexs.length-2) {
-                                if (orderid < Long.valueOf(preIndexPos[0])) {
-                                    throw new RuntimeException("compare error");
-                                }
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
+            synchronized (raf) {
 
-                            if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
-                            preIndexPos = indexPos;
-                        }
-                    }
-                } else if (bIndexs[0].equals("1")) {
-                    for (int i = 1; i<bIndexs.length;i++) {
-                        if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
+                while (!findRow) {
+                    raf.seek(pos);
+                    raf.read(bytes);
+                    String rawStr = new String(bytes,0,length);
+                    String[] bIndexs = rawStr.split(" ");
+                    if (bIndexs[0].equals("0")) {
+                        boolean findIndex = false;
+                        String[] preIndexPos = bIndexs[1].split(",");
+                        if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
+                            pos = Long.valueOf(preIndexPos[1]);
+                            length = Integer.valueOf(preIndexPos[2]);
                             continue;
                         }
-                        String[] rowPos = bIndexs[i].split(",");
-                        if (Long.valueOf(rowPos[0])==orderid) {
-                            raf.seek(Long.valueOf(rowPos[1]));
-                            rowLen = Integer.valueOf(rowPos[2]);
-                            if (rowLen > bytes.length) {
-                                bytes = new byte[rowLen];
+                        if (!findIndex) {
+                            for (int i = 1; i<bIndexs.length-1;i++) {
+                                String[] indexPos = bIndexs[i+1].split(",");
+                                if (i==bIndexs.length-2) {
+                                    if (orderid < Long.valueOf(preIndexPos[0])) {
+                                        throw new RuntimeException("compare error");
+                                    }
+                                    pos = Long.valueOf(preIndexPos[1]);
+                                    length = Integer.valueOf(preIndexPos[2]);
+                                    break;
+                                }
+
+                                if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
+                                    pos = Long.valueOf(preIndexPos[1]);
+                                    length = Integer.valueOf(preIndexPos[2]);
+                                    break;
+                                }
+                                preIndexPos = indexPos;
                             }
-                            raf.read(bytes,0,rowLen);
-                            findRow = true;
-                            break;
                         }
+                    } else if (bIndexs[0].equals("1")) {
+                        for (int i = 1; i<bIndexs.length;i++) {
+                            if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
+                                continue;
+                            }
+                            String[] rowPos = bIndexs[i].split(",");
+                            if (Long.valueOf(rowPos[0])==orderid) {
+                                raf.seek(Long.valueOf(rowPos[1]));
+                                rowLen = Integer.valueOf(rowPos[2]);
+                                if (rowLen > bytes.length) {
+                                    bytes = new byte[rowLen];
+                                }
+                                raf.read(bytes,0,rowLen);
+                                findRow = true;
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
+                            return rawStr;
+                        }
+                        return null;
                     }
-                    break;
-                } else {
-                    if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
-                        return rawStr;
+                    if (length > bytes.length) {
+                        bytes = new byte[length];
                     }
-                    return null;
-                }
-                if (length > bytes.length) {
-                    bytes = new byte[length];
                 }
             }
         } catch (Exception e) {
@@ -250,65 +266,73 @@ public class QueryProcessor {
         boolean findRow = false;
         int rowLen = 0;
         try {
+
             RandomAccessFile raf = randomAccessFileHashMap.get(file);
             if (raf == null) {
-                raf = new RandomAccessFile(file,"r");
-                randomAccessFileHashMap.put(file, raf);
-            }
-            while (!findRow) {
-                raf.seek(pos);
-                raf.read(bytes);
-                String rawStr = new String(bytes,0,length);
-                String[] bIndexs = rawStr.split(" ");
-                if (bIndexs[0].equals("0")) {
-                    boolean findIndex = false;
-                    String[] preIndexPos = bIndexs[1].split(",");
-                    if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
-                        pos = Long.valueOf(preIndexPos[1]);
-                        length = Integer.valueOf(preIndexPos[2]);
-                        continue;
+                synchronized (QueryProcessor.class) {
+                    raf = randomAccessFileHashMap.get(file);
+                    if (raf == null) {
+                        raf = new RandomAccessFile(file,"r");
+                        randomAccessFileHashMap.put(file, raf);
                     }
-                    if (!findIndex) {
-                        for (int i = 1; i<bIndexs.length-1;i++) {
-                            String[] indexPos = bIndexs[i+1].split(",");
-                            if (i==bIndexs.length-2) {
-                                if (id.compareTo(preIndexPos[0]) < 0) {
-                                    throw new RuntimeException("compare error");
-                                }
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
-
-                            if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
-                            preIndexPos = indexPos;
-                        }
-                    }
-                } else if (bIndexs[0].equals("1")){
-                    for (int i = 1; i<bIndexs.length;i++) {
-                        String[] rowPos = bIndexs[i].split(",");
-                        if (rowPos[0].equals(id)) {
-                            raf.seek(Long.valueOf(rowPos[1]));
-                            rowLen = Integer.valueOf(rowPos[2]);
-                            if (rowLen > bytes.length) {
-                                bytes = new byte[rowLen];
-                            }
-                            raf.read(bytes,0,rowLen);
-                            findRow = true;
-                            break;
-                        }
-                    }
-                    break;
-                } else {
-                    // todo 参照上面 -> 因外全加载到内存了，所以可以直接return
-                    return rawStr;
                 }
-                if (length > bytes.length) {
-                    bytes = new byte[length];
+            }
+            synchronized (raf) {
+                while (!findRow) {
+                    raf.seek(pos);
+                    raf.read(bytes);
+                    String rawStr = new String(bytes,0,length);
+                    String[] bIndexs = rawStr.split(" ");
+                    if (bIndexs[0].equals("0")) {
+                        boolean findIndex = false;
+                        String[] preIndexPos = bIndexs[1].split(",");
+                        if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
+                            pos = Long.valueOf(preIndexPos[1]);
+                            length = Integer.valueOf(preIndexPos[2]);
+                            continue;
+                        }
+                        if (!findIndex) {
+                            for (int i = 1; i<bIndexs.length-1;i++) {
+                                String[] indexPos = bIndexs[i+1].split(",");
+                                if (i==bIndexs.length-2) {
+                                    if (id.compareTo(preIndexPos[0]) < 0) {
+                                        throw new RuntimeException("compare error");
+                                    }
+                                    pos = Long.valueOf(preIndexPos[1]);
+                                    length = Integer.valueOf(preIndexPos[2]);
+                                    break;
+                                }
+
+                                if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
+                                    pos = Long.valueOf(preIndexPos[1]);
+                                    length = Integer.valueOf(preIndexPos[2]);
+                                    break;
+                                }
+                                preIndexPos = indexPos;
+                            }
+                        }
+                    } else if (bIndexs[0].equals("1")){
+                        for (int i = 1; i<bIndexs.length;i++) {
+                            String[] rowPos = bIndexs[i].split(",");
+                            if (rowPos[0].equals(id)) {
+                                raf.seek(Long.valueOf(rowPos[1]));
+                                rowLen = Integer.valueOf(rowPos[2]);
+                                if (rowLen > bytes.length) {
+                                    bytes = new byte[rowLen];
+                                }
+                                raf.read(bytes,0,rowLen);
+                                findRow = true;
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        // todo 参照上面 -> 因外全加载到内存了，所以可以直接return
+                        return rawStr;
+                    }
+                    if (length > bytes.length) {
+                        bytes = new byte[length];
+                    }
                 }
             }
         } catch (Exception e) {

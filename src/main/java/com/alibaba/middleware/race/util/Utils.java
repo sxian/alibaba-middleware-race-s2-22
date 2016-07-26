@@ -28,7 +28,7 @@ public class Utils {
 
         } finally {
             BufferedWriter bw = createWriter(storeFilePath+"flag");
-            bw.write(splitNum);
+            bw.write(String.valueOf(splitNum));
             bw.flush();
             bw.close();
         }
