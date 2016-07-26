@@ -18,7 +18,7 @@ public class LRUCache<K, V> {
         hashMap = new ConcurrentHashMap<K, Entry<K, V>>();
     }
 
-    public void put(K key, V value) {
+    public synchronized void put(K key, V value) {
         Entry entry = getEntry(key);
         if (entry == null) {
             if (hashMap.size() >= MAX_CACHE_SIZE) {
@@ -33,7 +33,7 @@ public class LRUCache<K, V> {
         hashMap.put(key, entry);
     }
 
-    public V get(K key) {
+    public synchronized V get(K key) {
         Entry<K, V> entry = getEntry(key);
         if (entry == null) return null;
         moveToFirst(entry);

@@ -288,7 +288,10 @@ public class OrderSystemImpl implements OrderSystem {
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
         if (RaceConfig.ONLINE) {
-
+            RaceConfig.ORDER_FILE_SIZE = 200;
+            RaceConfig.BUYER_FILE_SIZE = 5;
+            RaceConfig.GOODS_FILE_SIZE = 5;
+            RaceConfig.CONSTRUCT_MOD_NUM = 5;
             // todo 磁盘优化，把相同磁盘的归类到一起
             for (String storePath : storeFolders) {
                 if (storePath.startsWith("/disk1")) {

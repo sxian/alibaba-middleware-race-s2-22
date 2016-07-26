@@ -16,6 +16,22 @@ public class Utils {
 
     public static void spilitCaseFile(String caseFilePath, String storeFilePath,int splitNum) throws IOException {
         int averageLine = 10906940/splitNum + 1;
+        try {
+            BufferedReader br = createReader(storeFilePath+"flag");
+            String flag = br.readLine();
+            if (flag.equals(String.valueOf(splitNum))) {
+                return;
+            } else {
+            }
+
+        } catch (Exception e) {
+
+        } finally {
+            BufferedWriter bw = createWriter(storeFilePath+"flag");
+            bw.write(splitNum);
+            bw.flush();
+            bw.close();
+        }
         long count = 0;
         int index = 0;
         BufferedReader bw = createReader(caseFilePath);
