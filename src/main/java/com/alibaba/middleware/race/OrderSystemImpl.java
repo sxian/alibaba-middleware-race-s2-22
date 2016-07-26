@@ -287,7 +287,7 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-        if (RaceConfig.ONLINE) {
+        if (RaceConfig.ONLINE) { // todo 完成文件夹相关的创建操作
             RaceConfig.ORDER_FILE_SIZE = 200;
             RaceConfig.BUYER_FILE_SIZE = 5;
             RaceConfig.GOODS_FILE_SIZE = 5;
@@ -296,11 +296,11 @@ public class OrderSystemImpl implements OrderSystem {
             for (String storePath : storeFolders) {
                 if (storePath.startsWith("/disk1")) {
                     RaceConfig.DISK1 = storePath;
-                    RaceConfig.STORE_PATH = storePath;
-                    RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
                 } else if (storePath.startsWith("/disk2")) {
                     RaceConfig.DISK2 = storePath;
                 } else {
+                    RaceConfig.STORE_PATH = storePath;
+                    RaceConfig.ORDER_SOTRED_STORE_PATH = storePath;
                     RaceConfig.DISK3 = storePath;
                 }
             }
@@ -453,12 +453,7 @@ public class OrderSystemImpl implements OrderSystem {
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
-            try {
-                results.add(queryOrder(Long.valueOf(orderId),keys));
-            } catch (Exception e ) {
-                int i = 0;
-//                orderTable.selectOrderIDByGoodsID(goodid);
-            }
+            results.add(queryOrder(Long.valueOf(orderId),keys));
         }
         return results.iterator();
     }
@@ -480,12 +475,12 @@ public class OrderSystemImpl implements OrderSystem {
             Result result = queryOrder(Long.valueOf(orderId),_list); // todo 肯定不为空 所有字段都是join后的
             KV kv = null;
 
-            if (result != null) {
-                kv = (KV) result.get(key);
-            } else {
-                result = queryOrder(Long.valueOf(orderId),_list);
-                continue;
-            }
+//            if (result != null) {
+            kv = (KV) result.get(key);
+//            } else {
+//                result = queryOrder(Long.valueOf(orderId),_list);
+//                continue;
+//            }
             if (kv == null)
                 continue;
             if (!existKey) {

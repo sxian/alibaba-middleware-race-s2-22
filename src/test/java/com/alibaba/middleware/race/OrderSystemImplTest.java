@@ -204,7 +204,7 @@ public class OrderSystemImplTest {
                         if (!queryed) {
                             if (queryNum.getAndAdd(1)%1000 == 0) {
                                 System.out.println("Already build query num: "+queryNum+", use time: "+
-                                        (System.currentTimeMillis()-buildStart)+"queue size: " + queryQueue.size());
+                                        (System.currentTimeMillis()-buildStart)+", queue size: " + queryQueue.size());
                             }
                             queryQueue.offer(query,60, TimeUnit.SECONDS);
                             query = new Query();

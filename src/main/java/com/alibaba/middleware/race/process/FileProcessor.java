@@ -54,18 +54,13 @@ public class FileProcessor {
         threads =  Executors.newFixedThreadPool(orderQueues.size()+buyerQueues.size()+goodsQueues.size());
         this.indexProcessor = indexProcessor;
         indexProcessor.init();
-        if (RaceConfig.ONLINE) {
-            for (String path : storeFolders) {
-            // todo 创建文件夹
-            }
-        } else {
-            execute(orderQueues,orderWriters, orderLatch, RaceConfig.ORDER_FILE_SIZE,"orderid",
-                    RaceConfig.STORE_PATH+"o",true);
-            execute(buyerQueues,buyerWriters, buyerLatch, RaceConfig.BUYER_FILE_SIZE,"buyerid",
-                    RaceConfig.STORE_PATH+"b",false);
-            execute(goodsQueues,goodsWriters, goodsLatch, RaceConfig.GOODS_FILE_SIZE,"goodid",
-                    RaceConfig.STORE_PATH+"g",false);
-        }
+
+        execute(orderQueues,orderWriters, orderLatch, RaceConfig.ORDER_FILE_SIZE,"orderid",
+                RaceConfig.STORE_PATH+"o",true);
+        execute(buyerQueues,buyerWriters, buyerLatch, RaceConfig.BUYER_FILE_SIZE,"buyerid",
+                RaceConfig.STORE_PATH+"b",false);
+        execute(goodsQueues,goodsWriters, goodsLatch, RaceConfig.GOODS_FILE_SIZE,"goodid",
+                RaceConfig.STORE_PATH+"g",false);
 
         new Thread(new Runnable() {
             @Override
@@ -227,8 +222,12 @@ public class FileProcessor {
                             ArrayList<String> indexs = new ArrayList<String>();
                             indexs.add(path);
                             for (Node node : bplusTree.getRoot().getChildren()) {
-                                for (Node _node : node.getChildren())
-                                    indexs.add(_node.toString());
+                                if(node.getChildren()!=null) {
+                                    for (Node _node : node.getChildren())
+                                        indexs.add(_node.toString());
+                                } else {
+                                    indexs.add(node.toString());
+                                }
                             }
                             queue.offer(indexs);
                         } else { // 买家订单数据不构建b+树，因为所有的索引放入内存了
