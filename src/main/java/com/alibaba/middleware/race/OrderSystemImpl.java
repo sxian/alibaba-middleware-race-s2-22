@@ -28,8 +28,8 @@ public class OrderSystemImpl implements OrderSystem {
 
     // 每个队列对应一个磁盘
     public static final LinkedBlockingQueue<String[][]>[] orderQueues = new LinkedBlockingQueue[3];
-    public static final LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(1000000);
-    public static final LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(1000000);
+    public static final LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(50000);
+    public static final LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(50000);
 
     public FileProcessor fileProcessor;
 
@@ -306,7 +306,7 @@ public class OrderSystemImpl implements OrderSystem {
         }
 
         for (int i = 0;i<3;i++) { // todo 参数优化
-            orderQueues[i] = new LinkedBlockingQueue<>(500000);
+            orderQueues[i] = new LinkedBlockingQueue<>(20000);
         }
 
         // 一个队列对应一个线程

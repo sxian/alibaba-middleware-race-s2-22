@@ -87,16 +87,19 @@ public class FileProcessor {
 
         BufferedWriter[] dataWriters = new BufferedWriter[fileSize];
         BufferedWriter[] indexWriters = new BufferedWriter[fileSize];
-        StringBuffer[] data_sbs = new StringBuffer[fileSize];
-        StringBuffer[] index_sbs = new StringBuffer[fileSize];
-        AtomicInteger[] posCounters = new AtomicInteger[fileSize];
+//        StringBuffer[] data_sbs = new StringBuffer[fileSize]; // todo有没有必要开多线程
+//        StringBuffer[] index_sbs = new StringBuffer[fileSize];
+        StringBuilder[] data_sbs = new StringBuilder[fileSize];
+        StringBuilder[] index_sbs = new StringBuilder[fileSize];
+//        AtomicInteger[] posCounters = new AtomicInteger[fileSize];
+        int[] posCounters = new int[fileSize];
 
         for (int i = 0;i<fileSize;i++) {
             dataWriters[i] = Utils.createWriter(storeFold+i);
             indexWriters[i] = Utils.createWriter(storeFold+"i"+i);
-            data_sbs[i] = new StringBuffer();
-            index_sbs[i] = new StringBuffer();
-            posCounters[i] = new AtomicInteger(0);
+            data_sbs[i] = new StringBuilder();
+            index_sbs[i] = new StringBuilder();
+            posCounters[i] = 0/*new AtomicInteger(0)*/;
         }
         threads.execute(new ProcessData(queue, dataWriters, indexWriters, data_sbs, index_sbs,
                 posCounters, latch, storeFold));
@@ -117,9 +120,11 @@ public class FileProcessor {
         private LinkedBlockingQueue<String[][]> queue;
         private BufferedWriter[] dataWriters;
         private BufferedWriter[] indexWriters;
-        private StringBuffer[] data_sbs;
-        private StringBuffer[] index_sbs;
-        private AtomicInteger[] posCounters;
+        private StringBuilder[] data_sbs;
+        private StringBuilder[] index_sbs;
+//        private AtomicInteger[] posCounters;
+        private int[] posCounters;
+
         private CountDownLatch latch;
         private String storeFold;
 
@@ -127,8 +132,8 @@ public class FileProcessor {
         private int fileSize;
 
         public ProcessData (LinkedBlockingQueue<String[][]> queue, BufferedWriter[] dataWriters,
-                            BufferedWriter[] indexWriters, StringBuffer[] data_sbs, StringBuffer[] index_sbs,
-                            AtomicInteger[] posCounters, CountDownLatch latch, String storeFold) {
+                            BufferedWriter[] indexWriters, StringBuilder[] data_sbs, StringBuilder[] index_sbs,
+                            /*AtomicInteger[]*/int[] posCounters, CountDownLatch latch, String storeFold) {
             this.queue = queue;
             this.dataWriters = dataWriters;
             this.indexWriters = indexWriters;
@@ -179,11 +184,11 @@ public class FileProcessor {
 
                     int index = Math.abs(hashcode)%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
                     int length = row[0][0].getBytes().length;
-                    int pos = posCounters[index].getAndAdd(length);
+                    int pos = posCounters[index]++/*getAndAdd(length)*/;
                     data_sbs[index].append(row[0][0]);
                     String indexStr = id+","+storeFold+index+","+pos+","+length; // todo 构建index
                     index_sbs[index].append(indexStr).append("\n");
-                    if (posCounters[index].get()==200){
+                    if (posCounters[index]/*.get()*/==200){
                         // 因为要记位置，所以索引的记录是不安全的 因为不同的线程可能会比另外一个线程先到200
                         // pos的值必须是线程安全的 -> 写的东西再加个队列? 另外一个线程专门去写, 起三个线程 3*FileNum
                         // 有个问题值得注意 -> 记录完pos后，在向队列添加的时候可能反而会加到前面或后面去 -> 把key和字符串
@@ -192,7 +197,7 @@ public class FileProcessor {
                         data_sbs[index].delete(0,data_sbs[index].length());
                         indexWriters[index].write(index_sbs[index].toString());
                         index_sbs[index].delete(0,index_sbs[index].length());
-                        posCounters[index].set(0);
+                        posCounters[index] = 0;/*.set(0)*/;
                     }
                 }
                 for (int i = 0;i<fileSize;i++) {
