@@ -28,12 +28,12 @@ public class OrderSystemImpl implements OrderSystem {
 
     // 每个队列对应一个磁盘
     public static final LinkedBlockingQueue<String[][]>[] orderQueues = new LinkedBlockingQueue[3];
-    public static final LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(50000);
-    public static final LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(50000);
+    public static final LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(150000);
+    public static final LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(150000);
 
-    public FileProcessor fileProcessor;
+    private FileProcessor fileProcessor;
+    private IndexProcessor indexProcessor;
 
-    IndexProcessor indexProcessor;
     private OrderTable orderTable;
     private BuyerTable buyerTable;
     private GoodsTable goodsTable;
@@ -306,7 +306,7 @@ public class OrderSystemImpl implements OrderSystem {
         }
 
         for (int i = 0;i<3;i++) { // todo 参数优化
-            orderQueues[i] = new LinkedBlockingQueue<>(20000);
+            orderQueues[i] = new LinkedBlockingQueue<>(100000);
         }
 
         // 一个队列对应一个线程
@@ -331,8 +331,8 @@ public class OrderSystemImpl implements OrderSystem {
         new DataFileHandler().handle(goodsQueue, goodFiles, 1, goodsLatch, "(goodid):([\\w|-]+)");
 
         fileProcessor = new FileProcessor();
-//        indexProcessor = new IndexProcessor();
-        fileProcessor.init(start, null);
+        indexProcessor = new IndexProcessor(start);
+        fileProcessor.init(start, indexProcessor);
 
         buyerLatch.await();
         buyerQueue.offer(new String[0][0]);

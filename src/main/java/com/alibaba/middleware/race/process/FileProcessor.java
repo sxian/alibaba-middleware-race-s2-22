@@ -11,10 +11,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -27,53 +24,44 @@ public class FileProcessor {
     public final LinkedBlockingQueue<String[][]> buyerQueue = OrderSystemImpl.buyerQueue;
     public final LinkedBlockingQueue<String[][]> goodsQueue = OrderSystemImpl.goodsQueue;
 
+    public final LinkedBlockingQueue<String[]> hbIndexQueue = new LinkedBlockingQueue<>(50000);
+    public final LinkedBlockingQueue<String[]> hgIndexQueue = new LinkedBlockingQueue<>(50000);
+    public final LinkedBlockingQueue<Object[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
+
     // hash完相对应的所有文件后开始构建索引(排序)
     public final CountDownLatch orderLatch = new CountDownLatch(3);
     public final CountDownLatch buyerLatch = new CountDownLatch(1);
     public final CountDownLatch goodsLatch = new CountDownLatch(1);
 
-    // 所有的索引文件排序完成后退出fileProcessor
-    public final CountDownLatch orderSortLatch = new CountDownLatch(RaceConfig.ORDER_FILE_SIZE);
-    public final CountDownLatch buyerSortLatch = new CountDownLatch(RaceConfig.BUYER_FILE_SIZE);
-    public final CountDownLatch goodsSortLatch = new CountDownLatch(RaceConfig.GOODS_FILE_SIZE);
-
     private ExecutorService threads;
     private IndexProcessor indexProcessor;
 
     public void init(final long start, final IndexProcessor indexProcessor) throws InterruptedException, IOException {
-        // 相同磁盘的路径前缀相同
-        threads =  Executors.newFixedThreadPool(5);
         this.indexProcessor = indexProcessor;
-//        indexProcessor.init();
+        indexProcessor.init(hbIndexQueue,hgIndexQueue,orderIndexQueue);
+        threads = Executors.newFixedThreadPool(5);
 
-        execute(orderQueues[0], orderLatch, RaceConfig.DISK1+"o/", RaceConfig.ORDER_FILE_SIZE);
-        execute(orderQueues[1], orderLatch, RaceConfig.DISK2+"o/", RaceConfig.ORDER_FILE_SIZE);
-        execute(orderQueues[2], orderLatch, RaceConfig.DISK3+"o/", RaceConfig.ORDER_FILE_SIZE);
+        threads.execute(new ProcessOrderData(orderQueues[0], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK1+"o/"));
+        threads.execute(new ProcessOrderData(orderQueues[1], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK2+"o/"));
+        threads.execute(new ProcessOrderData(orderQueues[2], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK3+"o/"));
 
         // todo 有没有必要让good和order分不到不同磁盘上
-        execute(buyerQueue, buyerLatch, RaceConfig.DISK1+"b/",RaceConfig.BUYER_FILE_SIZE);
-        execute(goodsQueue, goodsLatch, RaceConfig.DISK2+"g/",RaceConfig.GOODS_FILE_SIZE);
+        threads.execute(new ProcessData(buyerQueue, buyerLatch,RaceConfig.BUYER_FILE_SIZE,RaceConfig.DISK1+"b/"));
+        threads.execute(new ProcessData(goodsQueue, goodsLatch,RaceConfig.GOODS_FILE_SIZE,RaceConfig.DISK2+"g/"));
 
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try { //todo 这个地方是构建索引 -> 在indexProcess里做, 如果这样的话线程池就没用了
+                try { //这个地方就起一个计时的作用，最后删掉
                     buyerLatch.await();
                     System.out.println("buyer index writer complete, now time: "+(System.currentTimeMillis()-start));
 
-//                    indexProcessor.createBuyerIndex();
-//
                     goodsLatch.await();
                     System.out.println("goods index writer complete, now time: "+(System.currentTimeMillis()-start));
 
-//                    indexProcessor.createGoodsIndex();
-//
                     orderLatch.await();
                     System.out.println("order index writer complete, now time: "+(System.currentTimeMillis()-start));
 
-//                    indexProcessor.addBuyeridAndCreateTime("","",""); -> 再想想咋搞
-//                    indexProcessor.addGoodidToOrderid("","");
-//                    indexProcessor.createOrderIndex();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -81,68 +69,54 @@ public class FileProcessor {
         }).start();
     }
 
-
-    public void execute(LinkedBlockingQueue<String[][]> queue, CountDownLatch latch, String storeFold,
-                        int fileSize) throws IOException {
-
-        BufferedWriter[] dataWriters = new BufferedWriter[fileSize];
-        BufferedWriter[] indexWriters = new BufferedWriter[fileSize];
-//        StringBuffer[] data_sbs = new StringBuffer[fileSize]; // todo有没有必要开多线程
-//        StringBuffer[] index_sbs = new StringBuffer[fileSize];
-        StringBuilder[] data_sbs = new StringBuilder[fileSize];
-        StringBuilder[] index_sbs = new StringBuilder[fileSize];
-//        AtomicInteger[] posCounters = new AtomicInteger[fileSize];
-        int[] posCounters = new int[fileSize];
-
-        for (int i = 0;i<fileSize;i++) {
-            dataWriters[i] = Utils.createWriter(storeFold+i);
-            indexWriters[i] = Utils.createWriter(storeFold+"i"+i);
-            data_sbs[i] = new StringBuilder();
-            index_sbs[i] = new StringBuilder();
-            posCounters[i] = 0/*new AtomicInteger(0)*/;
-        }
-        threads.execute(new ProcessData(queue, dataWriters, indexWriters, data_sbs, index_sbs,
-                posCounters, latch, storeFold));
-    }
-
     public void waitOver() throws InterruptedException {
         buyerLatch.await();
-
         goodsLatch.await();
-
         orderLatch.await();
         threads.shutdown();
-//        indexProcessor.waitOver();
+        indexProcessor.waitOver();
     }
 
     class ProcessData implements Runnable {
 
+        private int fileSize;
+        private String storeFold;
+        private CountDownLatch latch;
         private LinkedBlockingQueue<String[][]> queue;
+
         private BufferedWriter[] dataWriters;
         private BufferedWriter[] indexWriters;
         private StringBuilder[] data_sbs;
         private StringBuilder[] index_sbs;
-//        private AtomicInteger[] posCounters;
         private int[] posCounters;
-
-        private CountDownLatch latch;
-        private String storeFold;
+        private int[] counters;
 
 
-        private int fileSize;
 
-        public ProcessData (LinkedBlockingQueue<String[][]> queue, BufferedWriter[] dataWriters,
-                            BufferedWriter[] indexWriters, StringBuilder[] data_sbs, StringBuilder[] index_sbs,
-                            /*AtomicInteger[]*/int[] posCounters, CountDownLatch latch, String storeFold) {
+        public ProcessData (LinkedBlockingQueue<String[][]> queue, CountDownLatch latch,int fileSize, String storeFold) throws IOException {
             this.queue = queue;
-            this.dataWriters = dataWriters;
-            this.indexWriters = indexWriters;
-            this.data_sbs = data_sbs;
-            this.index_sbs = index_sbs;
-            this.posCounters = posCounters;
-            fileSize = dataWriters.length;
             this.latch = latch;
+            this.fileSize = fileSize;
             this.storeFold = storeFold;
+            init();
+        }
+
+        private void init() throws IOException {
+            dataWriters = new BufferedWriter[fileSize];
+            indexWriters = new BufferedWriter[fileSize];
+            data_sbs = new StringBuilder[fileSize];
+            index_sbs = new StringBuilder[fileSize];
+            posCounters = new int[fileSize];
+            counters = new int[fileSize];
+
+            for (int i = 0;i<fileSize;i++) {
+                dataWriters[i] = Utils.createWriter(storeFold+i);
+                data_sbs[i] = new StringBuilder();
+                indexWriters[i] = Utils.createWriter(storeFold+"i"+i);
+                index_sbs[i] = new StringBuilder();
+                posCounters[i] = 0;
+                counters[i] = 0;
+            }
         }
 
         @Override
@@ -153,51 +127,21 @@ public class FileProcessor {
                     if (row.length==0) {
                         break;
                     }
-                    String id = "";
-                    int hashcode = 0;
-                    if (row.length == 2) {
-                        id   = row[1][1];
-                        hashcode = row[1][1].hashCode();
-                    } else {
-                        String buyerid,goodid,createtime;
-                        buyerid=goodid=createtime = "";
-                        for (int i = 1; i<5; i++) {
-                            switch (row[i][0]) {
-                                case "orderid":
-                                    id = row[i][1];
-                                    break;
-                                case "buyerid":
-                                    buyerid = row[i][1];
-                                    break;
-                                case "goodid":
-                                    goodid = row[i][1];
-                                    hashcode = row[i][1].hashCode();
-                                    break;
-                                case "createtime":
-                                    createtime = row[i][1];
-                                    break;
-                            }
-                        }
-//                                indexProcessor.addBuyeridAndCreateTime(id, createtime, buyerid);
-//                                indexProcessor.addGoodidToOrderid(id, goodid);
-                    }
+                    String id = row[1][1];
 
-                    int index = Math.abs(hashcode)%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
+                    int index = Math.abs(id.hashCode())%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
                     int length = row[0][0].getBytes().length;
-                    int pos = posCounters[index]++/*getAndAdd(length)*/;
+                    int pos = posCounters[index];
+                    posCounters[index] += length;
                     data_sbs[index].append(row[0][0]);
-                    String indexStr = id+","+storeFold+index+","+pos+","+length; // todo 构建index
+                    String indexStr = id+","+pos+","+length;
                     index_sbs[index].append(indexStr).append("\n");
-                    if (posCounters[index]/*.get()*/==200){
-                        // 因为要记位置，所以索引的记录是不安全的 因为不同的线程可能会比另外一个线程先到200
-                        // pos的值必须是线程安全的 -> 写的东西再加个队列? 另外一个线程专门去写, 起三个线程 3*FileNum
-                        // 有个问题值得注意 -> 记录完pos后，在向队列添加的时候可能反而会加到前面或后面去 -> 把key和字符串
-                        // 拼接一下，在队列那头写磁盘和处理索引
+                    if (counters[index]++ == 200){
                         dataWriters[index].write(data_sbs[index].toString());
                         data_sbs[index].delete(0,data_sbs[index].length());
                         indexWriters[index].write(index_sbs[index].toString());
                         index_sbs[index].delete(0,index_sbs[index].length());
-                        posCounters[index] = 0;/*.set(0)*/;
+                        counters[index] = 0;
                     }
                 }
                 for (int i = 0;i<fileSize;i++) {
@@ -219,6 +163,117 @@ public class FileProcessor {
                         if (indexWriters[i] != null) {
                             indexWriters[i].flush();
                             indexWriters[i].close();
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    class ProcessOrderData implements Runnable {
+
+        private int fileSize;
+        private String storeFold;
+        private CountDownLatch latch;
+        private LinkedBlockingQueue<String[][]> queue;
+
+        private int[] counter;
+        private int[] posCounters;
+        private StringBuilder[] data_sbs;
+        private BufferedWriter[] dataWriters;
+
+
+        public ProcessOrderData (LinkedBlockingQueue<String[][]> queue,  CountDownLatch latch,
+                                 int fileSize, String storeFold) throws IOException {
+            this.queue = queue;
+            this.latch = latch;
+            this.fileSize = fileSize;
+            this.storeFold = storeFold;
+            init();
+        }
+
+        private void init() throws IOException {
+            counter = new int[fileSize];
+            posCounters = new int[fileSize];
+            dataWriters = new BufferedWriter[fileSize];
+            data_sbs = new StringBuilder[fileSize];
+            for (int i = 0;i<fileSize;i++) {
+                counter[i] = 0;
+                posCounters[i] = 0;
+                dataWriters[i] = Utils.createWriter(storeFold+i);
+                data_sbs[i] = new StringBuilder();
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    String[][] row = queue.take();
+                    if (row.length==0) {
+                        break;
+                    }
+
+                    String orderid,buyerid,goodid,createtime;
+                    orderid = buyerid = goodid = createtime = null;
+                    for (int i = 1; i<5; i++) {
+                        switch (row[i][0]) {
+                            case "orderid":
+                                orderid = row[i][1];
+                                break;
+                            case "buyerid":
+                                buyerid = row[i][1];
+                                break;
+                            case "goodid":
+                                goodid = row[i][1];
+                                break;
+                            case "createtime":
+                                createtime = row[i][1];
+                                break;
+                        }
+                    }
+
+                    // buyerid -> orderid
+//                    hbIndexQueue.offer(new String[]{buyerid,orderid},60, TimeUnit.SECONDS);
+                    // goodid -> orderid
+//                    hgIndexQueue.offer(new String[]{goodid,orderid,createtime},60, TimeUnit.SECONDS);
+
+                    // 订单信息, 单线程处理
+                    int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
+                    int length = row[0][0].getBytes().length;
+                    int pos = posCounters[index];
+                    posCounters[index] += length;
+                    data_sbs[index].append(row[0][0]);
+
+//                    orderIndexQueue.offer(new Object[]{orderid,storeFold+index,pos,length},60, TimeUnit.SECONDS);
+
+                    if (counter[index]++ == 200){
+                        // 因为要记位置，所以索引的记录是不安全的 因为不同的线程可能会比另外一个线程先到200
+                        // pos的值必须是线程安全的 -> 写的东西再加个队列? 另外一个线程专门去写, 起三个线程 3*FileNum
+                        // 有个问题值得注意 -> 记录完pos后，在向队列添加的时候可能反而会加到前面或后面去 -> 把key和字符串
+                        // 拼接一下，在队列那头写磁盘和处理索引
+                        dataWriters[index].write(data_sbs[index].toString());
+                        data_sbs[index].delete(0,data_sbs[index].length());
+                        counter[index] = 0;
+                    }
+                }
+                for (int i = 0;i<fileSize;i++) {
+                    dataWriters[i].write(data_sbs[i].toString().toCharArray());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                latch.countDown();
+                try {
+                    latch.await();
+                    for (int i = 0;i<fileSize;i++) {
+                        if (dataWriters[i] != null) {
+                            dataWriters[i].flush();
+                            dataWriters[i].close();
                         }
                     }
                 } catch (InterruptedException e) {
