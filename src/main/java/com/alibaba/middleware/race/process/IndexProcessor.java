@@ -28,6 +28,11 @@ public class IndexProcessor {
     private ExecutorService threads = Executors.newFixedThreadPool(5);
     private CountDownLatch latch = new CountDownLatch(5);
 
+    private CountDownLatch hbLatch = new CountDownLatch(1);
+    private CountDownLatch hgLatch = new CountDownLatch(1);
+    private CountDownLatch orderLatch = new CountDownLatch(1);
+
+
     private long start;
 
     public IndexProcessor(long start) {
@@ -35,132 +40,37 @@ public class IndexProcessor {
     }
 
 
-    public void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
-                     LinkedBlockingQueue<Object[]> orderIndexQueue) {
-        /***
-         * hbIndexQueue: buyerid, orderid
-         * hgIndexQueue: goodid,orderid,createtime
-         * orderIndexQueue: orderid,storeFold+index,pos,length
-         */
-
-        // 处理BuyeridAndCreateTime
-        new Thread(new Runnable() {
-            @Override
-            public void run() { // todo 线上测试实际数据的时候，生成的数据量会非常大，无法直接构架B+树,
-                                     // todo 所以要使用队列对这个数据切分. 另外有没有用户同一时间两个订单?
-                                     // todo 合并代码
-                String path = RaceConfig.STORE_PATH+"buyerid_create_order";
-                BufferedWriter bw = null;
-                try { // todo 有问题 -> 啥问题?
-                    bw = Utils.createWriter(path);
-                    HashMap<String,StringBuilder> map = new HashMap<>();
-                    while (true) {
-                        String[] keys = buyerid_create_order_queue.take();
-                        if ("".equals(keys[0])&&"".equals(keys[1])&&"".equals(keys[2])) {
-                            break;
-                        }
-
-                        StringBuilder sb = map.get(keys[2]);
-                        if (sb == null) {
-                            sb = new StringBuilder(keys[0]+","+keys[1]+" ");
-                            map.put(keys[2],sb);
-                        } else {
-                            sb.append(keys[0]).append(",").append(keys[1]).append(" ");
-                        }
-                    }
-                    BplusTree bplusTree = new BplusTree(50);
-                    for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
-                        bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
-                    }
-                    bplusTree.getRoot().writeToDisk(0,bw);
-                    setCache(bplusTree, QueryProcessor.buyerOrderFilesIndex,QueryProcessor.buyerOrderFilesIndexKey);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    if (bw!=null) {
-                        try {
-                            bw.flush();
-                            bw.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    latch.countDown();
-                }
-            }
-        }).start();
-
-        // GoodidToOrderid
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                String path = RaceConfig.STORE_PATH+"goodid_orderid";
-                BufferedWriter bw = null;
-                try {
-                    bw = Utils.createWriter(path);
-                    HashMap<String,StringBuilder> map = new HashMap<>();
-
-                    while (true) {
-                        String[] keys = goodid_orderid_queue.take();
-                        if ("".equals(keys[0])&&"".equals(keys[1])) {
-                            break;
-                        }
-
-                        StringBuilder sb = map.get(keys[1]);
-                        if (sb == null) {
-                            sb = new StringBuilder(keys[0]+" ");
-                            map.put(keys[1],sb);
-                        } else {
-                            sb.append(keys[0]).append(" ");
-                        }
-                    }
-                    BplusTree bplusTree = new BplusTree(50);
-                    for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
-                        bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
-                    }
-                    bplusTree.getRoot().writeToDisk(0,bw);
-                    setCache(bplusTree, QueryProcessor.goodsOrderFilesIndex,QueryProcessor.goodsOrderFilesIndexKey);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    if (bw!=null) {
-                        try {
-                            bw.flush();
-                            bw.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    latch.countDown();
-                }
-            }
-        }).start();
+    void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
+                     LinkedBlockingQueue<String[]> orderIndexQueue) throws IOException {
+        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",hbLatch,0)).start();
+        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",hgLatch,1)).start();
+        new Thread(new ProcessOrderIndex(orderIndexQueue,RaceConfig.ORDER_FILE_SIZE,"o/i",orderLatch,2)).start();
     }
 
-    public void addBuyeridAndCreateTime(String orderid, String createtime, String buyerid) {
-        buyerid_create_order_queue.offer(new String[]{orderid,createtime,buyerid});
+    private void buildHB() {
+        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
     }
 
-    public void addGoodidToOrderid(String orderid, String goodsid) {
-        goodid_orderid_queue.offer(new String[]{orderid, goodsid});
+    private void buildHG() {
+        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
     }
 
-    public void createOrderIndex() throws IOException {
-        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/", RaceConfig.ORDER_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/", RaceConfig.ORDER_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/", RaceConfig.ORDER_FILE_SIZE,latch));
+    private void buildOrderIndex() throws IOException {
+        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
+        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
     }
 
-    public void createBuyerIndex() throws IOException {
-        threads.execute(new ProcessIndex(RaceConfig.DISK1+"b/", RaceConfig.BUYER_FILE_SIZE,latch));
+    void createBuyerIndex() throws IOException {
+        threads.execute(new ProcessIndex(RaceConfig.DISK1+"b/i", RaceConfig.BUYER_FILE_SIZE,latch));
     }
 
-    public void createGoodsIndex() throws IOException {
-        threads.execute(new ProcessIndex(RaceConfig.DISK2+"g/", RaceConfig.GOODS_FILE_SIZE,latch));
+    void createGoodsIndex() throws IOException {
+        threads.execute(new ProcessIndex(RaceConfig.DISK2+"g/i", RaceConfig.GOODS_FILE_SIZE,latch));
     }
 
     private void createIndex(final LinkedBlockingQueue<Object> queue, final int flag) throws IOException {
@@ -223,12 +133,12 @@ public class IndexProcessor {
         }
     }
 
-    public void waitOver() throws InterruptedException {
+    void waitOver() throws InterruptedException {
         latch.await();
         threads.shutdown();
     }
 
-    class ProcessIndex implements Runnable {
+    private class ProcessIndex implements Runnable {
         // 使用一个线程一个文件 -> 先一个线程处理所有文件试试
         private int fileNum;
         private String fileFold;
@@ -246,8 +156,8 @@ public class IndexProcessor {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
                 try {
-                    bw = Utils.createWriter(fileFold+"iS"+i);
-                    br = Utils.createReader(fileFold+"i"+i);
+                    br = Utils.createReader(fileFold+i);
+                    bw = Utils.createWriter(fileFold+"S"+i);
                     String line = br.readLine();
                     BplusTree bpt = new BplusTree(60);
                     while (line!=null) {
@@ -272,10 +182,206 @@ public class IndexProcessor {
                     }
                 }
             }
-            System.out.println(fileFold + "process complete, now time: "+(System.currentTimeMillis() - start));
+            System.out.println(fileFold + " index process complete, now time: "+(System.currentTimeMillis() - start));
             latch.countDown();
         }
     }
+
+    private class ProcessOrderIndex implements Runnable {
+        int flag;
+        int fileSize;
+        String prefix;
+        CountDownLatch latch;
+        LinkedBlockingQueue<String[]> queue;
+
+        BufferedWriter[][] writers;
+        StringBuilder[][] builders;
+        int[][] counters;
+
+        public ProcessOrderIndex(LinkedBlockingQueue<String[]> queue, int fileSize, String prefix,
+                                 CountDownLatch latch, int flag) throws IOException {
+            this.queue = queue;
+            this.fileSize = fileSize;
+            this.prefix = prefix;
+            this.latch = latch;
+            this.flag = flag;
+            init();
+        }
+
+        private void init() throws IOException {
+            writers = new BufferedWriter[3][fileSize];
+            builders = new StringBuilder[3][fileSize];
+            counters = new int[3][fileSize];
+            for (int i = 0;i<fileSize;i++) {
+                counters[0][i] = 0;
+                counters[1][i] = 0;
+                counters[2][i] = 0;
+
+                builders[0][i] = new StringBuilder();
+                builders[1][i] = new StringBuilder();
+                builders[2][i] = new StringBuilder();
+
+                writers[0][i] = Utils.createWriter(RaceConfig.DISK1+prefix+i);
+                writers[1][i] = Utils.createWriter(RaceConfig.DISK2+prefix+i);
+                writers[2][i] = Utils.createWriter(RaceConfig.DISK3+prefix+i);
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    String[] strings = queue.take();
+                    if (strings.length == 0) {
+                        break;
+                    }
+                    int disk = Math.abs(strings[0].hashCode()%3);
+                    int file = Math.abs(strings[0].hashCode()%fileSize);
+                    builders[disk][file].append(strings[0]).append(",").append(strings[1]).append("\n");
+
+                    if (counters[disk][file]++ == 200) {
+                        writers[disk][file].write(builders[disk][file].toString());
+                        builders[disk][file].delete(0,builders[disk][file].length());
+                        counters[disk][file] = 0;
+                    }
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    for (int i = 0;i<fileSize;i++) {
+                        writers[0][i].write(builders[0][i].toString());
+                        writers[1][i].write(builders[1][i].toString());
+                        writers[2][i].write(builders[2][i].toString());
+
+                        writers[0][i].flush();
+                        writers[1][i].flush();
+                        writers[2][i].flush();
+
+                        writers[0][i].close();
+                        writers[1][i].close();
+                        writers[2][i].close();
+                    }
+                    System.out.println(prefix +" process complete, now time: "+ (System.currentTimeMillis()-start));
+                    latch.countDown();
+                    switch (flag) {
+                        case 0:
+                            buildHB();
+                            break;
+                        case 1:
+                            buildHG();
+                            break;
+                        case 2:
+                            buildOrderIndex();
+                            break;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+//    // 处理BuyeridAndCreateTime
+//        new Thread(new Runnable() {
+//        @Override
+//        public void run() { // todo 线上测试实际数据的时候，生成的数据量会非常大，无法直接构架B+树,
+//            // todo 所以要使用队列对这个数据切分. 另外有没有用户同一时间两个订单?
+//            // todo 合并代码
+//            String path = RaceConfig.STORE_PATH+"buyerid_create_order";
+//            BufferedWriter bw = null;
+//            try { // todo 有问题 -> 啥问题?
+//                bw = Utils.createWriter(path);
+//                HashMap<String,StringBuilder> map = new HashMap<>();
+//                while (true) {
+//                    String[] keys = buyerid_create_order_queue.take();
+//                    if ("".equals(keys[0])&&"".equals(keys[1])&&"".equals(keys[2])) {
+//                        break;
+//                    }
+//
+//                    StringBuilder sb = map.get(keys[2]);
+//                    if (sb == null) {
+//                        sb = new StringBuilder(keys[0]+","+keys[1]+" ");
+//                        map.put(keys[2],sb);
+//                    } else {
+//                        sb.append(keys[0]).append(",").append(keys[1]).append(" ");
+//                    }
+//                }
+//                BplusTree bplusTree = new BplusTree(50);
+//                for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
+//                    bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
+//                }
+//                bplusTree.getRoot().writeToDisk(0,bw);
+//                setCache(bplusTree, QueryProcessor.buyerOrderFilesIndex,QueryProcessor.buyerOrderFilesIndexKey);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            } finally {
+//                if (bw!=null) {
+//                    try {
+//                        bw.flush();
+//                        bw.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//                latch.countDown();
+//            }
+//        }
+//    }).start();
+//
+//    // GoodidToOrderid
+//        new Thread(new Runnable() {
+//        @Override
+//        public void run() {
+//            String path = RaceConfig.STORE_PATH+"goodid_orderid";
+//            BufferedWriter bw = null;
+//            try {
+//                bw = Utils.createWriter(path);
+//                HashMap<String,StringBuilder> map = new HashMap<>();
+//
+//                while (true) {
+//                    String[] keys = goodid_orderid_queue.take();
+//                    if ("".equals(keys[0])&&"".equals(keys[1])) {
+//                        break;
+//                    }
+//
+//                    StringBuilder sb = map.get(keys[1]);
+//                    if (sb == null) {
+//                        sb = new StringBuilder(keys[0]+" ");
+//                        map.put(keys[1],sb);
+//                    } else {
+//                        sb.append(keys[0]).append(" ");
+//                    }
+//                }
+//                BplusTree bplusTree = new BplusTree(50);
+//                for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
+//                    bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
+//                }
+//                bplusTree.getRoot().writeToDisk(0,bw);
+//                setCache(bplusTree, QueryProcessor.goodsOrderFilesIndex,QueryProcessor.goodsOrderFilesIndexKey);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            } finally {
+//                if (bw!=null) {
+//                    try {
+//                        bw.flush();
+//                        bw.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//                latch.countDown();
+//            }
+//        }
+//    }).start();
+
 
 //    new Thread(new Runnable() {
 //        @Override

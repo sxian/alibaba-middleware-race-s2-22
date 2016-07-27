@@ -26,7 +26,7 @@ public class FileProcessor {
 
     public final LinkedBlockingQueue<String[]> hbIndexQueue = new LinkedBlockingQueue<>(50000);
     public final LinkedBlockingQueue<String[]> hgIndexQueue = new LinkedBlockingQueue<>(50000);
-    public final LinkedBlockingQueue<Object[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
+    public final LinkedBlockingQueue<String[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
 
     // hash完相对应的所有文件后开始构建索引(排序)
     public final CountDownLatch orderLatch = new CountDownLatch(3);
@@ -52,14 +52,19 @@ public class FileProcessor {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try { //这个地方就起一个计时的作用，最后删掉
+                try {
                     buyerLatch.await();
                     System.out.println("buyer index writer complete, now time: "+(System.currentTimeMillis()-start));
+                    indexProcessor.createBuyerIndex();
 
                     goodsLatch.await();
                     System.out.println("goods index writer complete, now time: "+(System.currentTimeMillis()-start));
+                    indexProcessor.createGoodsIndex();
 
                     orderLatch.await();
+                    hbIndexQueue.offer(new String[0]);
+                    hgIndexQueue.offer(new String[0]);
+                    orderIndexQueue.offer(new String[0]);
                     System.out.println("order index writer complete, now time: "+(System.currentTimeMillis()-start));
 
                 } catch (Exception e) {
@@ -129,7 +134,7 @@ public class FileProcessor {
                     }
                     String id = row[1][1];
 
-                    int index = Math.abs(id.hashCode())%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
+                    int index = Math.abs(id.hashCode())%fileSize;
                     int length = row[0][0].getBytes().length;
                     int pos = posCounters[index];
                     posCounters[index] += length;
@@ -238,9 +243,9 @@ public class FileProcessor {
                     }
 
                     // buyerid -> orderid
-//                    hbIndexQueue.offer(new String[]{buyerid,orderid},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{buyerid,orderid},60, TimeUnit.SECONDS);
                     // goodid -> orderid
-//                    hgIndexQueue.offer(new String[]{goodid,orderid,createtime},60, TimeUnit.SECONDS);
+                    hgIndexQueue.offer(new String[]{goodid,orderid+","+createtime},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
@@ -249,7 +254,7 @@ public class FileProcessor {
                     posCounters[index] += length;
                     data_sbs[index].append(row[0][0]);
 
-//                    orderIndexQueue.offer(new Object[]{orderid,storeFold+index,pos,length},60, TimeUnit.SECONDS);
+                    orderIndexQueue.offer(new String[]{orderid,storeFold+index+","+","+length},60, TimeUnit.SECONDS);
 
                     if (counter[index]++ == 200){
                         // 因为要记位置，所以索引的记录是不安全的 因为不同的线程可能会比另外一个线程先到200
@@ -269,15 +274,12 @@ public class FileProcessor {
             } finally {
                 latch.countDown();
                 try {
-                    latch.await();
                     for (int i = 0;i<fileSize;i++) {
                         if (dataWriters[i] != null) {
                             dataWriters[i].flush();
                             dataWriters[i].close();
                         }
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

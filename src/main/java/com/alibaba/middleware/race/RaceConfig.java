@@ -19,7 +19,7 @@ public class RaceConfig {
     public static int ORDER_FILE_SIZE = 1; // 线上200
     public static int BUYER_FILE_SIZE = 1; // 10
     public static int GOODS_FILE_SIZE = 1; // 10
-    public static int BUYER_TO_ORDER_SIZE = 1;
-    public static int GOODS_TO_ORDER_SIZE = 1;
+    public static int HB_FILE_SIZE = 1;
+    public static int HG_FILE_SIZE = 1;
 
 }
