@@ -6,6 +6,7 @@ import com.alibaba.middleware.race.datastruct.Node;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 import com.alibaba.middleware.race.util.Utils;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
@@ -134,7 +135,8 @@ public class IndexProcessor {
         goodid_orderid_queue.offer(new String[]{orderid, goodsid});
     }
 
-    public void createOrderIndex(final LinkedBlockingQueue<Object> queue) throws IOException { // 结束条件 arraylist = 0
+    public void createOrderIndex() throws IOException { // 结束条件 arraylist = 0
+        final LinkedBlockingQueue<Object> queue = null;
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -189,13 +191,13 @@ public class IndexProcessor {
     }
 
     // buyer good 还是使用原来的索引
-    public void createBuyerIndex(LinkedBlockingQueue<Object> queue) throws IOException {
-        createIndex(queue, 0);
+    public void createBuyerIndex() throws IOException {
+//        createIndex(queue, 0);
 //        createIndex(queue, indexStorePath+"buyerIndex_0");
     }
 
-    public void createGoodsIndex(LinkedBlockingQueue<Object> queue) throws IOException {
-        createIndex(queue, 1);
+    public void createGoodsIndex() throws IOException {
+//        createIndex(queue, 1);
     }
 
     private void createIndex(final LinkedBlockingQueue<Object> queue, final int flag) throws IOException {
@@ -272,4 +274,52 @@ public class IndexProcessor {
         latch.await();
         threads.shutdown();
     }
+    class ProcessIndex implements Runnable {
+
+        private int fileNum;
+        private String fileFold;
+        private CountDownLatch latch;
+
+        public ProcessIndex(String fileFold, int fileNum, CountDownLatch latch) {
+            this.fileFold = fileFold;
+            this.fileNum = fileNum;
+            this.latch = latch;
+        }
+
+        @Override
+        public void run() {
+            for (int i = 0; i<fileNum; i++) {
+                BufferedWriter bw = null;
+                BufferedReader br = null;
+                try {
+                    bw = Utils.createWriter(fileFold+"iS"+i);
+                    br = Utils.createReader(fileFold+"i"+i);
+                    String line = br.readLine();
+                    BplusTree bpt = new BplusTree(60);
+                    while (line!=null) {
+                        String id = line.split(",")[0];
+                        bpt.insertOrUpdate(id,line);
+                        line = br.readLine();
+                    }
+                    bpt.getRoot().writeToDisk(0,bw);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (bw!=null) {
+                            bw.flush();
+                            bw.close();
+                        }
+                        if (br!=null) {
+                            br.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    latch.countDown();
+                }
+            }
+        }
+    }
+
 }

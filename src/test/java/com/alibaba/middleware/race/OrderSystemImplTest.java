@@ -45,7 +45,7 @@ public class OrderSystemImplTest {
         String[] goodsFiles = new String[]{DATA_ROOT+"good.0.0", DATA_ROOT+"good.1.1",
                 DATA_ROOT+"good.2.2"};
 
-        String[] storeFiles = new String[]{"t/index"};
+        String[] storeFiles = new String[]{"t/d1/","t/d2/","t/d3/"};
 
         osi = new OrderSystemImpl();
         List<String> orderList = Arrays.asList(orderFiles);
@@ -56,21 +56,21 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         osi.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
-        Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
-        start = System.currentTimeMillis();
-        buildStart = start;
-        for (int i = 0;i<spiltCaseFileNum;i++) {
-            queryQueues[i] = new LinkedBlockingQueue<>(1000);
-            resultQueues[i] = new LinkedBlockingQueue<>(1000);
-            new Thread(new BuildQuery()).start();
-            new Thread(new ExecuteQuery()).start();
-            new Thread(new CompareResult()).start();
-        }
-        queryLatch.await();
-        System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
-        compareLatch.await();
-        System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
-                ", failed num is: " +failed.get());
+//        Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
+//        start = System.currentTimeMillis();
+//        buildStart = start;
+//        for (int i = 0;i<spiltCaseFileNum;i++) {
+//            queryQueues[i] = new LinkedBlockingQueue<>(1000);
+//            resultQueues[i] = new LinkedBlockingQueue<>(1000);
+//            new Thread(new BuildQuery()).start();
+//            new Thread(new ExecuteQuery()).start();
+//            new Thread(new CompareResult()).start();
+//        }
+//        queryLatch.await();
+//        System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
+//        compareLatch.await();
+//        System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
+//                ", failed num is: " +failed.get());
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {

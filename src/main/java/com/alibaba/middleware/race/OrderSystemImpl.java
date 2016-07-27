@@ -266,10 +266,9 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<String> disk3 = new ArrayList<>();
 
         if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 200; // todo 要分到3个磁盘，所以实际文件数量是三倍
-            RaceConfig.BUYER_FILE_SIZE = 5; // 貌似有点多
-            RaceConfig.GOODS_FILE_SIZE = 5; // 貌似有点多
-            RaceConfig.CONSTRUCT_MOD_NUM = 5; // 这个看文件数量吧
+            RaceConfig.ORDER_FILE_SIZE = 70; // todo 要分到3个磁盘，所以实际文件数量是三倍
+            RaceConfig.BUYER_FILE_SIZE = 5;
+            RaceConfig.GOODS_FILE_SIZE = 5;
             for (String storePath : storeFolders) {
                 if (storePath.startsWith("/disk1")) {
                     RaceConfig.DISK1 = storePath;
@@ -310,9 +309,6 @@ public class OrderSystemImpl implements OrderSystem {
             orderQueues[i] = new LinkedBlockingQueue<>(500000);
         }
 
-        fileProcessor = new FileProcessor();
-        indexProcessor = new IndexProcessor();
-        fileProcessor.init(storeFolders,indexProcessor);
         // 一个队列对应一个线程
 
         // 设置latch数目，确保所有数据都处理完
@@ -327,24 +323,28 @@ public class OrderSystemImpl implements OrderSystem {
                 "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
         new DataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch,
                 "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
-        new DataFileHandler().handle(orderQueues[2], disk2, 4, orderLatch,
+        new DataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch,
                 "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
 
         new DataFileHandler().handle(buyerQueue, buyerFiles,1, buyerLatch, "(buyerid):([\\w|-]+)");
 
         new DataFileHandler().handle(goodsQueue, goodFiles, 1, goodsLatch, "(goodid):([\\w|-]+)");
 
-        goodsLatch.await();
-        goodsQueue.offer(new String[0][0]);
-        System.out.println("process goods data use time: " + (System.currentTimeMillis() - start));
+        fileProcessor = new FileProcessor();
+//        indexProcessor = new IndexProcessor();
+        fileProcessor.init(start, null);
+
         buyerLatch.await();
         buyerQueue.offer(new String[0][0]);
-        System.out.println("process buyer data use time: " + (System.currentTimeMillis() - start));
+        System.out.println("process buyer data, now time: " + (System.currentTimeMillis() - start));
+        goodsLatch.await();
+        goodsQueue.offer(new String[0][0]);
+        System.out.println("process goods data, now time: " + (System.currentTimeMillis() - start));
         orderLatch.await(); // 等待处理完所有文件
         sendEndMsg(orderQueues); // 发送结束信号
-        System.out.println("process order data use time: " + (System.currentTimeMillis() - start));
+        System.out.println("process order data, now time: " + (System.currentTimeMillis() - start));
         fileProcessor.waitOver(); // 等待队列处理完毕
-        System.out.println("all data process complete, use time: " + (System.currentTimeMillis() - start));
+        System.out.println("all data process complete, now time: " + (System.currentTimeMillis() - start));
         orderTable = new OrderTable();
         buyerTable = new BuyerTable();
         goodsTable = new GoodsTable();

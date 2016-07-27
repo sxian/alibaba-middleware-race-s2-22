@@ -21,6 +21,4 @@ public class RaceConfig {
     public static int BUYER_FILE_SIZE = 1; // 10
 
     public static int GOODS_FILE_SIZE = 1; // 10
-    // 多少个文件对应一个数据队列，亦即一个线程处理多少个文件
-    public static int CONSTRUCT_MOD_NUM = 2; // 10
 }
