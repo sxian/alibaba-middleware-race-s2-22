@@ -266,7 +266,7 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<String> disk3 = new ArrayList<>();
 
         if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 70; // todo 要分到3个磁盘，所以实际文件数量是三倍
+            RaceConfig.ORDER_FILE_SIZE = 60; // todo 要分到3个磁盘，所以实际文件数量是三倍
             RaceConfig.BUYER_FILE_SIZE = 5;
             RaceConfig.GOODS_FILE_SIZE = 5;
             for (String storePath : storeFolders) {

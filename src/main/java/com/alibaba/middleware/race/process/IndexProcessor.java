@@ -20,12 +20,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class IndexProcessor {
 
+    // todo 只需要将构建好的树的上层节点信息放到这里面，这一块的工作就先结束了
     private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
     private HashMap<String, Long[]> orderIndexsKeys = QueryProcessor.filesIndexKey;
-    private final LinkedBlockingQueue<String[]> buyerid_create_order_queue = new LinkedBlockingQueue<>();
-    private final LinkedBlockingQueue<String[]> goodid_orderid_queue = new LinkedBlockingQueue<>();
 
-    private ExecutorService threads = Executors.newFixedThreadPool(5);
+    private ExecutorService threads = Executors.newFixedThreadPool(3);
     private CountDownLatch latch = new CountDownLatch(5);
 
     private CountDownLatch hbLatch = new CountDownLatch(1);
@@ -48,6 +47,7 @@ public class IndexProcessor {
     }
 
     private void buildHB() {
+        // todo 不能这么做 这里要先读进来，按照key进行hash，然后构建B+树
         threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
