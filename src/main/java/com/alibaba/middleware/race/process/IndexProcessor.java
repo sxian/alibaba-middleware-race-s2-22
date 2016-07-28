@@ -177,6 +177,7 @@ public class IndexProcessor {
                         line = br.readLine();
                     }
                     bpt.getRoot().writeToDisk(0,bw);
+                    bpt = null;
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -243,6 +244,8 @@ public class IndexProcessor {
                         bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
                     }
                     bpt.getRoot().writeToDisk(0,bw);
+                    map = null;
+                    bpt = null;
 //                    for (Node node : bpt.getRoot().getChildren()) {
 //                        if (node.getChildren()!=null) {
 //                            for (Node _node : node.getChildren()) {
