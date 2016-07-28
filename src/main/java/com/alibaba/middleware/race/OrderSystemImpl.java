@@ -522,7 +522,11 @@ public class OrderSystemImpl implements OrderSystem {
                         Matcher matcher = pattern.matcher(line);
                         strings[0][0] = line;
                         int i = 1;
-                        while (matcher.find()) { // todo 测试下和split相比的效率
+//                        line.indexOf("orderid");
+//                        line.split(regx);
+                        while (matcher.find()) { // todo 所有的字符串切割操作,全改为indexof何substring, 并且和正则比较下, 去掉所有的split
+                                                 // order 前四位分别是 orderid, createtime, buyerid, goodid,
+                                                 // buyer和goods第一个是id
                             strings[i][0] = matcher.group(1);
                             strings[i][1] = matcher.group(2);
                             i++;

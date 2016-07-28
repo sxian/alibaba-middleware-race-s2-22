@@ -28,7 +28,6 @@ public class IndexProcessor {
     private ExecutorService threads = Executors.newFixedThreadPool(3);
     private CountDownLatch latch = new CountDownLatch(5);
 
-    // 貌似没啥卵用
     private CountDownLatch orderIndexLatch = new CountDownLatch(1);
 
     private long start;
@@ -275,13 +274,7 @@ public class IndexProcessor {
                     setCache(bpt,fileFold+i);
                     map = null;
                     bpt = null;
-//                    for (Node node : bpt.getRoot().getChildren()) {
-//                        if (node.getChildren()!=null) {
-//                            for (Node _node : node.getChildren()) {
-//
-//                            }
-//                        }
-//                    }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
