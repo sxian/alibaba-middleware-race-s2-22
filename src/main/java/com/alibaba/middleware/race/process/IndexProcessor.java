@@ -22,7 +22,6 @@ public class IndexProcessor {
 
     private static final float M = 1024*1024;
 
-    // todo 只需要将构建好的树的上层节点信息放到这里面，这一块的工作就先结束了
     private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
     private final HashMap<String, String[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
@@ -136,27 +135,51 @@ public class IndexProcessor {
     }
 
     // 设置辅助索引
-    public void setCache(BplusTree bplusTree,TreeMap<String,int[]> tree,ArrayList<String> list, String file) {
-        for (Node node : bplusTree.getRoot().getChildren()) {
-                for (Node _node : node.getChildren()) {
-                    // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
-                    // 所以在二次对叶子节点toString的时候，会偏移叶子节点的length长度个单位，这是因为writeToDisk方法
-                    // 被调用后pos被更新为输出所有entries以及自身后的长度
-                    String[] indexs = _node.toString().split(" ");
+    public void setCache(BplusTree bplusTree, String file) {
+        TreeMap<String,int[]> tree = new TreeMap<>();
+        ArrayList<String> list = new ArrayList<>();
+        try {
+            for (Node node : bplusTree.getRoot().getChildren()) {
+                if (node.getChildren() != null) {
+                    for (Node _node : node.getChildren()) {
+                        // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
+                        // 所以在二次对叶子节点toString的时候，会偏移叶子节点的length长度个单位，这是因为writeToDisk方法
+                        // 被调用后pos被更新为输出所有entries以及自身后的长度
+                        String[] indexs = _node.toString().split(" ");
+                        for (int j = 1;j<indexs.length;j++) {
+                            try {
+                                if (indexs[j].equals("\n")) {
+                                    continue;// 线上可以删了
+                                }
+                                String[] index = indexs[j].split(",");
+                                tree.put(index[0],new int[]{Integer.valueOf(index[1]),
+                                        Integer.valueOf(index[2])});
+                                list.add(index[0]);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                } else {
+                    String[] indexs = node.toString().split(" ");
                     for (int j = 1;j<indexs.length;j++) {
                         try {
                             if (indexs[j].equals("\n")) {
                                 continue;// 线上可以删了
                             }
                             String[] index = indexs[j].split(",");
+                            list.add(index[0]);
                             tree.put(index[0],new int[]{Integer.valueOf(index[1]),
                                     Integer.valueOf(index[2])});
-                            list.add(index[0]);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
                 }
+            }
+
+        } catch (Exception e) {
+            int i = 0;
         }
         filesIndexs.put(file, tree);
         filesIndexsKeys.put(file, (String[]) list.toArray());
@@ -206,6 +229,7 @@ public class IndexProcessor {
                     System.out.println("*** write pk index: "+fileFold+i+" complete, free mermory: "
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
+                    setCache(bpt,fileFold+i);
                     bpt = null;
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -279,6 +303,7 @@ public class IndexProcessor {
                     System.out.println("write assist index "+fileFold+i+" b+ tree complete, free memory is: "+
                             Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M+"now time: "
                                     +(System.currentTimeMillis()-start));
+                    setCache(bpt,fileFold+i);
                     map = null;
                     bpt = null;
 //                    for (Node node : bpt.getRoot().getChildren()) {
