@@ -17,32 +17,5 @@ public class FileProcessorTest {
     public static final String caseFile = RaceConfig.DATA_ROOT+"case.0";
 
     public static void main(String[] args) throws IOException {
-//
-//
-//        String str = "t\\index\\orderIndex_1";
-//        BufferedReader br = Utils.createReader(str);
-//        String line = br.readLine();
-//        Random random = new Random(47);
-//        long start = System.currentTimeMillis();
-//
-//        while (line!=null) {
-//            String pre = "605970027";
-//            if (line.startsWith(pre)) {
-//                String[] indexs = line.split("\t");
-//                String key = indexs[0];
-//                String path = indexs[1];
-//                long pos = Long.valueOf(indexs[2]);
-//                int length = Integer.valueOf(indexs[3]);
-//                String value = QueryProcessor.queryByIndex(path,pos,length);
-//                for (String kv : value.split("\t")) {
-//                    System.out.println(kv);
-//                }
-//                System.out.println("*******"+key+"******");
-//                System.out.println();
-//                break;
-//            }
-//            line = br.readLine();
-//        }
-//        System.out.println(System.currentTimeMillis()-start);
     }
 }
