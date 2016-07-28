@@ -56,21 +56,21 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         osi.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
-//        Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
-//        start = System.currentTimeMillis();
-//        buildStart = start;
-//        for (int i = 0;i<spiltCaseFileNum;i++) {
-//            queryQueues[i] = new LinkedBlockingQueue<>(1000);
-//            resultQueues[i] = new LinkedBlockingQueue<>(1000);
-//            new Thread(new BuildQuery()).start();
-//            new Thread(new ExecuteQuery()).start();
-//            new Thread(new CompareResult()).start();
-//        }
-//        queryLatch.await();
-//        System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
-//        compareLatch.await();
-//        System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
-//                ", failed num is: " +failed.get());
+        Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
+        start = System.currentTimeMillis();
+        buildStart = start;
+        for (int i = 0;i<spiltCaseFileNum;i++) {
+            queryQueues[i] = new LinkedBlockingQueue<>(1000);
+            resultQueues[i] = new LinkedBlockingQueue<>(1000);
+            new Thread(new BuildQuery()).start();
+            new Thread(new ExecuteQuery()).start();
+            new Thread(new CompareResult()).start();
+        }
+        queryLatch.await();
+        System.out.println("Query useTime: " + (System.currentTimeMillis() - start));
+        compareLatch.await();
+        System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
+                ", failed num is: " +failed.get());
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {
@@ -155,6 +155,9 @@ public class OrderSystemImplTest {
 
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);
 
+        if (list==null) {
+            int i = 1;
+        }
         for (int i = 0;i<list.size();i++) {
             OrderSystemImpl.KV kv = list.get(i);
             OrderSystemImpl.KV kv1 = (OrderSystemImpl.KV) result.get(kv.key());
@@ -332,23 +335,23 @@ public class OrderSystemImplTest {
                         resultQueue.offer(query);
                         break;
                     }
-                    querySum.getAndAdd(1);
                     switch (query.queryFlag) {
                         case 0:
+                            querySum.getAndAdd(1);
                             query.result =  osi.queryOrder(Long.valueOf(query.id),query.keys);
-                            break;
-                        case 1:
-                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
+                            resultQueue.offer(query,600,TimeUnit.SECONDS);
 
                             break;
+                        case 1:
+//                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
+                            break;
                         case 2:
-                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
+//                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
                             break;
                         case 3:
-                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
+//                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
                             break;
                     }
-                    resultQueue.offer(query,600,TimeUnit.SECONDS);
                 }
             }catch (Exception e) {
                 e.printStackTrace();

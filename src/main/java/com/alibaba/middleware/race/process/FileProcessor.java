@@ -254,7 +254,7 @@ public class FileProcessor {
                     posCounters[index] += length;
                     data_sbs[index].append(row[0][0]);
 
-                    orderIndexQueue.offer(new String[]{orderid,storeFold+index+","+length},60, TimeUnit.SECONDS);
+                    orderIndexQueue.offer(new String[]{orderid,storeFold+index+","+pos+","+length},60, TimeUnit.SECONDS);
 
                     if (counter[index]++ == 200){
                         // 因为要记位置，所以索引的记录是不安全的 因为不同的线程可能会比另外一个线程先到200

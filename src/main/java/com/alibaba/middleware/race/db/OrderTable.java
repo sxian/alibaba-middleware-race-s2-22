@@ -4,6 +4,7 @@ import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -19,7 +20,11 @@ public class OrderTable {
     public String selectRowById(String id) {
         String row = rowCache.get(id);
         if (row == null) {
-            row = QueryProcessor.queryOrder(id);
+            try {
+                row = QueryProcessor.queryOrder(id);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             if (row!=null) rowCache.put(id, row);
         }
         return row;

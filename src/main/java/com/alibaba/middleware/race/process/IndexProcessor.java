@@ -23,7 +23,7 @@ public class IndexProcessor {
     private static final float M = 1024*1024;
 
     private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
-    private final HashMap<String, Object[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
+    private final HashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
     private ExecutorService threads = Executors.newFixedThreadPool(3);
     private CountDownLatch latch = new CountDownLatch(11);
@@ -179,7 +179,7 @@ public class IndexProcessor {
             }
 
             filesIndexs.put(file, tree);
-            filesIndexsKeys.put(file, list.toArray());
+            filesIndexsKeys.put(file, list);
         } catch (Exception e) {
             e.printStackTrace();
             int i = 0;
@@ -223,14 +223,14 @@ public class IndexProcessor {
                         line = br.readLine(); // todo 这个地方也弄成流式的
                         element++;
                     }
-                    System.out.println("*** build pk index: "+fileFold+i+" b+ tree complete, element num is: "+element+"free mermory: "
+                    System.out.println("*** build pk index: "+fileFold+i+" b+ tree complete, element num is: "+element+", free mermory: "
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     bpt.getRoot().writeToDisk(0,bw);
                     System.out.println("*** write pk index: "+fileFold+i+" complete, free mermory: "
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
-                    setCache(bpt,fileFold+i);
+                    setCache(bpt,fileFold+"S"+i);
                     bpt = null;
                 } catch (IOException e) {
                     e.printStackTrace();

@@ -4,6 +4,8 @@ import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,22 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QueryProcessor {
     // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗 -> 并发下使用不安全
-    private static final ConcurrentHashMap<String, RandomAccessFile> randomAccessFileHashMap = new ConcurrentHashMap<>();
+    private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
+    private static final HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
     private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
     private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
     private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(4000000); // goodid 400w
 
-    // todo 不同文件的B+树索引能否合并  全用string 行不行
     public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
-    public static HashMap<String, Object[]> filesIndexKey = new HashMap<>();
+    public static HashMap<String, ArrayList<String>> filesIndexKey = new HashMap<>();
 
-    // 把所有的索引使用的B+树的前提是B+树中有所有的信息节点
-    public static TreeMap<String,Long[]>  buyerOrderFilesIndex = new TreeMap<>();
-    public static ArrayList<String> buyerOrderFilesIndexKey = new ArrayList<>();
-
-    public static TreeMap<String,Long[]>  goodsOrderFilesIndex = new TreeMap<>();
-    public static ArrayList<String> goodsOrderFilesIndexKey = new ArrayList<>();
+    public void initFile() {
+        // todo
+    }
 
     public static void addIndexCache(RecordIndex index, int flag) {
         if (flag == 0) {
@@ -38,48 +37,77 @@ public class QueryProcessor {
         }
     }
 
-    public static String queryOrder(String id) {
-        RecordIndex indexCache = orderIndexCache.get(id);  // todo orderid的索引缓存是有问题的，和rawdata重叠了
-//        if (indexCache == null) {
-//            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-//            long orderid = -1;
-//            try {
-//                orderid = Long.valueOf(id);
-//            } catch (Exception e) {
-//            }
-//
-////            int[] idKeys = filesIndexKey.get(path);
-//            if (idKeys==null) {
-//                try {
-//                idKeys = (int[]) filesIndex.get(path).keySet().toArray();
-//                } catch (Exception e) {
-//                    int i = 0;
-//                }
-//                filesIndexKey.put(path, idKeys);
-//            }
-//
-//            long key;
-//            if (orderid<idKeys[0]) {
-//                key = idKeys[0];
-//            } else if(orderid>idKeys[idKeys.length-1]) {
-//                key = idKeys[idKeys.length-1];
-//            } else {
-//                key = binarySearch(idKeys,orderid);
-//            }
-//            int[] pos = filesIndex.get(path).get(key);
-//            return queryRowByBPT(path, orderid, pos[0],Integer.valueOf(String.valueOf(pos[1])));
-//        }
-        return queryByIndex(indexCache);
+    public static String queryOrder(String id) throws IOException {
+        int disk = Math.abs(id.hashCode()%3);
+        int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+        String path;
+        if (disk == 0) {
+            path = RaceConfig.DISK1+"o/iS"+file;
+        } else if(disk == 1) {
+            path = RaceConfig.DISK2+"o/iS"+file;
+
+        } else {
+            path = RaceConfig.DISK3+"o/iS"+file;
+        }
+        String[] indexs = queryIndex(id,path).split(",");
+        if (indexs[0].equals(id)) {
+            RandomAccessFile raf = new RandomAccessFile(indexs[1],"r");
+            return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+        }
+        return null;
+    }
+
+
+    // buyer和goods的索引全在内存里面。
+    public static String queryBuyer(String id) throws IOException {
+        String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
+        String[] indexs = queryIndex(id, path).split(",");
+        if (indexs[0].equals(id)) {
+            RandomAccessFile raf = new RandomAccessFile(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE),"r");
+            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
+        }
+        return null;
+    }
+
+    public static String queryGoods(String id) throws IOException {
+        String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
+        String[] indexs = queryIndex(id, path).split(",");
+        if (indexs[0].equals(id)) {
+            RandomAccessFile raf = new RandomAccessFile(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE),"r");
+            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
+        }
+        return null;
+    }
+
+    public static String queryIndex(String id, String path) throws IOException {
+        ArrayList<String> idKeys = filesIndexKey.get(path);
+        String key;
+        if (id.compareTo(idKeys.get(0))< 0) {
+            key = idKeys.get(0);
+        } else if(id.compareTo(idKeys.get(idKeys.size()-1)) > 0) {
+            key = idKeys.get(idKeys.size()-1);
+        } else {
+            key = binarySearchString(idKeys,id);
+        }
+        int[] pos = filesIndex.get(path).get(key);
+        return queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
+    }
+
+    public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {
+        byte[] bytes = new byte[length];
+        synchronized (raf) {
+            raf.seek(pos);
+            raf.read(bytes);
+        }
+        return new String(bytes);
     }
 
     public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) {
-        String path = RaceConfig.STORE_PATH+"buyerid_create_order";
-        return queryRangeOrder(buyerOrderFilesIndex,buyerOrderFilesIndexKey,path,buyerid,start,end);
+        return  null;
     }
 
     public static List<String> queryOrderidsByGoodsid(String goodid) {
-        String path = RaceConfig.STORE_PATH+"goodid_orderid";
-        return queryRangeOrder(goodsOrderFilesIndex,goodsOrderFilesIndexKey,path,goodid,null,null);
+        return  null;
     }
 
     public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
@@ -128,23 +156,6 @@ public class QueryProcessor {
         }
         Collections.sort(newList);  // 光有订单id, 按照订单id升序排列(从小到大)
         return orderList;
-    }
-
-    // buyer和goods的索引全在内存里面。
-    public static String queryBuyer(String id) {
-        RecordIndex indexCache = buyerIndexCache.get(id);
-        if (indexCache == null) {
-            throw new RuntimeException("buyerid index error");
-        }
-        return queryByIndex(indexCache);
-    }
-
-    public static String queryGoods(String id) {
-        RecordIndex indexCache = goodsIndexCache.get(id);
-        if (indexCache == null) {
-            throw new RuntimeException("goodsid index error");
-        }
-        return queryByIndex(indexCache);
     }
 
     private static String queryByIndex(RecordIndex index) {
@@ -327,7 +338,6 @@ public class QueryProcessor {
                         }
                         break;
                     } else {
-                        // todo 参照上面 -> 因外全加载到内存了，所以可以直接return
                         return rawStr;
                     }
                     if (length > bytes.length) {
@@ -377,9 +387,11 @@ public class QueryProcessor {
             }
         }
 
-        if (data.get(min).compareTo(key) <=0 ) {
-            return data.get(min);
+        if (data.get(max).compareTo(key) <=0 ) {
+            return data.get(max);
         }
         return data.get(min);
     }
+
+
 }
