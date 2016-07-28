@@ -20,18 +20,17 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class IndexProcessor {
 
+    private static final float M = 1024*1024;
+
     // todo 只需要将构建好的树的上层节点信息放到这里面，这一块的工作就先结束了
     private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
     private final HashMap<String, String[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
-    private ExecutorService threads = Executors.newFixedThreadPool(5);
+    private ExecutorService threads = Executors.newFixedThreadPool(3);
     private CountDownLatch latch = new CountDownLatch(11);
 
     // 貌似没啥卵用
-    private CountDownLatch hbLatch = new CountDownLatch(1);
-    private CountDownLatch hgLatch = new CountDownLatch(1);
-    private CountDownLatch orderLatch = new CountDownLatch(1);
-
+    private CountDownLatch orderIndexLatch = new CountDownLatch(3);
 
     private long start;
 
@@ -41,9 +40,33 @@ public class IndexProcessor {
 
     void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
                      LinkedBlockingQueue<String[]> orderIndexQueue) throws IOException {
-        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",hbLatch,0)).start();
-        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",hgLatch,1)).start();
-        new Thread(new ProcessOrderIndex(orderIndexQueue,RaceConfig.ORDER_FILE_SIZE,"o/i",orderLatch,2)).start();
+        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",orderIndexLatch,0)).start();
+        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",orderIndexLatch,1)).start();
+        new Thread(new ProcessOrderIndex(orderIndexQueue,RaceConfig.ORDER_FILE_SIZE,"o/i",orderIndexLatch,2)).start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    orderIndexLatch.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
+                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
+                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
+                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
+
+                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+
+                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+            }
+        }).start();
     }
 
     private void buildHB() {
@@ -55,16 +78,16 @@ public class IndexProcessor {
 
     private void buildHG() {
         System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
     }
 
     private void buildOrderIndex() throws IOException {
         System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
+        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
     }
 
     void createBuyerIndex() throws IOException {
@@ -164,14 +187,15 @@ public class IndexProcessor {
                 try {
                     br = Utils.createReader(fileFold+i);
                     bw = Utils.createWriter(fileFold+"S"+i);
-                    System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
-                            +Runtime.getRuntime().freeMemory()+", max memory: "+Runtime.getRuntime().maxMemory()+" ***");
+                    System.out.println("*** build pk index: "+fileFold+i+", free mermory: "
+                            +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
+                            ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     String line = br.readLine();
-                    BplusTree bpt = new BplusTree(60);
+                    BplusTree bpt = new BplusTree(80);
                     while (line!=null) {
                         String id = line.split(",")[0];
                         bpt.insertOrUpdate(id,line+" ");
-                        line = br.readLine();
+                        line = br.readLine(); // todo 这个地方也弄成流式的
                     }
                     bpt.getRoot().writeToDisk(0,bw);
                     bpt = null;
@@ -215,7 +239,8 @@ public class IndexProcessor {
                     String line = br.readLine();
                     HashMap<String,StringBuilder> map = new HashMap<>();
                     System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
-                            +Runtime.getRuntime().freeMemory()+", max memory: "+Runtime.getRuntime().maxMemory()+" ***");
+                            +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
+                            ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     while (line!=null) {
                         String[] values = line.split(",");
                         StringBuilder sb = map.get(values[0]);
@@ -342,19 +367,19 @@ public class IndexProcessor {
                         writers[1][i].close();
                         writers[2][i].close();
                     }
-                    System.out.println(prefix +" process complete, now time: "+ (System.currentTimeMillis()-start));
+                    System.out.println(prefix +" order index process complete, now time: "+ (System.currentTimeMillis()-start));
                     latch.countDown();
-                    switch (flag) {
-                        case 0:
-                            buildHB();
-                            break;
-                        case 1:
-                            buildHG();
-                            break;
-                        case 2:
-                            buildOrderIndex();
-                            break;
-                    }
+//                    switch (flag) {
+//                        case 0:
+//                            buildHB();
+//                            break;
+//                        case 1:
+//                            buildHG();
+//                            break;
+//                        case 2:
+//                            buildOrderIndex();
+//                            break;
+//                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

@@ -39,7 +39,7 @@ public class FileProcessor {
     public void init(final long start, final IndexProcessor indexProcessor) throws InterruptedException, IOException {
         this.indexProcessor = indexProcessor;
         indexProcessor.init(hbIndexQueue,hgIndexQueue,orderIndexQueue);
-        threads = Executors.newFixedThreadPool(5);
+        threads = Executors.newFixedThreadPool(6);
 
         threads.execute(new ProcessOrderData(orderQueues[0], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK1+"o/"));
         threads.execute(new ProcessOrderData(orderQueues[1], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK2+"o/"));

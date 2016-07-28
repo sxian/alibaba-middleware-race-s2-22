@@ -318,7 +318,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         long start = System.currentTimeMillis();
 
-        // 5个读取数据的线程
+        // 5个读取数据的线程 todo 加回调，读一个磁盘，写一个磁盘，保证同时一个磁盘只有读或写，还得保持并发，不能让cpu闲着
         new DataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch,
                 "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
         new DataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch,
