@@ -20,21 +20,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FileProcessor {
 
     // 接收原始数据的队列
-    public final LinkedBlockingQueue<String[][]>[] orderQueues = OrderSystemImpl.orderQueues;
-    public final LinkedBlockingQueue<String[][]> buyerQueue = OrderSystemImpl.buyerQueue;
-    public final LinkedBlockingQueue<String[][]> goodsQueue = OrderSystemImpl.goodsQueue;
+    public LinkedBlockingQueue<String[][]>[] orderQueues;
+    public LinkedBlockingQueue<String[][]> buyerQueue;
+    public LinkedBlockingQueue<String[][]> goodsQueue;
 
-    public final LinkedBlockingQueue<String[]> hbIndexQueue = new LinkedBlockingQueue<>(50000);
-    public final LinkedBlockingQueue<String[]> hgIndexQueue = new LinkedBlockingQueue<>(50000);
-    public final LinkedBlockingQueue<String[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
+    public LinkedBlockingQueue<String[]> hbIndexQueue = new LinkedBlockingQueue<>(50000);
+    public LinkedBlockingQueue<String[]> hgIndexQueue = new LinkedBlockingQueue<>(50000);
+    public LinkedBlockingQueue<String[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
 
-    // hash完相对应的所有文件后开始构建索引(排序)
-    public final CountDownLatch orderLatch = new CountDownLatch(3);
-    public final CountDownLatch buyerLatch = new CountDownLatch(1);
-    public final CountDownLatch goodsLatch = new CountDownLatch(1);
+    public CountDownLatch orderLatch = new CountDownLatch(1); // todo 关了hg hb
+    public CountDownLatch buyerLatch = new CountDownLatch(1);
+    public CountDownLatch goodsLatch = new CountDownLatch(1);
 
     private ExecutorService threads;
     private IndexProcessor indexProcessor;
+
+    public FileProcessor(OrderSystemImpl osi) {
+        orderQueues = osi.orderQueues;
+        buyerQueue = osi.buyerQueue;
+        goodsQueue = osi.goodsQueue;
+    }
 
     public void init(final long start, final IndexProcessor indexProcessor) throws InterruptedException, IOException {
         this.indexProcessor = indexProcessor;
@@ -62,11 +67,14 @@ public class FileProcessor {
                     indexProcessor.createGoodsIndex();
 
                     orderLatch.await();
-                    hbIndexQueue.offer(new String[0]);
-                    hgIndexQueue.offer(new String[0]);
+//                    hbIndexQueue.offer(new String[0]);
+//                    hgIndexQueue.offer(new String[0]);
                     orderIndexQueue.offer(new String[0]);
-                    System.out.println("order index writer complete, now time: "+(System.currentTimeMillis()-start));
-
+                    hbIndexQueue = null;
+                    hgIndexQueue = null;
+                    orderIndexQueue = null;
+                    System.out.println("order index writer complete, free memory: "+Runtime.getRuntime().freeMemory()/(1024.0*1024.0)+
+                            ", now time: "+(System.currentTimeMillis()-start));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -78,6 +86,9 @@ public class FileProcessor {
         buyerLatch.await();
         goodsLatch.await();
         orderLatch.await();
+        buyerLatch = null;
+        goodsLatch = null;
+        orderLatch = null;
         threads.shutdown();
         indexProcessor.waitOver();
     }
@@ -243,9 +254,9 @@ public class FileProcessor {
                     }
 
                     // buyerid -> orderid
-                    hbIndexQueue.offer(new String[]{buyerid,orderid+","+createtime},60, TimeUnit.SECONDS);
+//                    hbIndexQueue.offer(new String[]{buyerid,orderid+","+createtime},60, TimeUnit.SECONDS);
                     // goodid -> orderid
-                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
+//                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键

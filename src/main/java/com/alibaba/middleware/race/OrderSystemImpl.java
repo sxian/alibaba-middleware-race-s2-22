@@ -27,9 +27,9 @@ public class OrderSystemImpl implements OrderSystem {
     private static String booleanFalseValue = "false";
 
     // 每个队列对应一个磁盘
-    public static final LinkedBlockingQueue<String[][]>[] orderQueues = new LinkedBlockingQueue[3];
-    public static final LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(150000);
-    public static final LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(150000);
+    public LinkedBlockingQueue<String[][]>[] orderQueues = new LinkedBlockingQueue[3];
+    public LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(150000);
+    public LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(150000);
 
     private FileProcessor fileProcessor;
     private IndexProcessor indexProcessor;
@@ -37,9 +37,10 @@ public class OrderSystemImpl implements OrderSystem {
     private OrderTable orderTable;
     private BuyerTable buyerTable;
     private GoodsTable goodsTable;
+    private CountDownLatch tmp_latch = new CountDownLatch(1);
 
     public OrderSystemImpl() {
-        fileProcessor = new FileProcessor();
+        fileProcessor = new FileProcessor(this);
     }
 
     public static class KV implements Comparable<KV>, KeyValue {
@@ -330,20 +331,24 @@ public class OrderSystemImpl implements OrderSystem {
 
         new DataFileHandler().handle(goodsQueue, goodFiles, 1, goodsLatch, "(goodid):([\\w|-]+)");
 
-        fileProcessor = new FileProcessor();
         indexProcessor = new IndexProcessor(start);
         fileProcessor.init(start, indexProcessor);
+        indexProcessor = null;
 
         buyerLatch.await();
         buyerQueue.offer(new String[0][0]);
+        buyerQueue = null;
         System.out.println("process buyer data, now time: " + (System.currentTimeMillis() - start));
         goodsLatch.await();
         goodsQueue.offer(new String[0][0]);
+        goodsQueue = null;
         System.out.println("process goods data, now time: " + (System.currentTimeMillis() - start));
         orderLatch.await(); // 等待处理完所有文件
         sendEndMsg(orderQueues); // 发送结束信号
+        orderQueues = null;
         System.out.println("process order data, now time: " + (System.currentTimeMillis() - start));
         fileProcessor.waitOver(); // 等待队列处理完毕
+        fileProcessor = null;
         System.out.println("all data process complete, now time: " + (System.currentTimeMillis() - start));
         orderTable = new OrderTable();
         buyerTable = new BuyerTable();
@@ -388,6 +393,11 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
+        try {
+            tmp_latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         ArrayList<Result> results = new ArrayList<>();
 
         for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
@@ -398,6 +408,11 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
+        try {
+            tmp_latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
             results.add(queryOrder(Long.valueOf(orderId),keys));
@@ -407,6 +422,11 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
+        try {
+            tmp_latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
         List<String> _list = new ArrayList<>();
         _list.add(key);

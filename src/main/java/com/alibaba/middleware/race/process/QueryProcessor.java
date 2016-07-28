@@ -18,23 +18,11 @@ public class QueryProcessor {
     private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
     private static final HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
-    private static final LRUCache<String,RecordIndex> orderIndexCache = new LRUCache<>(100000); // orderid 5e 这个地方索引缓存
-    private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
-    private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(4000000); // goodid 400w
-
     public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
     public static HashMap<String, ArrayList<String>> filesIndexKey = new HashMap<>();
 
     public void initFile() {
         // todo
-    }
-
-    public static void addIndexCache(RecordIndex index, int flag) {
-        if (flag == 0) {
-            buyerIndexCache.put(index.key,index);
-        } else {
-            goodsIndexCache.put(index.key,index);
-        }
     }
 
     public static String queryOrder(String id) throws IOException {
@@ -57,8 +45,6 @@ public class QueryProcessor {
         return null;
     }
 
-
-    // buyer和goods的索引全在内存里面。
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
         String[] indexs = queryIndex(id, path).split(",");

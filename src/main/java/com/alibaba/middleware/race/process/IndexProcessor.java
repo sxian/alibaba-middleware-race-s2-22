@@ -26,10 +26,10 @@ public class IndexProcessor {
     private final HashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
     private ExecutorService threads = Executors.newFixedThreadPool(3);
-    private CountDownLatch latch = new CountDownLatch(11);
+    private CountDownLatch latch = new CountDownLatch(5);
 
     // 貌似没啥卵用
-    private CountDownLatch orderIndexLatch = new CountDownLatch(3);
+    private CountDownLatch orderIndexLatch = new CountDownLatch(1);
 
     private long start;
 
@@ -39,8 +39,8 @@ public class IndexProcessor {
 
     void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
                      LinkedBlockingQueue<String[]> orderIndexQueue) throws IOException {
-        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",orderIndexLatch,0)).start();
-        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",orderIndexLatch,1)).start();
+//        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",orderIndexLatch,0)).start();
+//        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",orderIndexLatch,1)).start();
         new Thread(new ProcessOrderIndex(orderIndexQueue,RaceConfig.ORDER_FILE_SIZE,"o/i",orderIndexLatch,2)).start();
         new Thread(new Runnable() {
             @Override
@@ -55,15 +55,15 @@ public class IndexProcessor {
                 threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
                 threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
 
-                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
 
-                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
             }
         }).start();
     }
@@ -97,41 +97,6 @@ public class IndexProcessor {
     void createGoodsIndex() throws IOException {
         System.out.println("start build goods index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"g/i", RaceConfig.GOODS_FILE_SIZE,latch));
-    }
-
-    private void createIndex(final LinkedBlockingQueue<Object> queue, final int flag) throws IOException {
-        threads.execute(new Runnable() {
-            @Override
-            public void run() {
-                long pos = 0;
-                try {
-                    int count = 0;
-                    while (true) {
-                            RecordIndex recordIndex = (RecordIndex) queue.take();
-                            if (recordIndex.length == -1) {
-                                break;
-                            }
-//                            char[] chars = recordIndex.toString().toCharArray();
-//                            int length = chars.length;
-                            QueryProcessor.addIndexCache(recordIndex,flag);
-//                            pos += length;
-                    }
-                }catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-//
-//                    try {
-//                        if (bw!=null){
-//                            bw.flush();
-//                            bw.close();
-//                        }
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-                    latch.countDown();
-                }
-            }
-        });
     }
 
     // 设置辅助索引
@@ -412,7 +377,12 @@ public class IndexProcessor {
                         writers[1][i].close();
                         writers[2][i].close();
                     }
-                    System.out.println(prefix +" order index process complete, now time: "+ (System.currentTimeMillis()-start));
+                    writers = null;
+                    builders = null;
+                    counters = null;
+                    System.out.println(prefix +" order index process complete, free memory: "+
+                            Runtime.getRuntime().freeMemory()/M+", max memory:"+Runtime.getRuntime().maxMemory()+
+                            ", now time: "+ (System.currentTimeMillis()-start));
                     latch.countDown();
 //                    switch (flag) {
 //                        case 0:
