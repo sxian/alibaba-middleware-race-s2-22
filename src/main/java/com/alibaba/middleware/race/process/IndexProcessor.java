@@ -21,8 +21,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class IndexProcessor {
 
     // todo 只需要将构建好的树的上层节点信息放到这里面，这一块的工作就先结束了
-    private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
-    private HashMap<String, Long[]> orderIndexsKeys = QueryProcessor.filesIndexKey;
+    private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
+    private final HashMap<String, String[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
     private ExecutorService threads = Executors.newFixedThreadPool(9);
     private CountDownLatch latch = new CountDownLatch(11);
@@ -109,7 +109,7 @@ public class IndexProcessor {
     }
 
     // 设置辅助索引
-    public void setCache(BplusTree bplusTree,TreeMap<String,Long[]> tree,ArrayList<String> list) {
+    public void setCache(BplusTree bplusTree,TreeMap<String,int[]> tree,ArrayList<String> list, String file) {
         for (Node node : bplusTree.getRoot().getChildren()) {
                 for (Node _node : node.getChildren()) {
                     // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
@@ -122,8 +122,8 @@ public class IndexProcessor {
                                 continue;// 线上可以删了
                             }
                             String[] index = indexs[j].split(",");
-                            tree.put(index[0],new Long[]{Long.valueOf(index[1]),
-                                    Long.valueOf(index[2])});
+                            tree.put(index[0],new int[]{Integer.valueOf(index[1]),
+                                    Integer.valueOf(index[2])});
                             list.add(index[0]);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -131,6 +131,8 @@ public class IndexProcessor {
                     }
                 }
         }
+        filesIndexs.put(file, tree);
+        filesIndexsKeys.put(file, (String[]) list.toArray());
     }
 
     void waitOver() throws InterruptedException {
@@ -138,7 +140,7 @@ public class IndexProcessor {
         threads.shutdown();
     }
 
-    protected class ProcessIndex implements Runnable {
+    private class ProcessIndex implements Runnable {
         // 使用一个线程一个文件 -> 先一个线程处理所有文件试试
         protected int fileNum;
         protected String fileFold;
@@ -200,6 +202,13 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
+                while (Runtime.getRuntime().freeMemory() < 500) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
                 try {
                     br = Utils.createReader(fileFold+i);
                     bw = Utils.createWriter(fileFold+"S"+i);
@@ -212,15 +221,10 @@ public class IndexProcessor {
                             sb = new StringBuilder();
                             map.put(values[0],sb);
                         }
-                        try {
-
-                            if (flag) {
-                                sb.append(values[1]).append(",").append(values[2]).append(" ");
-                            } else {
-                                sb.append(values[1]).append(" ");
-                            }
-                        } catch (Exception e) {
-                            int a = 1;
+                        if (flag) {
+                            sb.append(values[1]).append(",").append(values[2]).append(" ");
+                        } else {
+                            sb.append(values[1]).append(" ");
                         }
                         line = br.readLine();
                     }
@@ -229,6 +233,13 @@ public class IndexProcessor {
                         bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
                     }
                     bpt.getRoot().writeToDisk(0,bw);
+//                    for (Node node : bpt.getRoot().getChildren()) {
+//                        if (node.getChildren()!=null) {
+//                            for (Node _node : node.getChildren()) {
+//
+//                            }
+//                        }
+//                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -249,7 +260,6 @@ public class IndexProcessor {
             latch.countDown();
         }
     }
-
 
     private class ProcessOrderIndex implements Runnable {
         int flag;
@@ -347,159 +357,4 @@ public class IndexProcessor {
             }
         }
     }
-
-
-
-//    // 处理BuyeridAndCreateTime
-//        new Thread(new Runnable() {
-//        @Override
-//        public void run() { // todo 线上测试实际数据的时候，生成的数据量会非常大，无法直接构架B+树,
-//            // todo 所以要使用队列对这个数据切分. 另外有没有用户同一时间两个订单?
-//            // todo 合并代码
-//            String path = RaceConfig.STORE_PATH+"buyerid_create_order";
-//            BufferedWriter bw = null;
-//            try { // todo 有问题 -> 啥问题?
-//                bw = Utils.createWriter(path);
-//                HashMap<String,StringBuilder> map = new HashMap<>();
-//                while (true) {
-//                    String[] keys = buyerid_create_order_queue.take();
-//                    if ("".equals(keys[0])&&"".equals(keys[1])&&"".equals(keys[2])) {
-//                        break;
-//                    }
-//
-//                    StringBuilder sb = map.get(keys[2]);
-//                    if (sb == null) {
-//                        sb = new StringBuilder(keys[0]+","+keys[1]+" ");
-//                        map.put(keys[2],sb);
-//                    } else {
-//                        sb.append(keys[0]).append(",").append(keys[1]).append(" ");
-//                    }
-//                }
-//                BplusTree bplusTree = new BplusTree(50);
-//                for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
-//                    bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
-//                }
-//                bplusTree.getRoot().writeToDisk(0,bw);
-//                setCache(bplusTree, QueryProcessor.buyerOrderFilesIndex,QueryProcessor.buyerOrderFilesIndexKey);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            } finally {
-//                if (bw!=null) {
-//                    try {
-//                        bw.flush();
-//                        bw.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//                latch.countDown();
-//            }
-//        }
-//    }).start();
-//
-//    // GoodidToOrderid
-//        new Thread(new Runnable() {
-//        @Override
-//        public void run() {
-//            String path = RaceConfig.STORE_PATH+"goodid_orderid";
-//            BufferedWriter bw = null;
-//            try {
-//                bw = Utils.createWriter(path);
-//                HashMap<String,StringBuilder> map = new HashMap<>();
-//
-//                while (true) {
-//                    String[] keys = goodid_orderid_queue.take();
-//                    if ("".equals(keys[0])&&"".equals(keys[1])) {
-//                        break;
-//                    }
-//
-//                    StringBuilder sb = map.get(keys[1]);
-//                    if (sb == null) {
-//                        sb = new StringBuilder(keys[0]+" ");
-//                        map.put(keys[1],sb);
-//                    } else {
-//                        sb.append(keys[0]).append(" ");
-//                    }
-//                }
-//                BplusTree bplusTree = new BplusTree(50);
-//                for (Map.Entry<String,StringBuilder> entry : map.entrySet()) {
-//                    bplusTree.insertOrUpdate(entry.getKey(),entry.getValue().toString());
-//                }
-//                bplusTree.getRoot().writeToDisk(0,bw);
-//                setCache(bplusTree, QueryProcessor.goodsOrderFilesIndex,QueryProcessor.goodsOrderFilesIndexKey);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            } finally {
-//                if (bw!=null) {
-//                    try {
-//                        bw.flush();
-//                        bw.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//                latch.countDown();
-//            }
-//        }
-//    }).start();
-
-
-//    new Thread(new Runnable() {
-//        @Override
-//        public void run() {
-//            try {
-//                BufferedWriter bw = Utils.createWriter(RaceConfig.STORE_PATH+"btreesIndex");
-//                while (true) {
-//                    ArrayList<String> list = (ArrayList<String>) queue.take();
-//                    if (list.size() == 0) {
-//                        break;
-//                    }
-//                    String path = list.get(0);
-//                    StringBuilder sb = new StringBuilder("file "+path+"\n");
-//                    TreeMap<Long,Long[]> treeMap = new TreeMap<>();
-//                    for (int i = 1;i<list.size();i++) {
-//                        String[] indexs = list.get(i).split(" ");
-//                        for (int j = 1;j<indexs.length;j++) {
-//                            try {
-//                                if (indexs[j].equals("\n")) {
-//                                    continue;// 线上可以删了
-//                                }
-//                                String[] index = indexs[j].split(",");
-//                                long key = Long.valueOf(index[0]);
-//                                long pos = Long.valueOf(index[1]);
-//                                long length = Long.valueOf(index[2]);
-//                                treeMap.put(key,new Long[]{pos,length});
-//                            } catch (Exception e) {
-//                                e.printStackTrace();
-//                            }
-//                        }
-//                        sb.append(list.get(i));
-//                    }
-//                    bw.write(sb.toString().toCharArray());
-//                    orderIndexs.put(path,treeMap);
-//                    Object[] objects =  treeMap.keySet().toArray();
-//                    Long[] keys = new Long[objects.length];
-//                    for (int i = 0;i<objects.length;i++) {
-//                        keys[i]= (Long) objects[i];
-//                    }
-//                    orderIndexsKeys.put(path, keys);
-//                }
-//                bw.flush();
-//                bw.close();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            } finally {
-//                latch.countDown();
-//            }
-//        }
-//    }).start();
-
-
-
 }

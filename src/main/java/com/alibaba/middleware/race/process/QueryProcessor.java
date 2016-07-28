@@ -19,9 +19,9 @@ public class QueryProcessor {
     private static final LRUCache<String,RecordIndex> buyerIndexCache = new LRUCache<>(8000000); // buyerid 800w 看下内存占用
     private static final LRUCache<String,RecordIndex> goodsIndexCache = new LRUCache<>(4000000); // goodid 400w
 
-    // todo 不同文件的B+树索引能否合并
-    public static HashMap<String, TreeMap<Long,Long[]>> filesIndex = new HashMap<>();
-    public static HashMap<String, Long[]> filesIndexKey = new HashMap<>();
+    // todo 不同文件的B+树索引能否合并  全用string 行不行
+    public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
+    public static HashMap<String, String[]> filesIndexKey = new HashMap<>();
 
     // 把所有的索引使用的B+树的前提是B+树中有所有的信息节点
     public static TreeMap<String,Long[]>  buyerOrderFilesIndex = new TreeMap<>();
@@ -40,35 +40,35 @@ public class QueryProcessor {
 
     public static String queryOrder(String id) {
         RecordIndex indexCache = orderIndexCache.get(id);  // todo orderid的索引缓存是有问题的，和rawdata重叠了
-        if (indexCache == null) {
-            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            long orderid = -1;
-            try {
-                orderid = Long.valueOf(id);
-            } catch (Exception e) {
-            }
-
-            Long[] idKeys = filesIndexKey.get(path);
-            if (idKeys==null) {
-                try {
-                idKeys = (Long[]) filesIndex.get(path).keySet().toArray();
-                } catch (Exception e) {
-                    int i = 0;
-                }
-                filesIndexKey.put(path, idKeys);
-            }
-
-            long key;
-            if (orderid<idKeys[0]) {
-                key = idKeys[0];
-            } else if(orderid>idKeys[idKeys.length-1]) {
-                key = idKeys[idKeys.length-1];
-            } else {
-                key = binarySearch(idKeys,orderid);
-            }
-            Long[] pos = filesIndex.get(path).get(key);
-            return queryRowByBPT(path, orderid, pos[0],Integer.valueOf(String.valueOf(pos[1])));
-        }
+//        if (indexCache == null) {
+//            String path = RaceConfig.ORDER_SOTRED_STORE_PATH+"oS"+Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+//            long orderid = -1;
+//            try {
+//                orderid = Long.valueOf(id);
+//            } catch (Exception e) {
+//            }
+//
+////            int[] idKeys = filesIndexKey.get(path);
+//            if (idKeys==null) {
+//                try {
+//                idKeys = (int[]) filesIndex.get(path).keySet().toArray();
+//                } catch (Exception e) {
+//                    int i = 0;
+//                }
+//                filesIndexKey.put(path, idKeys);
+//            }
+//
+//            long key;
+//            if (orderid<idKeys[0]) {
+//                key = idKeys[0];
+//            } else if(orderid>idKeys[idKeys.length-1]) {
+//                key = idKeys[idKeys.length-1];
+//            } else {
+//                key = binarySearch(idKeys,orderid);
+//            }
+//            int[] pos = filesIndex.get(path).get(key);
+//            return queryRowByBPT(path, orderid, pos[0],Integer.valueOf(String.valueOf(pos[1])));
+//        }
         return queryByIndex(indexCache);
     }
 
