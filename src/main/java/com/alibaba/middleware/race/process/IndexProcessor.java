@@ -191,7 +191,7 @@ public class IndexProcessor {
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     String line = br.readLine();
-                    BplusTree bpt = new BplusTree(80);
+                    BplusTree bpt = new BplusTree(100);
                     while (line!=null) {
                         String id = line.split(",")[0];
                         bpt.insertOrUpdate(id,line+" ");
@@ -255,7 +255,7 @@ public class IndexProcessor {
                         }
                         line = br.readLine();
                     }
-                    BplusTree bpt = new BplusTree(60);
+                    BplusTree bpt = new BplusTree(80);
                     for (Map.Entry<String, StringBuilder> entry : map.entrySet()) {
                         bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
                     }
