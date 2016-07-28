@@ -24,9 +24,10 @@ public class IndexProcessor {
     private HashMap<String, TreeMap<Long,Long[]>> orderIndexs = QueryProcessor.filesIndex;
     private HashMap<String, Long[]> orderIndexsKeys = QueryProcessor.filesIndexKey;
 
-    private ExecutorService threads = Executors.newFixedThreadPool(3);
-    private CountDownLatch latch = new CountDownLatch(5);
+    private ExecutorService threads = Executors.newFixedThreadPool(9);
+    private CountDownLatch latch = new CountDownLatch(11);
 
+    // 貌似没啥卵用
     private CountDownLatch hbLatch = new CountDownLatch(1);
     private CountDownLatch hgLatch = new CountDownLatch(1);
     private CountDownLatch orderLatch = new CountDownLatch(1);
@@ -38,7 +39,6 @@ public class IndexProcessor {
         this.start = start;
     }
 
-
     void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
                      LinkedBlockingQueue<String[]> orderIndexQueue) throws IOException {
         new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",hbLatch,0)).start();
@@ -48,15 +48,15 @@ public class IndexProcessor {
 
     private void buildHB() {
         // todo 不能这么做 这里要先读进来，按照key进行hash，然后构建B+树
-        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
     }
 
     private void buildHG() {
-        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
-        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+        threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
     }
 
     private void buildOrderIndex() throws IOException {
@@ -138,11 +138,11 @@ public class IndexProcessor {
         threads.shutdown();
     }
 
-    private class ProcessIndex implements Runnable {
+    protected class ProcessIndex implements Runnable {
         // 使用一个线程一个文件 -> 先一个线程处理所有文件试试
-        private int fileNum;
-        private String fileFold;
-        private CountDownLatch latch;
+        protected int fileNum;
+        protected String fileFold;
+        protected CountDownLatch latch;
 
         public ProcessIndex(String fileFold, int fileNum, CountDownLatch latch) {
             this.fileFold = fileFold;
@@ -182,10 +182,74 @@ public class IndexProcessor {
                     }
                 }
             }
-            System.out.println(fileFold + " index process complete, now time: "+(System.currentTimeMillis() - start));
+            System.out.println(fileFold + " index sort complete, now time: "+(System.currentTimeMillis() - start));
             latch.countDown();
         }
     }
+
+    private class ProcessAssistIndex extends ProcessIndex {
+
+        boolean flag;//0 hb, 1hg
+
+        public ProcessAssistIndex(String fileFold, int fileNum, CountDownLatch latch,boolean flag) {
+            super(fileFold, fileNum, latch);
+            this.flag = flag;
+        }
+
+        public void run() {
+            for (int i = 0; i<fileNum; i++) {
+                BufferedWriter bw = null;
+                BufferedReader br = null;
+                try {
+                    br = Utils.createReader(fileFold+i);
+                    bw = Utils.createWriter(fileFold+"S"+i);
+                    String line = br.readLine();
+                    HashMap<String,StringBuilder> map = new HashMap<>();
+                    while (line!=null) {
+                        String[] values = line.split(",");
+                        StringBuilder sb = map.get(values[0]);
+                        if (sb == null) {
+                            sb = new StringBuilder();
+                            map.put(values[0],sb);
+                        }
+                        try {
+
+                            if (flag) {
+                                sb.append(values[1]).append(",").append(values[2]).append(" ");
+                            } else {
+                                sb.append(values[1]).append(" ");
+                            }
+                        } catch (Exception e) {
+                            int a = 1;
+                        }
+                        line = br.readLine();
+                    }
+                    BplusTree bpt = new BplusTree(60);
+                    for (Map.Entry<String, StringBuilder> entry : map.entrySet()) {
+                        bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
+                    }
+                    bpt.getRoot().writeToDisk(0,bw);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (br!=null) {
+                            br.close();
+                        }
+                        if (bw!=null) {
+                            bw.flush();
+                            bw.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            System.out.println(fileFold + " index sort complete, now time: "+(System.currentTimeMillis() - start));
+            latch.countDown();
+        }
+    }
+
 
     private class ProcessOrderIndex implements Runnable {
         int flag;
@@ -283,6 +347,7 @@ public class IndexProcessor {
             }
         }
     }
+
 
 
 //    // 处理BuyeridAndCreateTime

@@ -243,9 +243,9 @@ public class FileProcessor {
                     }
 
                     // buyerid -> orderid
-                    hbIndexQueue.offer(new String[]{buyerid,orderid},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{buyerid,orderid+","+createtime},60, TimeUnit.SECONDS);
                     // goodid -> orderid
-                    hgIndexQueue.offer(new String[]{goodid,orderid+","+createtime},60, TimeUnit.SECONDS);
+                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
