@@ -51,6 +51,9 @@ public class IndexProcessor {
                     e.printStackTrace();
                 }
                 System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
+                System.out.println("***** before force gc, free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
+                System.gc();
+                System.out.println("***** after force gc,free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
                 threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
                 threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
                 threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
