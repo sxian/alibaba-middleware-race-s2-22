@@ -181,6 +181,7 @@ public class IndexProcessor {
             filesIndexs.put(file, tree);
             filesIndexsKeys.put(file, list.toArray());
         } catch (Exception e) {
+            e.printStackTrace();
             int i = 0;
         }
     }
