@@ -20,7 +20,7 @@ public class TmpTest {
 //        RandomAccessFile raf = new RandomAccessFile("t/index/goodid_orderid","r");
 //        RandomAccessFile raf = new RandomAccessFile("t/index/buyerid_create_order","r");
 //
-        System.out.println(Runtime.getRuntime().freeMemory()/M);
+        System.out.println(Runtime.getRuntime().maxMemory()/M);
 //        long leg = raf.length();
 //        raf.seek(8667668); // ap-804e-6f1c7d177abd,25468,470
 //        byte[] bytes = new byte[714];

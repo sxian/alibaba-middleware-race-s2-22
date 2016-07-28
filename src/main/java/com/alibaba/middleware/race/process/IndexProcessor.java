@@ -157,9 +157,11 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
-                while (Runtime.getRuntime().freeMemory() < 500) {
+                while (Runtime.getRuntime().freeMemory()/(1024*1024) < 500 &&
+                        Runtime.getRuntime().maxMemory()/(1024*1024) < 500) {
+//                    Runtime.getRuntime().all
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(500);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -209,9 +211,10 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
-                while (Runtime.getRuntime().freeMemory() < 500) {
+                while (Runtime.getRuntime().freeMemory()/(1024*1024) < 500 &&
+                        Runtime.getRuntime().maxMemory()/(1024*1024) < 500) {
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(500);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
