@@ -271,10 +271,11 @@ public class QueryProcessor {
         int rowLen = 0;
 
         RandomAccessFile raf = indexFileMap.get(file);
-        synchronized (raf) {
             while (!findRow) {
-                raf.seek(pos);
-                raf.read(bytes);
+                synchronized (raf) {
+                    raf.seek(pos);
+                    raf.read(bytes);
+                }
                 String rawStr = new String(bytes,0,length);
                 String[] bIndexs = rawStr.split(" ");
                 if (bIndexs[0].equals("0")) {
@@ -309,12 +310,14 @@ public class QueryProcessor {
                     for (int i = 1; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
                         if (rowPos[0].equals(id)) {
-                            raf.seek(Long.valueOf(rowPos[1]));
-                            rowLen = Integer.valueOf(rowPos[2]);
-                            if (rowLen > bytes.length) {
-                                bytes = new byte[rowLen];
+                            synchronized (raf) {
+                                raf.seek(Long.valueOf(rowPos[1]));
+                                rowLen = Integer.valueOf(rowPos[2]);
+                                if (rowLen > bytes.length) {
+                                    bytes = new byte[rowLen];
+                                }
+                                raf.read(bytes,0,rowLen);
                             }
-                            raf.read(bytes,0,rowLen);
                             findRow = true;
                             break;
                         }
@@ -327,7 +330,6 @@ public class QueryProcessor {
                     bytes = new byte[length];
                 }
             }
-        }
         return findRow ? new String(bytes,0,rowLen) : null;
     }
 
