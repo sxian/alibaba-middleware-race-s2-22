@@ -5,6 +5,7 @@ import com.alibaba.middleware.race.db.GoodsTable;
 import com.alibaba.middleware.race.db.OrderTable;
 import com.alibaba.middleware.race.process.FileProcessor;
 import com.alibaba.middleware.race.process.IndexProcessor;
+import com.alibaba.middleware.race.process.QueryProcessor;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedReader;
@@ -267,9 +268,9 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<String> disk3 = new ArrayList<>();
 
         if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 20; // todo 要分到3个磁盘，所以实际文件数量是三倍
-            RaceConfig.BUYER_FILE_SIZE = 3;
-            RaceConfig.GOODS_FILE_SIZE = 3;
+            RaceConfig.ORDER_FILE_SIZE = 41; // todo 要分到3个磁盘，所以实际文件数量是三倍
+            RaceConfig.BUYER_FILE_SIZE = 10;
+            RaceConfig.GOODS_FILE_SIZE = 10;
             for (String storePath : storeFolders) {
                 if (storePath.startsWith("/disk1")) {
                     RaceConfig.DISK1 = storePath;
@@ -349,6 +350,7 @@ public class OrderSystemImpl implements OrderSystem {
         System.out.println("process order data, now time: " + (System.currentTimeMillis() - start));
         fileProcessor.waitOver(); // 等待队列处理完毕
         fileProcessor = null;
+        QueryProcessor.initFile();
         System.out.println("all data process complete, now time: " + (System.currentTimeMillis() - start));
         orderTable = new OrderTable();
         buyerTable = new BuyerTable();

@@ -155,9 +155,6 @@ public class OrderSystemImplTest {
 
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);
 
-        if (list==null) {
-            int i = 1;
-        }
         for (int i = 0;i<list.size();i++) {
             OrderSystemImpl.KV kv = list.get(i);
             OrderSystemImpl.KV kv1 = (OrderSystemImpl.KV) result.get(kv.key());

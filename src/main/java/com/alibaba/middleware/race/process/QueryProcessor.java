@@ -15,14 +15,38 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QueryProcessor {
     // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗 -> 并发下使用不安全
-    private static final HashMap<String, RandomAccessFile> randomAccessFileHashMap = new HashMap<>();
+    private static final HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
     private static final HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
     public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
     public static HashMap<String, ArrayList<String>> filesIndexKey = new HashMap<>();
 
-    public void initFile() {
-        // todo
+    public static void initFile() {
+        try {
+            for (String file : filesIndex.keySet()) {
+                RandomAccessFile raf = new RandomAccessFile(file,"r");
+                indexFileMap.put(file, raf);
+            }
+            for (int i = 0;i<RaceConfig.ORDER_FILE_SIZE;i++) {
+                RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/"+i,"r");
+                RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"o/"+i,"r");
+                RandomAccessFile raf3 = new RandomAccessFile(RaceConfig.DISK3+"o/"+i,"r");
+                dataFileMap.put(RaceConfig.DISK1+"o/"+i,raf1);
+                dataFileMap.put(RaceConfig.DISK2+"o/"+i,raf2);
+                dataFileMap.put(RaceConfig.DISK3+"o/"+i,raf3);
+
+            }
+            for (int i = 0;i<RaceConfig.BUYER_FILE_SIZE;i++) {
+                RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"b/"+i,"r");
+                dataFileMap.put(RaceConfig.DISK1+"b/"+i,raf1);
+            }
+            for (int i = 0;i<RaceConfig.GOODS_FILE_SIZE;i++) {
+                RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK2+"g/"+i,"r");
+                dataFileMap.put(RaceConfig.DISK2+"g/"+i,raf1);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     public static String queryOrder(String id) throws IOException {
@@ -39,7 +63,7 @@ public class QueryProcessor {
         }
         String[] indexs = queryIndex(id,path).split(",");
         if (indexs[0].equals(id)) {
-            RandomAccessFile raf = new RandomAccessFile(indexs[1],"r");
+            RandomAccessFile raf = dataFileMap.get(indexs[1]);
             return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
         }
         return null;
@@ -49,7 +73,7 @@ public class QueryProcessor {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
         String[] indexs = queryIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
-            RandomAccessFile raf = new RandomAccessFile(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE),"r");
+            RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
@@ -59,7 +83,7 @@ public class QueryProcessor {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
         String[] indexs = queryIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
-            RandomAccessFile raf = new RandomAccessFile(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE),"r");
+            RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
@@ -97,7 +121,7 @@ public class QueryProcessor {
     }
 
     public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
-                                               String id, Long start, Long end){
+                                               String id, Long start, Long end) throws IOException {
 //        String key;
 //        if (id.compareTo(list.get(0)) < 0) {
 //            key = list.get(0);
@@ -145,22 +169,13 @@ public class QueryProcessor {
     }
 
     private static String queryByIndex(RecordIndex index) {
-        return queryRow(index.filePath, index.position, index.length);
+        return null;
     }
 
     private static String queryRow(String file, long pos, int length) {
         byte[] bytes = new byte[length];
         try {
-            RandomAccessFile raf = randomAccessFileHashMap.get(file);
-            if (raf == null) {
-                synchronized (QueryProcessor.class) {
-                    raf = randomAccessFileHashMap.get(file);
-                    if (raf == null) {
-                        raf = new RandomAccessFile(file,"r");
-                        randomAccessFileHashMap.put(file, raf);
-                    }
-                }
-            }
+            RandomAccessFile raf = indexFileMap.get(file);
             synchronized (raf) {
                 raf.seek(pos);
                 raf.read(bytes);
@@ -172,167 +187,146 @@ public class QueryProcessor {
     }
 
     // todo 可以用queryRowStringByBPT替代queryRowByBPT
-    private static String queryRowByBPT(String file, long orderid, long pos, int length) {
+//    private static String queryRowByBPT(String file, long orderid, long pos, int length) {
+//        byte[] bytes = new byte[length];
+//        boolean findRow = false;
+//        int rowLen = 0;
+//        try {
+//            RandomAccessFile raf = indexFileMap.get(file);
+//
+//            synchronized (raf) {
+//
+//                while (!findRow) {
+//                    raf.seek(pos);
+//                    raf.read(bytes);
+//                    String rawStr = new String(bytes,0,length);
+//                    String[] bIndexs = rawStr.split(" ");
+//                    if (bIndexs[0].equals("0")) {
+//                        boolean findIndex = false;
+//                        String[] preIndexPos = bIndexs[1].split(",");
+//                        if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
+//                            pos = Long.valueOf(preIndexPos[1]);
+//                            length = Integer.valueOf(preIndexPos[2]);
+//                            continue;
+//                        }
+//                        if (!findIndex) {
+//                            for (int i = 1; i<bIndexs.length-1;i++) {
+//                                String[] indexPos = bIndexs[i+1].split(",");
+//                                if (i==bIndexs.length-2) {
+//                                    if (orderid < Long.valueOf(preIndexPos[0])) {
+//                                        throw new RuntimeException("compare error");
+//                                    }
+//                                    pos = Long.valueOf(preIndexPos[1]);
+//                                    length = Integer.valueOf(preIndexPos[2]);
+//                                    break;
+//                                }
+//
+//                                if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
+//                                    pos = Long.valueOf(preIndexPos[1]);
+//                                    length = Integer.valueOf(preIndexPos[2]);
+//                                    break;
+//                                }
+//                                preIndexPos = indexPos;
+//                            }
+//                        }
+//                    } else if (bIndexs[0].equals("1")) {
+//                        for (int i = 1; i<bIndexs.length;i++) {
+//                            if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
+//                                continue;
+//                            }
+//                            String[] rowPos = bIndexs[i].split(",");
+//                            if (Long.valueOf(rowPos[0])==orderid) {
+//                                raf.seek(Long.valueOf(rowPos[1]));
+//                                rowLen = Integer.valueOf(rowPos[2]);
+//                                if (rowLen > bytes.length) {
+//                                    bytes = new byte[rowLen];
+//                                }
+//                                raf.read(bytes,0,rowLen);
+//                                findRow = true;
+//                                break;
+//                            }
+//                        }
+//                        break;
+//                    } else {
+//                        if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
+//                            return rawStr;
+//                        }
+//                        return null;
+//                    }
+//                    if (length > bytes.length) {
+//                        bytes = new byte[length];
+//                    }
+//                }
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//        return findRow ? new String(bytes,0,rowLen) : null;
+//    }
+
+    private static String queryRowStringByBPT(String file, String id, long pos, int length) throws IOException {
         byte[] bytes = new byte[length];
         boolean findRow = false;
         int rowLen = 0;
-        try {
-            RandomAccessFile raf = randomAccessFileHashMap.get(file);
-            if (raf == null) {
-                synchronized (QueryProcessor.class) {
-                    raf = randomAccessFileHashMap.get(file);
-                    if (raf == null) {
-                        raf = new RandomAccessFile(file,"r");
-                        randomAccessFileHashMap.put(file, raf);
+
+        RandomAccessFile raf = indexFileMap.get(file);
+        synchronized (raf) {
+            while (!findRow) {
+                raf.seek(pos);
+                raf.read(bytes);
+                String rawStr = new String(bytes,0,length);
+                String[] bIndexs = rawStr.split(" ");
+                if (bIndexs[0].equals("0")) {
+                    boolean findIndex = false;
+                    String[] preIndexPos = bIndexs[1].split(",");
+                    if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
+                        pos = Long.valueOf(preIndexPos[1]);
+                        length = Integer.valueOf(preIndexPos[2]);
+                        continue;
                     }
-                }
-            }
-            synchronized (raf) {
-
-                while (!findRow) {
-                    raf.seek(pos);
-                    raf.read(bytes);
-                    String rawStr = new String(bytes,0,length);
-                    String[] bIndexs = rawStr.split(" ");
-                    if (bIndexs[0].equals("0")) {
-                        boolean findIndex = false;
-                        String[] preIndexPos = bIndexs[1].split(",");
-                        if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
-                            pos = Long.valueOf(preIndexPos[1]);
-                            length = Integer.valueOf(preIndexPos[2]);
-                            continue;
-                        }
-                        if (!findIndex) {
-                            for (int i = 1; i<bIndexs.length-1;i++) {
-                                String[] indexPos = bIndexs[i+1].split(",");
-                                if (i==bIndexs.length-2) {
-                                    if (orderid < Long.valueOf(preIndexPos[0])) {
-                                        throw new RuntimeException("compare error");
-                                    }
-                                    pos = Long.valueOf(preIndexPos[1]);
-                                    length = Integer.valueOf(preIndexPos[2]);
-                                    break;
+                    if (!findIndex) {
+                        for (int i = 1; i<bIndexs.length-1;i++) {
+                            String[] indexPos = bIndexs[i+1].split(",");
+                            if (i==bIndexs.length-2) {
+                                if (id.compareTo(preIndexPos[0]) < 0) {
+                                    throw new RuntimeException("compare error");
                                 }
-
-                                if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
-                                    pos = Long.valueOf(preIndexPos[1]);
-                                    length = Integer.valueOf(preIndexPos[2]);
-                                    break;
-                                }
-                                preIndexPos = indexPos;
-                            }
-                        }
-                    } else if (bIndexs[0].equals("1")) {
-                        for (int i = 1; i<bIndexs.length;i++) {
-                            if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
-                                continue;
-                            }
-                            String[] rowPos = bIndexs[i].split(",");
-                            if (Long.valueOf(rowPos[0])==orderid) {
-                                raf.seek(Long.valueOf(rowPos[1]));
-                                rowLen = Integer.valueOf(rowPos[2]);
-                                if (rowLen > bytes.length) {
-                                    bytes = new byte[rowLen];
-                                }
-                                raf.read(bytes,0,rowLen);
-                                findRow = true;
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
                                 break;
                             }
-                        }
-                        break;
-                    } else {
-                        if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
-                            return rawStr;
-                        }
-                        return null;
-                    }
-                    if (length > bytes.length) {
-                        bytes = new byte[length];
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        return findRow ? new String(bytes,0,rowLen) : null;
-    }
-
-    private static String queryRowStringByBPT(String file, String id, long pos, int length) {
-        byte[] bytes = new byte[length];
-        boolean findRow = false;
-        int rowLen = 0;
-        try {
-
-            RandomAccessFile raf = randomAccessFileHashMap.get(file);
-            if (raf == null) {
-                synchronized (QueryProcessor.class) {
-                    raf = randomAccessFileHashMap.get(file);
-                    if (raf == null) {
-                        raf = new RandomAccessFile(file,"r");
-                        randomAccessFileHashMap.put(file, raf);
-                    }
-                }
-            }
-            synchronized (raf) {
-                while (!findRow) {
-                    raf.seek(pos);
-                    raf.read(bytes);
-                    String rawStr = new String(bytes,0,length);
-                    String[] bIndexs = rawStr.split(" ");
-                    if (bIndexs[0].equals("0")) {
-                        boolean findIndex = false;
-                        String[] preIndexPos = bIndexs[1].split(",");
-                        if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
-                            pos = Long.valueOf(preIndexPos[1]);
-                            length = Integer.valueOf(preIndexPos[2]);
-                            continue;
-                        }
-                        if (!findIndex) {
-                            for (int i = 1; i<bIndexs.length-1;i++) {
-                                String[] indexPos = bIndexs[i+1].split(",");
-                                if (i==bIndexs.length-2) {
-                                    if (id.compareTo(preIndexPos[0]) < 0) {
-                                        throw new RuntimeException("compare error");
-                                    }
-                                    pos = Long.valueOf(preIndexPos[1]);
-                                    length = Integer.valueOf(preIndexPos[2]);
-                                    break;
-                                }
-
-                                if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
-                                    pos = Long.valueOf(preIndexPos[1]);
-                                    length = Integer.valueOf(preIndexPos[2]);
-                                    break;
-                                }
-                                preIndexPos = indexPos;
-                            }
-                        }
-                    } else if (bIndexs[0].equals("1")){
-                        for (int i = 1; i<bIndexs.length;i++) {
-                            String[] rowPos = bIndexs[i].split(",");
-                            if (rowPos[0].equals(id)) {
-                                raf.seek(Long.valueOf(rowPos[1]));
-                                rowLen = Integer.valueOf(rowPos[2]);
-                                if (rowLen > bytes.length) {
-                                    bytes = new byte[rowLen];
-                                }
-                                raf.read(bytes,0,rowLen);
-                                findRow = true;
+                            if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
+                                pos = Long.valueOf(preIndexPos[1]);
+                                length = Integer.valueOf(preIndexPos[2]);
                                 break;
                             }
+                            preIndexPos = indexPos;
                         }
-                        break;
-                    } else {
-                        return rawStr;
                     }
-                    if (length > bytes.length) {
-                        bytes = new byte[length];
+                } else if (bIndexs[0].equals("1")){
+                    for (int i = 1; i<bIndexs.length;i++) {
+                        String[] rowPos = bIndexs[i].split(",");
+                        if (rowPos[0].equals(id)) {
+                            raf.seek(Long.valueOf(rowPos[1]));
+                            rowLen = Integer.valueOf(rowPos[2]);
+                            if (rowLen > bytes.length) {
+                                bytes = new byte[rowLen];
+                            }
+                            raf.read(bytes,0,rowLen);
+                            findRow = true;
+                            break;
+                        }
                     }
+                    break;
+                } else {
+                    return rawStr;
+                }
+                if (length > bytes.length) {
+                    bytes = new byte[length];
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         return findRow ? new String(bytes,0,rowLen) : null;
     }
