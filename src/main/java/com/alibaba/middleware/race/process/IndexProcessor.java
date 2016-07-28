@@ -191,13 +191,21 @@ public class IndexProcessor {
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     String line = br.readLine();
+                    int element = 0;
                     BplusTree bpt = new BplusTree(100);
                     while (line!=null) {
                         String id = line.split(",")[0];
                         bpt.insertOrUpdate(id,line+" ");
                         line = br.readLine(); // todo 这个地方也弄成流式的
+                        element++;
                     }
+                    System.out.println("*** build pk index: "+fileFold+i+" b+ tree complete, element num is: "+element+"free mermory: "
+                            +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
+                            ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     bpt.getRoot().writeToDisk(0,bw);
+                    System.out.println("*** write pk index: "+fileFold+i+" complete, free mermory: "
+                            +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
+                            ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     bpt = null;
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -241,6 +249,7 @@ public class IndexProcessor {
                     System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
                             +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
+                    int elementNum = 0;
                     while (line!=null) {
                         String[] values = line.split(",");
                         StringBuilder sb = map.get(values[0]);
@@ -255,11 +264,21 @@ public class IndexProcessor {
                         }
                         line = br.readLine();
                     }
+                    System.out.println("build assist index "+fileFold+i+", now time: "
+                            +(System.currentTimeMillis()-start)+", start build b+ tree. free memory is: "+
+                            Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M);
                     BplusTree bpt = new BplusTree(80);
                     for (Map.Entry<String, StringBuilder> entry : map.entrySet()) {
+                        elementNum++;
                         bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
                     }
+                    System.out.println("build assist index "+fileFold+i+" b+ tree complete, element num is: " + elementNum+",  now time: "
+                            +(System.currentTimeMillis()-start)+", start write b+ tree. free memory is: "+
+                            Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M);
                     bpt.getRoot().writeToDisk(0,bw);
+                    System.out.println("write assist index "+fileFold+i+" b+ tree complete, now time: "
+                            +(System.currentTimeMillis()-start)+". free memory is: "+
+                            Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M);
                     map = null;
                     bpt = null;
 //                    for (Node node : bpt.getRoot().getChildren()) {
