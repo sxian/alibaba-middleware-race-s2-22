@@ -24,7 +24,7 @@ public class IndexProcessor {
     private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
     private final HashMap<String, String[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
-    private ExecutorService threads = Executors.newFixedThreadPool(9);
+    private ExecutorService threads = Executors.newFixedThreadPool(5);
     private CountDownLatch latch = new CountDownLatch(11);
 
     // 貌似没啥卵用
@@ -47,29 +47,33 @@ public class IndexProcessor {
     }
 
     private void buildHB() {
-        // todo 不能这么做 这里要先读进来，按照key进行hash，然后构建B+树
+        System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
     }
 
     private void buildHG() {
+        System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
         threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
     }
 
     private void buildOrderIndex() throws IOException {
+        System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
         threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
     }
 
     void createBuyerIndex() throws IOException {
+        System.out.println("start build buyer index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessIndex(RaceConfig.DISK1+"b/i", RaceConfig.BUYER_FILE_SIZE,latch));
     }
 
     void createGoodsIndex() throws IOException {
+        System.out.println("start build goods index, now time: " + (System.currentTimeMillis() - start));
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"g/i", RaceConfig.GOODS_FILE_SIZE,latch));
     }
 
@@ -157,18 +161,11 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
-                while (Runtime.getRuntime().freeMemory()/(1024*1024) < 500 &&
-                        Runtime.getRuntime().maxMemory()/(1024*1024) < 500) {
-//                    Runtime.getRuntime().all
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
                 try {
                     br = Utils.createReader(fileFold+i);
                     bw = Utils.createWriter(fileFold+"S"+i);
+                    System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
+                            +Runtime.getRuntime().freeMemory()+", max memory: "+Runtime.getRuntime().maxMemory()+" ***");
                     String line = br.readLine();
                     BplusTree bpt = new BplusTree(60);
                     while (line!=null) {
@@ -212,19 +209,13 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
-                while (Runtime.getRuntime().freeMemory()/(1024*1024) < 500 &&
-                        Runtime.getRuntime().maxMemory()/(1024*1024) < 500) {
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
                 try {
                     br = Utils.createReader(fileFold+i);
                     bw = Utils.createWriter(fileFold+"S"+i);
                     String line = br.readLine();
                     HashMap<String,StringBuilder> map = new HashMap<>();
+                    System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
+                            +Runtime.getRuntime().freeMemory()+", max memory: "+Runtime.getRuntime().maxMemory()+" ***");
                     while (line!=null) {
                         String[] values = line.split(",");
                         StringBuilder sb = map.get(values[0]);
