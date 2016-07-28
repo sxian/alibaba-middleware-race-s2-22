@@ -113,10 +113,12 @@ public class QueryProcessor {
     }
 
     public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) {
+        // todo
         return  null;
     }
 
     public static List<String> queryOrderidsByGoodsid(String goodid) {
+        // todo
         return  null;
     }
 
@@ -132,7 +134,7 @@ public class QueryProcessor {
 //        }
         Long[] pos = map.get(id);
         if (pos == null) {
-            return new ArrayList<>(); // todo 索引全加载到内存可以这样做，如果分开的话return null的操作不应该在这里
+            return new ArrayList<>();
 //            throw new RuntimeException("range query order id error");
         }
 
@@ -186,7 +188,6 @@ public class QueryProcessor {
         return new String(bytes);
     }
 
-    // todo 可以用queryRowStringByBPT替代queryRowByBPT
 //    private static String queryRowByBPT(String file, long orderid, long pos, int length) {
 //        byte[] bytes = new byte[length];
 //        boolean findRow = false;
