@@ -96,7 +96,7 @@ public class Node {
         //如果是叶子节点
         if (isLeaf){
             //不需要分裂，直接插入或更新
-            if (contains(key) || entries.size() < tree.getRank()){ // todo 按时间戳排序存在相等的情况 不要update
+            if (entries.size() < tree.getRank()){ // todo 按时间戳排序存在相等的情况 不要update
                 insertOrUpdate(key, obj);
                 if (parent != null) {
                     //更新父节点
@@ -494,11 +494,11 @@ public class Node {
 
     /** 判断当前节点是否包含该关键字*/
     protected boolean contains(Comparable key) {
-        for (Entry<Comparable, String> entry : entries) {
-            if (entry.getKey().compareTo(key) == 0) {
-                return true;
-            }
-        }
+//        for (Entry<Comparable, String> entry : entries) {
+//            if (entry.getKey().compareTo(key) == 0) {
+//                return true;
+//            }
+//        }
         return false;
     }
 
@@ -511,7 +511,7 @@ public class Node {
             entries.add(entry);
             return;
         }
-        //否则遍历列表
+//        否则遍历列表
         for (int i = 0; i < entries.size(); i++) {
             //如果该关键字键值已存在，则更新
             if (entries.get(i).getKey().compareTo(key) == 0) {

@@ -362,14 +362,15 @@ public class OrderSystemImpl implements OrderSystem {
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {
-            int p = rawkv.indexOf(':');
-            String key = rawkv.substring(0, p);
-            String value = rawkv.substring(p + 1);
-            if (key.length() == 0 || value.length() == 0) {
-                throw new RuntimeException("Bad data:" + line);
-            }
-            KV kv = new KV(key, value);
-            kvMap.put(kv.key(), kv);
+
+                int p = rawkv.indexOf(':');
+                String key = rawkv.substring(0, p);
+                String value = rawkv.substring(p + 1);
+                if (key.length() == 0 || value.length() == 0) {
+                    throw new RuntimeException("Bad data:" + line);
+                }
+                KV kv = new KV(key, value);
+                kvMap.put(kv.key(), kv);
         }
         return kvMap;
     }
