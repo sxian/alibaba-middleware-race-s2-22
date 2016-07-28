@@ -10,10 +10,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -29,6 +26,7 @@ public class IndexProcessor {
     private CountDownLatch latch = new CountDownLatch(5);
 
     private CountDownLatch orderIndexLatch = new CountDownLatch(1);
+    private CountDownLatch gcLatch = new CountDownLatch(3);
 
     private long start;
 
@@ -56,7 +54,21 @@ public class IndexProcessor {
                 threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
                 threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
                 threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
-
+                int count = 0;
+                while (true) {
+                    try {
+                        System.out.println("+++ force gc times: " + ++count+". +++");
+                        gcLatch.await();
+                        System.out.println("***** before force gc, free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
+                        System.gc();
+                        System.out.println("***** after force gc,free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
+                        synchronized (gcLatch) {
+                            gcLatch = new CountDownLatch(3);
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
 //                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
 //                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
 //                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
@@ -199,6 +211,9 @@ public class IndexProcessor {
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     setCache(bpt,fileFold+"S"+i);
                     bpt = null;
+                    synchronized (gcLatch) {
+                        gcLatch.countDown();
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {

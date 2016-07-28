@@ -382,12 +382,7 @@ public class OrderSystemImpl implements OrderSystem {
         if (orderRowStr  == null)
             return null;
         Row orderRow = createRow(orderRowStr); // todo 一直build真特么费时间 -> 判断join不join很重要
-        Row buyerRow = null;
-        try {
-            buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
-        } catch (Exception e) {
-            createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
-        }
+        Row buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
         Row goodsRow = createRow(goodsTable.selectRowById(orderRow.get("goodid").valueAsString()));
         if (keys == null) {
             return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
