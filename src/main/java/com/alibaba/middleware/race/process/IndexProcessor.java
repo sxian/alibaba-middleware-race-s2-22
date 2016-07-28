@@ -157,6 +157,13 @@ public class IndexProcessor {
             for (int i = 0; i<fileNum; i++) {
                 BufferedWriter bw = null;
                 BufferedReader br = null;
+                while (Runtime.getRuntime().freeMemory() < 500) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
                 try {
                     br = Utils.createReader(fileFold+i);
                     bw = Utils.createWriter(fileFold+"S"+i);
