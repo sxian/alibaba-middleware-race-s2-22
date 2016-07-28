@@ -23,7 +23,7 @@ public class IndexProcessor {
     private static final float M = 1024*1024;
 
     private final HashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
-    private final HashMap<String, String[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
+    private final HashMap<String, Object[]> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
     private ExecutorService threads = Executors.newFixedThreadPool(3);
     private CountDownLatch latch = new CountDownLatch(11);
@@ -178,11 +178,11 @@ public class IndexProcessor {
                 }
             }
 
+            filesIndexs.put(file, tree);
+            filesIndexsKeys.put(file, list.toArray());
         } catch (Exception e) {
             int i = 0;
         }
-        filesIndexs.put(file, tree);
-        filesIndexsKeys.put(file, (String[]) list.toArray());
     }
 
     void waitOver() throws InterruptedException {

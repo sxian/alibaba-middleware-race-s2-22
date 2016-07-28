@@ -21,7 +21,7 @@ public class QueryProcessor {
 
     // todo 不同文件的B+树索引能否合并  全用string 行不行
     public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
-    public static HashMap<String, String[]> filesIndexKey = new HashMap<>();
+    public static HashMap<String, Object[]> filesIndexKey = new HashMap<>();
 
     // 把所有的索引使用的B+树的前提是B+树中有所有的信息节点
     public static TreeMap<String,Long[]>  buyerOrderFilesIndex = new TreeMap<>();
