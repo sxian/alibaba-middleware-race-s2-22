@@ -380,9 +380,14 @@ public class OrderSystemImplTest {
                                 }
                                 break;
                             }
+                            try {
                             if (!query.id.equals(String.valueOf(result.orderId()))) {
                                 failed.getAndAdd(1);
                                 osi.queryOrder(Long.valueOf(query.id),query.keys);
+                            }
+
+                            } catch (Exception e ){
+                                int i = 1;
                             }
                             if (compareOrder(query.id,query.resultMap ,result)){
                                 successSum.getAndAdd(1);

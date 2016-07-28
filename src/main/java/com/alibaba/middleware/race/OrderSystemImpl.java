@@ -28,9 +28,9 @@ public class OrderSystemImpl implements OrderSystem {
     private static String booleanFalseValue = "false";
 
     // 每个队列对应一个磁盘
-    public LinkedBlockingQueue<String[][]>[] orderQueues = new LinkedBlockingQueue[3];
-    public LinkedBlockingQueue<String[][]> buyerQueue = new LinkedBlockingQueue<>(150000);
-    public LinkedBlockingQueue<String[][]> goodsQueue = new LinkedBlockingQueue<>(150000);
+    public LinkedBlockingQueue<String>[] orderQueues = new LinkedBlockingQueue[3];
+    public LinkedBlockingQueue<String> buyerQueue = new LinkedBlockingQueue<>(150000);
+    public LinkedBlockingQueue<String> goodsQueue = new LinkedBlockingQueue<>(150000);
 
     private FileProcessor fileProcessor;
     private IndexProcessor indexProcessor;
@@ -254,9 +254,9 @@ public class OrderSystemImpl implements OrderSystem {
         }
     }
 
-    private void sendEndMsg(LinkedBlockingQueue<String[][]>[] queues) {
-        for (LinkedBlockingQueue<String[][]> queue : queues) {
-            queue.offer(new String[0][0]);
+    private void sendEndMsg(LinkedBlockingQueue<String>[] queues) {
+        for (LinkedBlockingQueue<String> queue : queues) {
+            queue.offer("");
         }
     }
 
@@ -321,27 +321,24 @@ public class OrderSystemImpl implements OrderSystem {
         long start = System.currentTimeMillis();
 
         // 5个读取数据的线程 todo 加回调，读一个磁盘，写一个磁盘，保证同时一个磁盘只有读或写，还得保持并发，不能让cpu闲着
-        new DataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch,
-                "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
-        new DataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch,
-                "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
-        new DataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch,
-                "(orderid|buyerid|goodid|createtime):([\\w|-]+)");
+        new DataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch); //"(orderid|buyerid|goodid|createtime):([\\w|-]+)"
+        new DataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch);
+        new DataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch);
 
-        new DataFileHandler().handle(buyerQueue, buyerFiles,1, buyerLatch, "(buyerid):([\\w|-]+)");
+        new DataFileHandler().handle(buyerQueue, buyerFiles,1, buyerLatch);
 
-        new DataFileHandler().handle(goodsQueue, goodFiles, 1, goodsLatch, "(goodid):([\\w|-]+)");
+        new DataFileHandler().handle(goodsQueue, goodFiles, 1, goodsLatch);
 
         indexProcessor = new IndexProcessor(start);
         fileProcessor.init(start, indexProcessor);
         indexProcessor = null;
 
         buyerLatch.await();
-        buyerQueue.offer(new String[0][0]);
+        buyerQueue.offer("");
         buyerQueue = null;
         System.out.println("process buyer data, now time: " + (System.currentTimeMillis() - start));
         goodsLatch.await();
-        goodsQueue.offer(new String[0][0]);
+        goodsQueue.offer("");
         goodsQueue = null;
         System.out.println("process goods data, now time: " + (System.currentTimeMillis() - start));
         orderLatch.await(); // 等待处理完所有文件
@@ -362,15 +359,14 @@ public class OrderSystemImpl implements OrderSystem {
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
         for (String rawkv : kvs) {
-
-                int p = rawkv.indexOf(':');
-                String key = rawkv.substring(0, p);
-                String value = rawkv.substring(p + 1);
-                if (key.length() == 0 || value.length() == 0) {
-                    throw new RuntimeException("Bad data:" + line);
-                }
-                KV kv = new KV(key, value);
-                kvMap.put(kv.key(), kv);
+            int p = rawkv.indexOf(':');
+            String key = rawkv.substring(0, p);
+            String value = rawkv.substring(p + 1);
+            if (key.length() == 0 || value.length() == 0) {
+                throw new RuntimeException("Bad data:" + line);
+            }
+            KV kv = new KV(key, value);
+            kvMap.put(kv.key(), kv);
         }
         return kvMap;
     }
@@ -386,7 +382,12 @@ public class OrderSystemImpl implements OrderSystem {
         if (orderRowStr  == null)
             return null;
         Row orderRow = createRow(orderRowStr); // todo 一直build真特么费时间 -> 判断join不join很重要
-        Row buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
+        Row buyerRow = null;
+        try {
+            buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
+        } catch (Exception e) {
+            createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
+        }
         Row goodsRow = createRow(goodsTable.selectRowById(orderRow.get("goodid").valueAsString()));
         if (keys == null) {
             return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
@@ -486,52 +487,35 @@ public class OrderSystemImpl implements OrderSystem {
     }
 
     private class DataFileHandler {
-        LinkedBlockingQueue<String[][]> queue;
-        void handle(LinkedBlockingQueue<String[][]> queue, Collection<String> files, final int keyNum,
-                    final CountDownLatch latch, final String regx) {
+        LinkedBlockingQueue<String> queue;
+        void handle(LinkedBlockingQueue<String> queue, Collection<String> files, final int keyNum,
+                    final CountDownLatch latch) {
             this.queue = queue;
-            new Thread(new FileHandler(keyNum,files,regx,latch,this)).start();
+            new Thread(new FileHandler(keyNum,files,latch,this)).start();
         }
     }
 
     private class FileHandler implements Runnable {
         int keyNum;
         Collection<String> files;
-        String regx;
         CountDownLatch latch;
         DataFileHandler handler;
 
-        public FileHandler(int keyNum, Collection<String> files, String regx, CountDownLatch latch,
-                           DataFileHandler handler) {
+        public FileHandler(int keyNum, Collection<String> files,CountDownLatch latch, DataFileHandler handler) {
             this.keyNum = keyNum;
             this.files = files;
-            this.regx = regx;
             this.latch = latch;
             this.handler = handler;
         }
         @Override
         public void run() {
-            Pattern pattern = Pattern.compile(regx);
             for (String file : files) {
                 BufferedReader bfr = null;
                 try {
                     bfr = Utils.createReader(file);
                     String line = bfr.readLine();
                     while (line != null) {
-                        String[][] strings = new String[keyNum+1][2];
-                        Matcher matcher = pattern.matcher(line);
-                        strings[0][0] = line;
-                        int i = 1;
-//                        line.indexOf("orderid");
-//                        line.split(regx);
-                        while (matcher.find()) { // todo 所有的字符串切割操作,全改为indexof何substring, 并且和正则比较下, 去掉所有的split
-                                                 // order 前四位分别是 orderid, createtime, buyerid, goodid,
-                                                 // buyer和goods第一个是id
-                            strings[i][0] = matcher.group(1);
-                            strings[i][1] = matcher.group(2);
-                            i++;
-                        }
-                        handler.queue.offer(strings,60,TimeUnit.SECONDS);
+                        handler.queue.offer(line,60,TimeUnit.SECONDS);
                         line = bfr.readLine();
                     }
                 } catch (Exception e) {

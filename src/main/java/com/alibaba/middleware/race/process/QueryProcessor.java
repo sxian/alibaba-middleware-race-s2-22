@@ -278,6 +278,7 @@ public class QueryProcessor {
                     raf.read(bytes);
                 }
                 String rawStr = new String(bytes,0,length);
+                // todo
                 String[] bIndexs = rawStr.split(" ");
                 if (bIndexs[0].equals("0")) {
                     boolean findIndex = false;
