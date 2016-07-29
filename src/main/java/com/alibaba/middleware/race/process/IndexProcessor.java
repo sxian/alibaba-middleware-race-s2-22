@@ -65,21 +65,7 @@ public class IndexProcessor {
                 threads.execute(new BuildTree(sortIndexQueues[0],RaceConfig.DISK1+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
                 threads.execute(new BuildTree(sortIndexQueues[1],RaceConfig.DISK2+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
                 threads.execute(new BuildTree(sortIndexQueues[2],RaceConfig.DISK3+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
-                int count = 0;
-//                while (true) {
-//                    try {
-//                        System.out.println("+++ force gc times: " + ++count+". +++");
-//                        gcLatch.await();
-//                        System.out.println("***** before force gc, free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
-//                        System.gc();
-//                        System.out.println("***** after force gc,free memory:"+ Runtime.getRuntime().freeMemory()/M+" *****");
-//                        synchronized (gcLatch) {
-//                            gcLatch = new CountDownLatch(3);
-//                        }
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
+
 //                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
 //                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
 //                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
@@ -132,6 +118,13 @@ public class IndexProcessor {
     public void setCache(BplusTree bplusTree, String file) {
         TreeMap<String,int[]> tree = new TreeMap<>();
         ArrayList<String> list = new ArrayList<>();
+        Node a = bplusTree.getHead();
+        int num = 0;
+        while (a!=null) {
+            num += a.getEntries().size();
+            a = a.getNext();
+        }
+        System.out.println(file+" actually num is: "+ num);
         try {
             for (Node node : bplusTree.getRoot().getChildren()) {
                 if (node.getChildren() != null) {
@@ -328,9 +321,11 @@ public class IndexProcessor {
 
         @Override
         public void run() {
+            int i = 0;
             try {
                 BplusTree bpt = new BplusTree(200);
                 BufferedWriter bw = Utils.createWriter(path+0);
+                int count = 0;
                 while (true) {
                     String line = queue.take();
                     if (line.length()<3) {
@@ -339,17 +334,21 @@ public class IndexProcessor {
                             bpt.getRoot().writeToDisk(0,bw);
                             bw.flush();
                             bw.close();
-                            setCache(bpt, path+(num-1));
+//                            setCache(bpt, path+(num-1));
                             break;
                         }
+                        System.out.println("file "+path+(num-1)+" rows: "+count);
+                        count = 0;
                         bpt.getRoot().writeToDisk(0,bw);
                         bw.flush();
                         bw.close();
-                        setCache(bpt, path+(num-1));
+//                        setCache(bpt, path+(num-1));
                         bpt = new BplusTree(200);
                         bw = Utils.createWriter(path+ num);
                         continue;
                     }
+                    count++;
+                    i++;
                     if (flag) { // orderid
                         int flag0 = line.indexOf(",",10)+1;
                         int flag = line.indexOf(",",flag0);// path 的逗号的位置
@@ -370,6 +369,7 @@ public class IndexProcessor {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
+                System.out.println("process "+path+" row is: " + i);
                 latch.countDown();
             }
         }

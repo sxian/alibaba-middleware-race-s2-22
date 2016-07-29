@@ -251,12 +251,7 @@ public class FileProcessor {
                     if (row.charAt(96) == '\t') {
                         goodid = row.substring(76,96);
                     } else {
-                        if (row.charAt(97) == '\t'){
-                            goodid = row.substring(76, 97);
-                        }
-                        else {
-                            goodid = "";
-                        }
+                        goodid = row.substring(76, 97);
                     }
 
                     // buyerid -> orderid

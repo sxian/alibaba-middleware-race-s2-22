@@ -127,8 +127,8 @@ public class Node {
                 next = null;
 
                 //左右两个节点关键字长度
-                int leftSize = (tree.getRank() + 1) / 2;// + (tree.getRank() + 1) % 2;
-                int rightSize = entries.size()-leftSize;//(tree.getRank() + 1) / 2;
+                int leftSize = (tree.getRank() + 1) / 2 + (tree.getRank() + 1) % 2;
+                int rightSize = (tree.getRank() + 1) / 2;//entries.size()-leftSize;
                 //复制原节点关键字到分裂出来的新节点
                 insertOrUpdate(key, obj);
                 try {

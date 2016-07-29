@@ -99,9 +99,6 @@ public class QueryProcessor {
     public static String queryIndex(String id, String path) throws IOException {
         ArrayList<String> idKeys = filesIndexKey.get(path);
         String key;
-        if (idKeys==null) {
-            int i =1;
-        }
         try {
 
         if (id.compareTo(idKeys.get(0))< 0) {
