@@ -67,8 +67,8 @@ public class FileProcessor {
                     indexProcessor.createGoodsIndex();
 
                     orderLatch.await();
-//                    hbIndexQueue.offer(new String[0]);
-//                    hgIndexQueue.offer(new String[0]);
+                    hbIndexQueue.offer(new String[0]);
+                    hgIndexQueue.offer(new String[0]);
                     orderIndexQueue.offer(new String[0],60,TimeUnit.SECONDS);
                     hbIndexQueue = null;
                     hgIndexQueue = null;
@@ -248,13 +248,18 @@ public class FileProcessor {
 
                     String orderid,goodid;
                     orderid = row.substring(8,17); // orderid
-                    int in = row.indexOf("goodid")+7;
-                    goodid = row.substring(in,row.indexOf("\t",in));
+                    try {
+                        int in = row.indexOf("goodid")+7;
+                        goodid = row.substring(in,row.indexOf("\t",in));
+                    } catch (RuntimeException e1) {
+                        System.out.println("error: " + row);
+                        continue;
+                    }
 
                     // buyerid -> orderid
-//                    hbIndexQueue.offer(new String[]{row.substring(48,68),orderid+","+row.substring(29,39)},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{row.substring(48,68),orderid+","+row.substring(29,39)},60, TimeUnit.SECONDS);
                     // goodid -> orderid
-//                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
+                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键

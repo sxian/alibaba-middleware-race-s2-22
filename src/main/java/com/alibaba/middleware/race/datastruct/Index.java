@@ -14,10 +14,12 @@ import java.util.HashMap;
 public class Index {
     public static final int BUCKET_SIZE = 100;
 
-    public final String FILE_PATH;
+    public String FILE_PATH;
     public boolean flag;
 
     private ArrayList<String>[] _list = new ArrayList[BUCKET_SIZE];
+
+    public Index(){};
 
     public Index(String path) {
         FILE_PATH = path;

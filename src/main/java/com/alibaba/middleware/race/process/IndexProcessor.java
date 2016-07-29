@@ -1,10 +1,7 @@
 package com.alibaba.middleware.race.process;
 
 import com.alibaba.middleware.race.RaceConfig;
-import com.alibaba.middleware.race.datastruct.BplusTree;
-import com.alibaba.middleware.race.datastruct.Index;
-import com.alibaba.middleware.race.datastruct.Node;
-import com.alibaba.middleware.race.datastruct.RecordIndex;
+import com.alibaba.middleware.race.datastruct.*;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedReader;
@@ -23,18 +20,20 @@ public class IndexProcessor {
     private final ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
     private final ConcurrentHashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
 
-    private ConcurrentHashMap<String,int[][]> map = QueryProcessor.indexMap;
+    private final ConcurrentHashMap<String,int[][]> map = QueryProcessor.indexMap;
 
     // todo 相同磁盘的放到一个队列
-    private final LinkedBlockingQueue<Index> indexQueue = new LinkedBlockingQueue<>(3);
+    private final LinkedBlockingQueue<Index> indexQueue1 = new LinkedBlockingQueue<>(2);
+    private final LinkedBlockingQueue<Index> indexQueue2 = new LinkedBlockingQueue<>(2);
+    private final LinkedBlockingQueue<Index> indexQueue3 = new LinkedBlockingQueue<>(2);
 
 
-    private ExecutorService threads = Executors.newFixedThreadPool(8);
+    private ExecutorService threads = Executors.newFixedThreadPool(6);
     private CountDownLatch latch = new CountDownLatch(5);
     private CountDownLatch _latch = new CountDownLatch(5);
 
-    private CountDownLatch orderIndexLatch = new CountDownLatch(1);
-    private CountDownLatch finalLatch = new CountDownLatch(1);
+    private CountDownLatch orderIndexLatch = new CountDownLatch(3);
+    private CountDownLatch finalLatch = new CountDownLatch(3);
 
     private long start;
 
@@ -48,8 +47,8 @@ public class IndexProcessor {
         for (int i = 0;i<9;i++) {
             sortIndexQueues[i] = new LinkedBlockingQueue<>(5000);
         }
-//        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",orderIndexLatch,0)).start();
-//        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",orderIndexLatch,1)).start();
+        new Thread(new ProcessOrderIndex(hbIndexQueue,RaceConfig.HB_FILE_SIZE,"o/hb",orderIndexLatch,0)).start();
+        new Thread(new ProcessOrderIndex(hgIndexQueue,RaceConfig.HG_FILE_SIZE,"o/hg",orderIndexLatch,1)).start();
         new Thread(new ProcessOrderIndex(orderIndexQueue,RaceConfig.ORDER_FILE_SIZE,"o/i",orderIndexLatch,2)).start();
         new Thread(new Runnable() {
             @Override
@@ -60,27 +59,66 @@ public class IndexProcessor {
                     e.printStackTrace();
                 }
 
-                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch,sortIndexQueues[0]));
-                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch,sortIndexQueues[1]));
-                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch,sortIndexQueues[2]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,
+                        latch,sortIndexQueues[0]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,
+                        latch,sortIndexQueues[1]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,
+                        latch,sortIndexQueues[2]));
 
-                threads.execute(new BuildHashIndex(sortIndexQueues[0],RaceConfig.DISK1+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
-                threads.execute(new BuildHashIndex(sortIndexQueues[1],RaceConfig.DISK2+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
-                threads.execute(new BuildHashIndex(sortIndexQueues[2],RaceConfig.DISK3+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
+                threads.execute(new BuildHashIndex(sortIndexQueues[0],RaceConfig.DISK1+"o/iS",_latch,
+                        indexQueue1,RaceConfig.ORDER_FILE_SIZE));
+                threads.execute(new BuildHashIndex(sortIndexQueues[1],RaceConfig.DISK2+"o/iS",_latch,
+                        indexQueue2,RaceConfig.ORDER_FILE_SIZE));
+                threads.execute(new BuildHashIndex(sortIndexQueues[2],RaceConfig.DISK3+"o/iS",_latch,
+                        indexQueue3,RaceConfig.ORDER_FILE_SIZE));
 
 //                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+//                        sortIndexQueues[3]));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+//                        sortIndexQueues[4]));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+//                        sortIndexQueues[5]));
+//
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[3],RaceConfig.DISK1+"o/hbS",_latch,
+//                        1,RaceConfig.HB_FILE_SIZE));
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[4],RaceConfig.DISK2+"o/hbS",_latch,
+//                        2,RaceConfig.HB_FILE_SIZE));
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[5],RaceConfig.DISK3+"o/hbS",_latch,
+//                        3,RaceConfig.HB_FILE_SIZE));
 //
 //                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+//                        sortIndexQueues[6]));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+//                        sortIndexQueues[7]));
+//                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+//                        sortIndexQueues[8]));
+//
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[6],RaceConfig.DISK1+"o/hgS",_latch,
+//                        1,RaceConfig.HG_FILE_SIZE));
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[7],RaceConfig.DISK2+"o/hgS",_latch,
+//                        2,RaceConfig.HG_FILE_SIZE));
+//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[8],RaceConfig.DISK3+"o/hgS",_latch,
+//                        3,RaceConfig.HG_FILE_SIZE));
 
+
+                writeIndexToDisk(indexQueue1);
+                writeIndexToDisk(indexQueue2);
+                writeIndexToDisk(indexQueue3);
+
+            }
+        }).start();
+    }
+
+    public void writeIndexToDisk(final LinkedBlockingQueue<Index> queue) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
                 try {
                     while (true) {
-                        Index index = indexQueue.take();
+                        Index index = queue.take();
                         if (index.flag) {
                             break;
                         }
@@ -92,11 +130,9 @@ public class IndexProcessor {
                 } finally {
                     finalLatch.countDown();
                 }
-                System.out.println("aaa over");
             }
-        },"aaa").start();
+        }).start();
     }
-
     private void buildHB() {
         System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
 //        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
@@ -122,14 +158,14 @@ public class IndexProcessor {
         System.out.println("start build buyer index, now time: " + (System.currentTimeMillis() - start));
         LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(5000);
         threads.execute(new ProcessIndex(RaceConfig.DISK1+"b/i", RaceConfig.BUYER_FILE_SIZE,latch,queue));
-        threads.execute(new BuildHashIndex(queue,RaceConfig.DISK1+"b/iS",_latch,false,RaceConfig.BUYER_FILE_SIZE));
+        threads.execute(new BuildHashIndex(queue,RaceConfig.DISK1+"b/iS",_latch,indexQueue1,RaceConfig.BUYER_FILE_SIZE));
     }
 
     void createGoodsIndex() throws IOException {
         System.out.println("start build goods index, now time: " + (System.currentTimeMillis() - start));
         LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(5000);
         threads.execute(new ProcessIndex(RaceConfig.DISK2+"g/i", RaceConfig.GOODS_FILE_SIZE,latch,queue));
-        threads.execute(new BuildHashIndex(queue,RaceConfig.DISK2+"g/iS",_latch,false,RaceConfig.GOODS_FILE_SIZE));
+        threads.execute(new BuildHashIndex(queue,RaceConfig.DISK2+"g/iS",_latch,indexQueue2,RaceConfig.GOODS_FILE_SIZE));
     }
 
     // 设置辅助索引
@@ -193,7 +229,9 @@ public class IndexProcessor {
     void waitOver() throws InterruptedException {
         latch.await();
         _latch.await();
-        indexQueue.offer(new Index(true),600,TimeUnit.SECONDS);
+        indexQueue1.offer(new Index(true),600,TimeUnit.SECONDS);
+        indexQueue2.offer(new Index(true),600,TimeUnit.SECONDS);
+        indexQueue3.offer(new Index(true),600,TimeUnit.SECONDS);
         finalLatch.countDown();
         threads.shutdown();
     }
@@ -245,96 +283,55 @@ public class IndexProcessor {
         }
     }
 
-    private class ProcessAssistIndex extends ProcessIndex {
+    private class BuildAssistHashIndex extends BuildHashIndex {
 
-        boolean flag;//0 hb, 1hg
-
-        public ProcessAssistIndex(String fileFold, int fileNum, CountDownLatch latch,boolean flag,
-                                  LinkedBlockingQueue<String> queue) {
-            super(fileFold, fileNum, latch,queue);
-            this.flag = flag;
+        public BuildAssistHashIndex(LinkedBlockingQueue<String> queue, String path, CountDownLatch latch,
+                                    LinkedBlockingQueue<Index> diskqueue, int fileSize) {
+            super(queue,path,latch,diskqueue,fileSize);
         }
 
+        @Override
         public void run() {
-            for (int i = 0; i<fileNum; i++) {
-                BufferedWriter bw = null;
-                BufferedReader br = null;
-                try {
-                    br = Utils.createReader(fileFold+i);
-                    bw = Utils.createWriter(fileFold+"S"+i);
-                    String line = br.readLine();
-                    HashMap<String,StringBuilder> map = new HashMap<>();
-                    System.out.println("*** build assist index: "+fileFold+i+", free mermory: "
-                            +Runtime.getRuntime().freeMemory()/M+", max memory: "+Runtime.getRuntime().maxMemory()/M+
-                            ", now time: "+(System.currentTimeMillis() - start)+" ***");
-                    int elementNum = 0;
-                    while (line!=null) {
-                        String[] values = line.split(",");
-                        StringBuilder sb = map.get(values[0]);
-                        if (sb == null) {
-                            sb = new StringBuilder();
-                            map.put(values[0],sb);
+            try {
+                Index index = new AssistIndex(path+0);
+                while (true) {
+                    String line = queue.take();
+                    if (line.length()<3) {
+                        int num = Integer.valueOf(line)+1;
+                        if (num==fileSize) {
+                            diskqueue.offer(index,600,TimeUnit.SECONDS);
+                            break;
                         }
-                        if (flag) {
-                            sb.append(values[1]).append(",").append(values[2]).append(" ");
-                        } else {
-                            sb.append(values[1]).append(" ");
-                        }
-                        line = br.readLine();
+                        diskqueue.offer(index,600,TimeUnit.SECONDS);
+                        System.out.println("+++ "+index.FILE_PATH+" +++");
+                        index = new AssistIndex(path+num);
+                        continue;
                     }
-                    System.out.println("build assist index "+fileFold+i+", start build b+ tree. free memory is: "+
-                            Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M+", now time: "
-                            +(System.currentTimeMillis()-start));
-                    BplusTree bpt = new BplusTree(100);
-                    for (Map.Entry<String, StringBuilder> entry : map.entrySet()) {
-                        elementNum++;
-//                        bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
-                    }
-                    System.out.println("build assist index "+fileFold+i+" b+ tree complete, element num is: " + elementNum+
-                            ", start write b+ tree. free memory is: "+Runtime.getRuntime().freeMemory()/M+", max memory: "
-                            + Runtime.getRuntime().maxMemory()/M+",  now time: "+(System.currentTimeMillis()-start));
-                    bpt.getRoot().writeToDisk(0,bw);
-                    System.out.println("write assist index "+fileFold+i+" b+ tree complete, free memory is: "+
-                            Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M+"now time: "
-                                    +(System.currentTimeMillis()-start));
-                    setCache(bpt,fileFold+i);
-                    map = null;
-                    bpt = null;
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        if (br!=null) {
-                            br.close();
-                        }
-                        if (bw!=null) {
-                            bw.flush();
-                            bw.close();
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    index.add(line.substring(0,line.indexOf(",")),line);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                latch.countDown();
             }
-            System.out.println(fileFold + " index sort complete, now time: "+(System.currentTimeMillis() - start));
-            latch.countDown();
         }
+
     }
 
     private class BuildHashIndex implements Runnable {
-        boolean flag;
+        LinkedBlockingQueue<Index> diskqueue;
         int fileSize;
         String path;
         CountDownLatch latch;
         LinkedBlockingQueue<String> queue;
 
-        public BuildHashIndex(LinkedBlockingQueue<String> queue, String path, CountDownLatch latch,boolean flag,
-                         int fileSize) {
+        public BuildHashIndex(LinkedBlockingQueue<String> queue, String path, CountDownLatch latch,
+                              LinkedBlockingQueue<Index> diskqueue, int fileSize) {
             this.queue = queue;
             this.path = path;
             this.latch = latch;
-            this.flag = flag;
+            this.diskqueue = diskqueue;
             this.fileSize = fileSize;
         }
 
@@ -347,19 +344,15 @@ public class IndexProcessor {
                     if (line.length()<3) {
                         int num = Integer.valueOf(line)+1;
                         if (num==fileSize) {
-                            indexQueue.offer(index,600,TimeUnit.SECONDS);
+                            diskqueue.offer(index,600,TimeUnit.SECONDS);
                             break;
                         }
-                        indexQueue.offer(index,600,TimeUnit.SECONDS);
+                        diskqueue.offer(index,600,TimeUnit.SECONDS);
                         System.out.println("+++ "+index.FILE_PATH+" +++");
                         index = new Index(path+num);
                         continue;
                     }
-                    if (flag) { // orderid
-                        index.add(line.substring(0,line.indexOf(",")),line);
-                    } else {
-                        index.add(line.substring(0,line.indexOf(",")),line);
-                    }
+                    index.add(line.substring(0,line.indexOf(",")),line);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
