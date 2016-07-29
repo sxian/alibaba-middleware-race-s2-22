@@ -43,7 +43,7 @@ public class Index {
         for (int i = 0;i<BUCKET_SIZE;i++) {
             ArrayList<String> list = _list[i];
             _list[i] = null;
-            Collections.sort(list);
+//            Collections.sort(list);
             StringBuilder sb = new StringBuilder();
             for (int j = 0;j<list.size();j++) {
                 sb.append(list.get(j)).append(" ");
