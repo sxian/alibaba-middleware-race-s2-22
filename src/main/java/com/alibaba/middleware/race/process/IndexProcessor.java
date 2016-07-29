@@ -346,15 +346,18 @@ public class IndexProcessor {
                     if (line.length()<3) {
                         int num = Integer.valueOf(line)+1;
                         if (num==fileSize) {
+                            indexQueue.offer(index,600,TimeUnit.SECONDS);
                             break;
                         }
                         indexQueue.offer(index,600,TimeUnit.SECONDS);
+                        System.out.println("+++ "+index.FILE_PATH+" +++");
                         index = new Index(path+num);
                         continue;
                     }
                     if (flag) { // orderid
                         index.add(line.substring(0,line.indexOf(",")),line);
                     } else {
+                        index.add(line.substring(0,line.indexOf(",")),line);
                     }
                 }
             } catch (Exception e) {

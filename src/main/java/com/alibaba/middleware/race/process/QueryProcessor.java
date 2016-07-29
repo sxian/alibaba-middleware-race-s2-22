@@ -54,42 +54,29 @@ public class QueryProcessor {
     public static String queryOrder(String id) throws IOException {
         int disk = Math.abs(id.hashCode()%3);
         int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-        int bucket = Math.abs(id.hashCode()% Index.BUCKET_SIZE);
         String path;
         if (disk == 0) {
             path = RaceConfig.DISK1+"o/iS"+file;
         } else if(disk == 1) {
             path = RaceConfig.DISK2+"o/iS"+file;
-
         } else {
             path = RaceConfig.DISK3+"o/iS"+file;
         }
-        int[] pos = indexMap.get(path)[bucket];
-        RandomAccessFile raf = indexFileMap.get(path);
-        raf.seek(pos[0]);
-        byte[] bytes = new byte[pos[1]];
-        raf.read(bytes);
-        String str = new String(bytes);
-        int in = str.indexOf(id);
-        String str1 = str.substring(in,str.indexOf(" ",in));
 
-//        String index = queryIndex(id,path);
-//        if (index != null) {
-//            String[] indexs = index.split(",");
-//            int _disk = Math.abs(indexs[0].hashCode()%3);
-//            int _file = Math.abs(indexs[0].hashCode()%RaceConfig.ORDER_FILE_SIZE);
-//
-//            if (indexs[0].equals(id)) {
-//                RandomAccessFile raf = dataFileMap.get(indexs[1]);
-//                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
-//            }
-//        }
+        String index = getIndex(id, path);
+        if (index != null) {
+            String[] indexs = index.split(",");
+            if (indexs[0].equals(id)) {
+                RandomAccessFile raf = dataFileMap.get(indexs[1]);
+                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+            }
+        }
         return null;
     }
 
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
-        String[] indexs = queryIndex(id, path).split(",");
+        String[] indexs = getIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
@@ -97,15 +84,32 @@ public class QueryProcessor {
         return null;
     }
 
+
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
-        String[] indexs = queryIndex(id, path).split(",");
-//        queryIndex(id, path).in
+        String[] indexs = getIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
+    }
+
+    public static String getIndex(String id, String path) throws IOException {
+        int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
+        int[] pos = indexMap.get(path)[bucket];
+        byte[] bytes = new byte[pos[1]];
+        RandomAccessFile raf = indexFileMap.get(path);
+        synchronized (raf) {
+            raf.seek(pos[0]);
+            raf.read(bytes);
+        }
+        String str = new String(bytes);
+        int in = str.indexOf(id);
+        if (in == -1) {
+            return null;
+        }
+        return str.substring(in,str.indexOf(" ",in));
     }
 
     public static String queryIndex(String id, String path) throws IOException {
