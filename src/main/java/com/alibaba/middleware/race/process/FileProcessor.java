@@ -145,15 +145,21 @@ public class FileProcessor {
                     if (row.equals("")) {
                         break;
                     }
+
                     String id = null;
-                    if (flag) { // buyerid
-                        id = row.substring(8,28);
-                    } else {
-                        if (row.charAt(27) == '\t') {
-                            id = row.substring(7,27);
+                    try {
+                        if (flag) { // buyerid
+                            int buyerid_of = row.indexOf("buyerid")+8;
+                            id = row.indexOf("\t",buyerid_of) != -1 ? row.substring(buyerid_of,row.indexOf("\t",buyerid_of)) :
+                                    row.substring(buyerid_of);
                         } else {
-                            id = row.substring(7,28);
+                            int goodid_of = row.indexOf("goodid")+7;
+                            id = row.indexOf("\t",goodid_of) != -1 ? row.substring(goodid_of,row.indexOf("\t",goodid_of)) :
+                                    row.substring(goodid_of);
                         }
+                    } catch (Exception e) {
+                        System.out.println("error: " +row);
+                        continue;
                     }
                     int index = Math.abs(id.hashCode())%fileSize;
                     int length = row.getBytes().length;
@@ -238,26 +244,32 @@ public class FileProcessor {
         @Override
         public void run() {
             try {
-                int c = 0;
                 while (true) {
                     String row = queue.take();
                     if (row.equals("")) {
                         break;
                     }
-                    c++;
-
-                    String orderid,goodid;
-                    orderid = row.substring(8,17); // orderid
+                    String orderid,buyerid,goodid,createtime;
                     try {
-                        int in = row.indexOf("goodid")+7;
-                        goodid = row.substring(in,row.indexOf("\t",in));
+                        int orderid_of = row.indexOf("orderid")+8;
+                        int buyerid_of = row.indexOf("buyerid")+8;
+                        int goodid_of = row.indexOf("goodid")+7;
+                        int createtime_of = row.indexOf("createtime")+11;
+                        orderid = row.indexOf("\t",orderid_of) != -1 ? row.substring(orderid_of,row.indexOf("\t",orderid_of)) :
+                                row.substring(orderid_of);
+                        buyerid = row.indexOf("\t",buyerid_of) != -1 ? row.substring(buyerid_of,row.indexOf("\t",buyerid_of)) :
+                                row.substring(buyerid_of);
+                        goodid = row.indexOf("\t",goodid_of) != -1 ? row.substring(goodid_of,row.indexOf("\t",goodid_of)) :
+                                row.substring(goodid_of);
+                        createtime = row.indexOf("\t",createtime_of) != -1 ? row.substring(createtime_of,row.indexOf("\t",createtime_of)) :
+                                row.substring(createtime_of);
                     } catch (RuntimeException e1) {
                         System.out.println("error: " + row);
                         continue;
                     }
 
                     // buyerid -> orderid
-                    hbIndexQueue.offer(new String[]{row.substring(48,68),orderid+","+row.substring(29,39)},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{buyerid,orderid+","+createtime},60, TimeUnit.SECONDS);
                     // goodid -> orderid
                     hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 

@@ -5,6 +5,7 @@ import com.alibaba.middleware.race.util.Utils;
 import org.omg.SendingContext.RunTime;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
@@ -24,79 +25,29 @@ public class TmpTest {
     public static LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10000);
     public static CountDownLatch latch = new CountDownLatch(1);
     public static void main(String[] args) throws IOException, InterruptedException {
+        BufferedReader br = Utils.createReader("prerun_data/test.txt");
+        String orderid,
+                buyerid,
+                goodid,
+                createtime;
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                BplusTree bpt = new BplusTree(150);
-                int count = 0;
-                while (true) {
-                    try {
-                        String line = queue.take();
-                        if (line.equals("")) {
-                            break;
-                        }
-                        int flag0 = line.indexOf(",",11)+1;
-                        int flag = line.indexOf(",",flag0);// path 的逗号的位置
-                        count++;
-                        bpt.insertOrUpdate(line.substring(0,10),new Object[] {line.substring(11,line.indexOf(",",11)),
-                                line.substring(flag0,flag),line.substring(flag+1,line.length())});
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                latch.countDown();;
-                System.out.println("+++ "+Runtime.getRuntime().freeMemory()/M+" +++");
-                queue = null;
-                System.gc();
-                System.out.println("+++ "+Runtime.getRuntime().freeMemory()/M+" +++");
-                bpt = null;
-                System.gc();
-                System.out.println("+++ "+Runtime.getRuntime().freeMemory()/M+" +++");
-            }
-        }).start();
+        String row = br.readLine();
+        while (row!=null) {
+            int orderid_of = row.indexOf("orderid")+8;
+            int buyerid_of = row.indexOf("buyerid")+8;
+            int goodid_of = row.indexOf("goodid")+7;
+            int createtime_of = row.indexOf("createtime")+11;
 
-        String path = "t/d1/o/i";
-        long start = System.currentTimeMillis();
-        System.out.println(Runtime.getRuntime().freeMemory()/M);
-        int count = 0;
-        for (int i = 0;i<41;i++) {
-            BufferedReader br = Utils.createReader(path+i);
-            String line = br.readLine();
-            while (line!=null) {
-                for (int j = 0;j<31;j++) {
-                    count++;
-                    queue.offer(j+line,60, TimeUnit.SECONDS);
-                }
-                line = br.readLine();
-            }
-            br.close();
+            orderid = row.indexOf("\t",orderid_of) != -1 ? row.substring(orderid_of,row.indexOf("\t",orderid_of)) :
+                    row.substring(orderid_of,row.length());
+            buyerid = row.indexOf("\t",buyerid_of) != -1 ? row.substring(buyerid_of,row.indexOf("\t",buyerid_of)) :
+                    row.substring(buyerid_of,row.length());
+            goodid = row.indexOf("\t",goodid_of) != -1 ? row.substring(goodid_of,row.indexOf("\t",goodid_of)) :
+                    row.substring(goodid_of,row.length());
+            createtime = row.indexOf("\t",createtime_of) != -1 ? row.substring(createtime_of,row.indexOf("\t",createtime_of)) :
+                    row.substring(createtime_of,row.length());
+            row = br.readLine();
         }
-        queue.offer("");
-        latch.await();
-        System.out.println(System.currentTimeMillis()-start);
-//        System.out.println(Runtime.getRuntime().freeMemory()/M);
-//        System.out.println("************************************");
-//        System.gc();
-//        Thread.sleep(1000);
-//        System.out.println(Runtime.getRuntime().freeMemory()/M);
-//        System.out.println("************************************");
-//        bpt = null;
-//        System.gc();
-//        System.out.println(Runtime.getRuntime().freeMemory()/M);
-
-//        long leg = raf.length();
-//        raf.seek(1986841); // ap-804e-6f1c7d177abd,25468,470
-//        byte[] bytes = new byte[195];
-//        raf.read(bytes);
-//        System.out.println(new String(bytes));
-//        Utils.spilitCaseFile(DATA_ROOT+"case.0",RaceConfig.STORE_PATH,10);
-
-        //                    int flag0 = line.indexOf(",",10)+1;
-//                    int flag = line.indexOf(",",flag0);// path 的逗号的位置
-//                    count++;
-//                    bpt.insertOrUpdate(line.substring(0,9)+j,new Object[] {line.substring(10,line.indexOf(",",10)),
-//                            Integer.valueOf(line.substring(flag0,flag)),Integer.valueOf(line.substring(flag+1,line.length()))});
 
     }
 
