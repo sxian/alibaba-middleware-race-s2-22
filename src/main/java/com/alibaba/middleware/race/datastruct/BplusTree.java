@@ -43,7 +43,7 @@ public class BplusTree {
         this.rank = order;
     }
 
-    public String get(Comparable key) {
+    public Object[] get(Comparable key) {
         return root.get(key);
     }
 
@@ -51,7 +51,7 @@ public class BplusTree {
         root.remove(key, this);
     }
 
-    public void insertOrUpdate(Comparable key, String value) {
+    public void insertOrUpdate(Comparable key, Object[] value) {
         root.insertOrUpdate(key, value, this);
     }
 

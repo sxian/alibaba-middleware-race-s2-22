@@ -254,9 +254,9 @@ public class OrderSystemImpl implements OrderSystem {
         }
     }
 
-    private void sendEndMsg(LinkedBlockingQueue<String>[] queues) {
+    private void sendEndMsg(LinkedBlockingQueue<String>[] queues) throws InterruptedException {
         for (LinkedBlockingQueue<String> queue : queues) {
-            queue.offer("");
+            queue.offer("",60,TimeUnit.SECONDS);
         }
     }
 
@@ -268,7 +268,7 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<String> disk3 = new ArrayList<>();
 
         if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 41; // todo 要分到3个磁盘，所以实际文件数量是三倍
+            RaceConfig.ORDER_FILE_SIZE = 61; // todo 要分到3个磁盘，所以实际文件数量是三倍
             RaceConfig.BUYER_FILE_SIZE = 10;
             RaceConfig.GOODS_FILE_SIZE = 10;
             for (String storePath : storeFolders) {
@@ -334,11 +334,11 @@ public class OrderSystemImpl implements OrderSystem {
         indexProcessor = null;
 
         buyerLatch.await();
-        buyerQueue.offer("");
+        buyerQueue.offer("",60,TimeUnit.SECONDS);
         buyerQueue = null;
         System.out.println("process buyer data, now time: " + (System.currentTimeMillis() - start));
         goodsLatch.await();
-        goodsQueue.offer("");
+        goodsQueue.offer("",60,TimeUnit.SECONDS);
         goodsQueue = null;
         System.out.println("process goods data, now time: " + (System.currentTimeMillis() - start));
         orderLatch.await(); // 等待处理完所有文件

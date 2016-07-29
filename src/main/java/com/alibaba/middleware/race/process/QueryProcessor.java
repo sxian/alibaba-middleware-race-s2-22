@@ -18,8 +18,8 @@ public class QueryProcessor {
     private static final HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
     private static final HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
-    public static HashMap<String, TreeMap<String,int[]>> filesIndex = new HashMap<>();
-    public static HashMap<String, ArrayList<String>> filesIndexKey = new HashMap<>();
+    public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
     public static void initFile() {
         try {
@@ -64,6 +64,9 @@ public class QueryProcessor {
         String index = queryIndex(id,path);
         if (index != null) {
             String[] indexs = index.split(",");
+            int _disk = Math.abs(indexs[0].hashCode()%3);
+            int _file = Math.abs(indexs[0].hashCode()%RaceConfig.ORDER_FILE_SIZE);
+
             if (indexs[0].equals(id)) {
                 RandomAccessFile raf = dataFileMap.get(indexs[1]);
                 return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
@@ -96,6 +99,11 @@ public class QueryProcessor {
     public static String queryIndex(String id, String path) throws IOException {
         ArrayList<String> idKeys = filesIndexKey.get(path);
         String key;
+        if (idKeys==null) {
+            int i =1;
+        }
+        try {
+
         if (id.compareTo(idKeys.get(0))< 0) {
             key = idKeys.get(0);
         } else if(id.compareTo(idKeys.get(idKeys.size()-1)) > 0) {
@@ -104,13 +112,12 @@ public class QueryProcessor {
             key = binarySearchString(idKeys,id);
         }
         int[] pos = null;
-        try {
-
             pos = filesIndex.get(path).get(key);
+        return queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
         } catch (Exception e) {
             int i = 1;
         }
-        return queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
+        return null;
     }
 
     public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {
@@ -294,7 +301,6 @@ public class QueryProcessor {
                 if (bIndexs.length == 1) {
                     return rawStr;
                 }
-//                bIndexs.
                 if (bIndexs[1].equals("0")) {
                     boolean findIndex = false;
                     String[] preIndexPos = bIndexs[2].split(",");

@@ -69,7 +69,7 @@ public class FileProcessor {
                     orderLatch.await();
 //                    hbIndexQueue.offer(new String[0]);
 //                    hgIndexQueue.offer(new String[0]);
-                    orderIndexQueue.offer(new String[0]);
+                    orderIndexQueue.offer(new String[0],60,TimeUnit.SECONDS);
                     hbIndexQueue = null;
                     hgIndexQueue = null;
                     orderIndexQueue = null;

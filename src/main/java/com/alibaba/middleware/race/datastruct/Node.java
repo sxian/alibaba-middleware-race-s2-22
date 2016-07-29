@@ -33,7 +33,7 @@ public class Node {
     protected Node next;
 
     /** 节点的关键字 */
-    protected List<Entry<Comparable, String>> entries;
+    protected List<Entry<Comparable, Object[]>> entries;
 
     /** 子节点 */
     protected List<Node> children;
@@ -65,10 +65,10 @@ public class Node {
         this.isRoot = isRoot;
     }
 
-    public String get(Comparable key) {
+    public Object[] get(Comparable key) {
         //如果是叶子节点
         if (isLeaf) {
-            for (Entry<Comparable, String> entry : entries) {
+            for (Entry<Comparable, Object[]> entry : entries) {
                 if (entry.getKey().compareTo(key) == 0) {
                     return entry.getValue();
                 }
@@ -92,11 +92,11 @@ public class Node {
         return null;
     }
 
-    public void insertOrUpdate(Comparable key, String obj, BplusTree tree){
+    public void insertOrUpdate(Comparable key, Object[] obj, BplusTree tree){
         //如果是叶子节点
         if (isLeaf){
-            //不需要分裂，直接插入或更新
-            if (entries.size() < tree.getRank()){ // todo 按时间戳排序存在相等的情况 不要update
+            //不需要分裂，直接插入或更新 为啥下面+1这不加1
+            if (/*contains(key) ||*/ entries.size() < tree.getRank()){ // todo 按时间戳排序存在相等的情况 不要update
                 insertOrUpdate(key, obj);
                 if (parent != null) {
                     //更新父节点
@@ -127,15 +127,19 @@ public class Node {
                 next = null;
 
                 //左右两个节点关键字长度
-                int leftSize = (tree.getRank() + 1) / 2 + (tree.getRank() + 1) % 2;
-                int rightSize = (tree.getRank() + 1) / 2;
+                int leftSize = (tree.getRank() + 1) / 2;// + (tree.getRank() + 1) % 2;
+                int rightSize = entries.size()-leftSize;//(tree.getRank() + 1) / 2;
                 //复制原节点关键字到分裂出来的新节点
                 insertOrUpdate(key, obj);
-                for (int i = 0; i < leftSize; i++){
-                    left.getEntries().add(entries.get(i));
-                }
-                for (int i = 0; i < rightSize; i++){
-                    right.getEntries().add(entries.get(leftSize + i));
+                try {
+                    for (int i = 0; i < leftSize; i++){
+                        left.getEntries().add(entries.get(i));
+                    }
+                    for (int i = 0; i < rightSize; i++){
+                        right.getEntries().add(entries.get(leftSize + i));
+                    }
+                } catch (Exception e) {
+                    int i = 1;
                 }
 
                 //如果不是根节点
@@ -208,12 +212,12 @@ public class Node {
             //复制子节点到分裂出来的新节点，并更新关键字
             for (int i = 0; i < leftSize; i++){
                 left.getChildren().add(children.get(i));
-                left.getEntries().add(new SimpleEntry<Comparable, String>(children.get(i).getEntries().get(0).getKey(), null));
+                left.getEntries().add(new SimpleEntry<Comparable, Object[]>(children.get(i).getEntries().get(0).getKey(), null));
                 children.get(i).setParent(left);
             }
             for (int i = 0; i < rightSize; i++){
                 right.getChildren().add(children.get(leftSize + i));
-                right.getEntries().add(new SimpleEntry<Comparable, String>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
+                right.getEntries().add(new SimpleEntry<Comparable, Object[]>(children.get(leftSize + i).getEntries().get(0).getKey(), null));
                 children.get(leftSize + i).setParent(right);
             }
 
@@ -259,7 +263,7 @@ public class Node {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
                 if (node.getEntries().get(i).getKey().compareTo(key) != 0) {
                     node.getEntries().remove(i);
-                    node.getEntries().add(i, new SimpleEntry<Comparable, String>(key, null));
+                    node.getEntries().add(i, new SimpleEntry<Comparable, Object[]>(key, null));
                     if(!node.isRoot()){
                         validate(node.getParent(), tree);
                     }
@@ -273,7 +277,7 @@ public class Node {
             node.getEntries().clear();
             for (int i = 0; i < node.getChildren().size(); i++) {
                 Comparable key = node.getChildren().get(i).getEntries().get(0).getKey();
-                node.getEntries().add(new SimpleEntry<Comparable, String>(key, null));
+                node.getEntries().add(new SimpleEntry<Comparable, Object[]>(key, null));
                 if (!node.isRoot()) {
                     validate(node.getParent(), tree);
                 }
@@ -403,7 +407,7 @@ public class Node {
                             && previous.getEntries().size() > 2
                             && previous.getParent() == parent) {
                         int size = previous.getEntries().size();
-                        Entry<Comparable, String> entry = previous.getEntries().get(size - 1);
+                        Entry<Comparable, Object[]> entry = previous.getEntries().get(size - 1);
                         previous.getEntries().remove(entry);
                         //添加到首位
                         entries.add(0, entry);
@@ -413,7 +417,7 @@ public class Node {
                             && next.getEntries().size() > tree.getRank() / 2
                             && next.getEntries().size() > 2
                             && next.getParent() == parent) {
-                        Entry<Comparable, String> entry = next.getEntries().get(0);
+                        Entry<Comparable, Object[]> entry = next.getEntries().get(0);
                         next.getEntries().remove(entry);
                         //添加到末尾
                         entries.add(entry);
@@ -494,7 +498,7 @@ public class Node {
 
     /** 判断当前节点是否包含该关键字*/
     protected boolean contains(Comparable key) {
-        for (Entry<Comparable, String> entry : entries) {
+        for (Entry<Comparable, Object[]> entry : entries) {
             if (entry.getKey().compareTo(key) == 0) {
                 return true;
             }
@@ -503,8 +507,8 @@ public class Node {
     }
 
     /** 插入到当前节点的关键字中*/
-    protected void insertOrUpdate(Comparable key, String obj){
-        Entry<Comparable, String> entry = new SimpleEntry<>(key, obj);
+    protected void insertOrUpdate(Comparable key, Object[] obj){
+        Entry<Comparable, Object[]> entry = new SimpleEntry<>(key, obj);
 //        entries.add(entry);
 //        如果关键字列表长度为0，则直接插入
         if (entries.size() == 0) {
@@ -580,11 +584,11 @@ public class Node {
         this.parent = parent;
     }
 
-    public List<Entry<Comparable, String>> getEntries() {
+    public List<Entry<Comparable, Object[]>> getEntries() {
         return entries;
     }
 
-    public void setEntries(List<Entry<Comparable, String>> entries) {
+    public void setEntries(List<Entry<Comparable, Object[]>> entries) {
         this.entries = entries;
     }
 
@@ -617,9 +621,16 @@ public class Node {
             pos = position;
             long entryLen = 0;
             StringBuilder sb = new StringBuilder();
-            for (Entry<Comparable, String> entry : entries) {
-                sb.append(entry.getValue());
-                entryLen += entry.getValue().getBytes().length;
+            for (Entry<Comparable, Object[]> entry : entries) {
+                StringBuilder _sb = new StringBuilder();
+                Object[] objects = entry.getValue();
+                if (objects.length == 3) {
+                    _sb.append(entry.getKey()).append(",").append(objects[0]).append(",").append(objects[1]).append(",").append(objects[2]).append(" ");
+                } else {
+                    _sb.append(entry.getKey()).append(",").append(objects[0]).append(",").append(objects[1]).append(" ");
+                }
+                sb.append(_sb);
+                entryLen += _sb.toString().getBytes().length;
             }
             length = toString().getBytes().length;
             sb.append(toString());
@@ -649,7 +660,18 @@ public class Node {
                 sb.append("1 ");
                 int offset = 0;
                 for (int i = 0;i<entries.size();i++) {
-                    int rowLen = entries.get(i).getValue().toString().getBytes().length;
+                    StringBuilder _sb = new StringBuilder();
+                    Entry<Comparable, Object[]> entry = entries.get(i);
+                    Object[] objects = entries.get(i).getValue();
+                    if (objects.length == 3) {
+                        _sb.append(entry.getKey()).append(",").append(entry.getValue()[0]).append(",").
+                                append(entry.getValue()[1]).append(",").append(entry.getValue()[2]).append(" ");
+                    } else {
+                        _sb.append(entry.getKey()).append(",").append(entry.getValue()[0]).append(",").
+                                append(entry.getValue()[1]).append(" ");
+                    }
+
+                    int rowLen = _sb.toString().getBytes().length;
                     sb.append(entries.get(i).getKey()).append(",").append(pos+offset).append(",") // orderid,pos,length
                             .append(rowLen).append(" ");
                     offset += rowLen;
