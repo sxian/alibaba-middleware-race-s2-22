@@ -25,26 +25,36 @@ public class QueryProcessor {
 
     public static void initFile() {
         try {
-            for (String file : indexMap.keySet()) {
-                RandomAccessFile raf = new RandomAccessFile(file,"r");
-                indexFileMap.put(file, raf);
-            }
             for (int i = 0;i<RaceConfig.ORDER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/"+i,"r");
                 RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"o/"+i,"r");
                 RandomAccessFile raf3 = new RandomAccessFile(RaceConfig.DISK3+"o/"+i,"r");
+
+                RandomAccessFile raf4 = new RandomAccessFile(RaceConfig.DISK1+"o/iS"+i,"r");
+                RandomAccessFile raf5 = new RandomAccessFile(RaceConfig.DISK2+"o/iS"+i,"r");
+                RandomAccessFile raf6 = new RandomAccessFile(RaceConfig.DISK3+"o/iS"+i,"r");
+
                 dataFileMap.put(RaceConfig.DISK1+"o/"+i,raf1);
                 dataFileMap.put(RaceConfig.DISK2+"o/"+i,raf2);
                 dataFileMap.put(RaceConfig.DISK3+"o/"+i,raf3);
 
+                indexFileMap.put(RaceConfig.DISK1+"o/iS"+i,raf4);
+                indexFileMap.put(RaceConfig.DISK2+"o/iS"+i,raf5);
+                indexFileMap.put(RaceConfig.DISK3+"o/iS"+i,raf6);
             }
             for (int i = 0;i<RaceConfig.BUYER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"b/"+i,"r");
                 dataFileMap.put(RaceConfig.DISK1+"b/"+i,raf1);
+
+                RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK1+"b/iS"+i,"r");
+                indexFileMap.put(RaceConfig.DISK1+"b/iS"+i,raf2);
             }
             for (int i = 0;i<RaceConfig.GOODS_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK2+"g/"+i,"r");
                 dataFileMap.put(RaceConfig.DISK2+"g/"+i,raf1);
+
+                RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"g/iS"+i,"r");
+                indexFileMap.put(RaceConfig.DISK2+"g/iS"+i,raf2);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

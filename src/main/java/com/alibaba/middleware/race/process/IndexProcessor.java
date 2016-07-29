@@ -68,6 +68,16 @@ public class IndexProcessor {
                 threads.execute(new BuildHashIndex(sortIndexQueues[1],RaceConfig.DISK2+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
                 threads.execute(new BuildHashIndex(sortIndexQueues[2],RaceConfig.DISK3+"o/iS",_latch,true,RaceConfig.ORDER_FILE_SIZE));
 
+//                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
+//
+//                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
+
                 try {
                     while (true) {
                         Index index = indexQueue.take();
@@ -83,15 +93,6 @@ public class IndexProcessor {
                     finalLatch.countDown();
                 }
                 System.out.println("aaa over");
-//                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-
-//                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//                threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
             }
         },"aaa").start();
     }
