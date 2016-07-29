@@ -12,7 +12,7 @@ import java.util.HashMap;
  * Created by sxian.wang on 2016/7/29.
  */
 public class Index {
-    public static final int BUCKET_SIZE = 100;
+    public static final int BUCKET_SIZE = 2000;
 
     public String FILE_PATH;
     public boolean flag;
