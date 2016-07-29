@@ -248,11 +248,8 @@ public class FileProcessor {
 
                     String orderid,goodid;
                     orderid = row.substring(8,17); // orderid
-                    if (row.charAt(96) == '\t') {
-                        goodid = row.substring(76,96);
-                    } else {
-                        goodid = row.substring(76, 97);
-                    }
+                    int in = row.indexOf("goodid")+7;
+                    goodid = row.substring(in,row.indexOf("\t",in));
 
                     // buyerid -> orderid
 //                    hbIndexQueue.offer(new String[]{row.substring(48,68),orderid+","+row.substring(29,39)},60, TimeUnit.SECONDS);
@@ -279,7 +276,6 @@ public class FileProcessor {
                 for (int i = 0;i<fileSize;i++) {
                     dataWriters[i].write(data_sbs[i].toString().toCharArray());
                 }
-                System.out.println(" ******* " + c +", " + storeFold);
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {

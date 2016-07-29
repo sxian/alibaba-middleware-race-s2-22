@@ -2,6 +2,7 @@ package com.alibaba.middleware.race.process;
 
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.cache.LRUCache;
+import com.alibaba.middleware.race.datastruct.Index;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 
 import java.io.FileNotFoundException;
@@ -15,15 +16,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QueryProcessor {
     // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗 -> 并发下使用不安全
-    private static final HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
-    private static final HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
+    private static HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
+    private static HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
+    public static final ConcurrentHashMap<String,int[][]> indexMap = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
     public static void initFile() {
         try {
-            for (String file : filesIndex.keySet()) {
+            for (String file : indexMap.keySet()) {
                 RandomAccessFile raf = new RandomAccessFile(file,"r");
                 indexFileMap.put(file, raf);
             }
@@ -52,6 +54,7 @@ public class QueryProcessor {
     public static String queryOrder(String id) throws IOException {
         int disk = Math.abs(id.hashCode()%3);
         int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+        int bucket = Math.abs(id.hashCode()% Index.BUCKET_SIZE);
         String path;
         if (disk == 0) {
             path = RaceConfig.DISK1+"o/iS"+file;
@@ -61,17 +64,26 @@ public class QueryProcessor {
         } else {
             path = RaceConfig.DISK3+"o/iS"+file;
         }
-        String index = queryIndex(id,path);
-        if (index != null) {
-            String[] indexs = index.split(",");
-            int _disk = Math.abs(indexs[0].hashCode()%3);
-            int _file = Math.abs(indexs[0].hashCode()%RaceConfig.ORDER_FILE_SIZE);
+        int[] pos = indexMap.get(path)[bucket];
+        RandomAccessFile raf = indexFileMap.get(path);
+        raf.seek(pos[0]);
+        byte[] bytes = new byte[pos[1]];
+        raf.read(bytes);
+        String str = new String(bytes);
+        int in = str.indexOf(id);
+        String str1 = str.substring(in,str.indexOf(" ",in));
 
-            if (indexs[0].equals(id)) {
-                RandomAccessFile raf = dataFileMap.get(indexs[1]);
-                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
-            }
-        }
+//        String index = queryIndex(id,path);
+//        if (index != null) {
+//            String[] indexs = index.split(",");
+//            int _disk = Math.abs(indexs[0].hashCode()%3);
+//            int _file = Math.abs(indexs[0].hashCode()%RaceConfig.ORDER_FILE_SIZE);
+//
+//            if (indexs[0].equals(id)) {
+//                RandomAccessFile raf = dataFileMap.get(indexs[1]);
+//                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+//            }
+//        }
         return null;
     }
 

@@ -9,8 +9,8 @@ package com.alibaba.middleware.race.datastruct;
  */
 
 public class RecordIndex {
-    public String key; // todo 有没有必要 -> 貌似还真没用，后面确认后删掉  并且优化结构
-    public String filePath;  // todo 确认相同的string是否是公用内存，如果不是的话就删掉, 弄成标记位
+    public String key;
+    public String filePath;
     public long position;
     public int length;
 
