@@ -29,8 +29,8 @@ public class IndexProcessor {
 
 
     private ExecutorService threads = Executors.newFixedThreadPool(6);
-    private CountDownLatch latch = new CountDownLatch(5);
-    private CountDownLatch _latch = new CountDownLatch(5);
+    private CountDownLatch latch = new CountDownLatch(11);
+    private CountDownLatch _latch = new CountDownLatch(11);
 
     private CountDownLatch orderIndexLatch = new CountDownLatch(3);
     private CountDownLatch finalLatch = new CountDownLatch(3);
@@ -43,6 +43,9 @@ public class IndexProcessor {
 
     void init(LinkedBlockingQueue<String[]> hbIndexQueue, LinkedBlockingQueue<String[]> hgIndexQueue,
                      LinkedBlockingQueue<String[]> orderIndexQueue) throws IOException {
+        writeIndexToDisk(indexQueue1);
+        writeIndexToDisk(indexQueue2);
+        writeIndexToDisk(indexQueue3);
         final LinkedBlockingQueue<String>[] sortIndexQueues = new LinkedBlockingQueue[9];
         for (int i = 0;i<9;i++) {
             sortIndexQueues[i] = new LinkedBlockingQueue<>(5000);
@@ -73,41 +76,35 @@ public class IndexProcessor {
                 threads.execute(new BuildHashIndex(sortIndexQueues[2],RaceConfig.DISK3+"o/iS",_latch,
                         indexQueue3,RaceConfig.ORDER_FILE_SIZE));
 
-//                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
-//                        sortIndexQueues[3]));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
-//                        sortIndexQueues[4]));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
-//                        sortIndexQueues[5]));
-//
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[3],RaceConfig.DISK1+"o/hbS",_latch,
-//                        1,RaceConfig.HB_FILE_SIZE));
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[4],RaceConfig.DISK2+"o/hbS",_latch,
-//                        2,RaceConfig.HB_FILE_SIZE));
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[5],RaceConfig.DISK3+"o/hbS",_latch,
-//                        3,RaceConfig.HB_FILE_SIZE));
-//
-//                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
-//                        sortIndexQueues[6]));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
-//                        sortIndexQueues[7]));
-//                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
-//                        sortIndexQueues[8]));
-//
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[6],RaceConfig.DISK1+"o/hgS",_latch,
-//                        1,RaceConfig.HG_FILE_SIZE));
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[7],RaceConfig.DISK2+"o/hgS",_latch,
-//                        2,RaceConfig.HG_FILE_SIZE));
-//                threads.execute(new BuildAssistHashIndex(sortIndexQueues[8],RaceConfig.DISK3+"o/hgS",_latch,
-//                        3,RaceConfig.HG_FILE_SIZE));
+                System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
+                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+                        sortIndexQueues[3]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+                        sortIndexQueues[4]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,
+                        sortIndexQueues[5]));
 
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[3],RaceConfig.DISK1+"o/hbS",_latch,
+                        indexQueue1,RaceConfig.HB_FILE_SIZE));
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[4],RaceConfig.DISK2+"o/hbS",_latch,
+                        indexQueue2,RaceConfig.HB_FILE_SIZE));
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[5],RaceConfig.DISK3+"o/hbS",_latch,
+                        indexQueue3,RaceConfig.HB_FILE_SIZE));
 
-                writeIndexToDisk(indexQueue1);
-                writeIndexToDisk(indexQueue2);
-                writeIndexToDisk(indexQueue3);
+                System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
+                threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+                        sortIndexQueues[6]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+                        sortIndexQueues[7]));
+                threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,
+                        sortIndexQueues[8]));
 
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[6],RaceConfig.DISK1+"o/hgS",_latch,
+                        indexQueue1,RaceConfig.HG_FILE_SIZE));
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[7],RaceConfig.DISK2+"o/hgS",_latch,
+                        indexQueue2,RaceConfig.HG_FILE_SIZE));
+                threads.execute(new BuildAssistHashIndex(sortIndexQueues[8],RaceConfig.DISK3+"o/hgS",_latch,
+                        indexQueue3,RaceConfig.HG_FILE_SIZE));
             }
         }).start();
     }
@@ -132,26 +129,6 @@ public class IndexProcessor {
                 }
             }
         }).start();
-    }
-    private void buildHB() {
-        System.out.println("start build hb index, now time: " + (System.currentTimeMillis() - start));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hb", RaceConfig.HB_FILE_SIZE,latch,true));
-    }
-
-    private void buildHG() {
-        System.out.println("start build hg index, now time: " + (System.currentTimeMillis() - start));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK2+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK3+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-//        threads.execute(new ProcessAssistIndex(RaceConfig.DISK1+"o/hg", RaceConfig.HG_FILE_SIZE,latch,false));
-    }
-
-    private void buildOrderIndex() throws IOException {
-        System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
-//        threads.execute(new ProcessIndex(RaceConfig.DISK3+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
-//        threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
-//        threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,latch));
     }
 
     void createBuyerIndex() throws IOException {
