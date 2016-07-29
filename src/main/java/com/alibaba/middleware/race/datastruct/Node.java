@@ -494,19 +494,19 @@ public class Node {
 
     /** 判断当前节点是否包含该关键字*/
     protected boolean contains(Comparable key) {
-//        for (Entry<Comparable, String> entry : entries) {
-//            if (entry.getKey().compareTo(key) == 0) {
-//                return true;
-//            }
-//        }
+        for (Entry<Comparable, String> entry : entries) {
+            if (entry.getKey().compareTo(key) == 0) {
+                return true;
+            }
+        }
         return false;
     }
 
     /** 插入到当前节点的关键字中*/
     protected void insertOrUpdate(Comparable key, String obj){
-        // todo 事实上，并不关心关键字的顺序，所以这个地方这一对遍历能否直接去掉？
         Entry<Comparable, String> entry = new SimpleEntry<>(key, obj);
-        //如果关键字列表长度为0，则直接插入
+//        entries.add(entry);
+//        如果关键字列表长度为0，则直接插入
         if (entries.size() == 0) {
             entries.add(entry);
             return;

@@ -149,7 +149,14 @@ public class OrderSystemImplTest {
 
     private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
-        String orderid = String.valueOf(result.orderId());
+        String orderid = null;
+        try {
+        orderid = String.valueOf(result.orderId());
+
+        } catch (Exception e) {
+            int i  = 1;
+        }
+
 
         boolean queryok = true;
 
@@ -387,6 +394,8 @@ public class OrderSystemImplTest {
                             }
 
                             } catch (Exception e ){
+                                osi.queryOrder(Long.valueOf(query.id),query.keys);
+
                                 int i = 1;
                             }
                             if (compareOrder(query.id,query.resultMap ,result)){

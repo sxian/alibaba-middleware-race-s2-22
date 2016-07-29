@@ -61,10 +61,13 @@ public class QueryProcessor {
         } else {
             path = RaceConfig.DISK3+"o/iS"+file;
         }
-        String[] indexs = queryIndex(id,path).split(",");
-        if (indexs[0].equals(id)) {
-            RandomAccessFile raf = dataFileMap.get(indexs[1]);
-            return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+        String index = queryIndex(id,path);
+        if (index != null) {
+            String[] indexs = index.split(",");
+            if (indexs[0].equals(id)) {
+                RandomAccessFile raf = dataFileMap.get(indexs[1]);
+                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+            }
         }
         return null;
     }
@@ -82,6 +85,7 @@ public class QueryProcessor {
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
         String[] indexs = queryIndex(id, path).split(",");
+//        queryIndex(id, path).in
         if (indexs[0].equals(id)) {
             RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
@@ -99,7 +103,13 @@ public class QueryProcessor {
         } else {
             key = binarySearchString(idKeys,id);
         }
-        int[] pos = filesIndex.get(path).get(key);
+        int[] pos = null;
+        try {
+
+            pos = filesIndex.get(path).get(key);
+        } catch (Exception e) {
+            int i = 1;
+        }
         return queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
     }
 
@@ -277,29 +287,31 @@ public class QueryProcessor {
                     raf.seek(pos);
                     raf.read(bytes);
                 }
-                String rawStr = new String(bytes,0,length);
+                String rawStr = new String(bytes,0,bytes.length);
                 // todo
                 String[] bIndexs = rawStr.split(" ");
-                if (bIndexs[0].equals("0")) {
+                Arrays.sort(bIndexs);
+                if (bIndexs.length == 1) {
+                    return rawStr;
+                }
+//                bIndexs.
+                if (bIndexs[1].equals("0")) {
                     boolean findIndex = false;
-                    String[] preIndexPos = bIndexs[1].split(",");
+                    String[] preIndexPos = bIndexs[2].split(",");
                     if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
                         pos = Long.valueOf(preIndexPos[1]);
                         length = Integer.valueOf(preIndexPos[2]);
                         continue;
                     }
+                    String[] lastIndex = bIndexs[bIndexs.length-1].split(",");
+                    if (lastIndex[0].compareTo(id)<=0) {
+                        pos = Long.valueOf(lastIndex[1]);
+                        length = Integer.valueOf(lastIndex[2]);
+                        continue;
+                    }
                     if (!findIndex) {
-                        for (int i = 1; i<bIndexs.length-1;i++) {
+                        for (int i = 2; i<bIndexs.length;i++) {
                             String[] indexPos = bIndexs[i+1].split(",");
-                            if (i==bIndexs.length-2) {
-                                if (id.compareTo(preIndexPos[0]) < 0) {
-                                    throw new RuntimeException("compare error");
-                                }
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
-
                             if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
                                 pos = Long.valueOf(preIndexPos[1]);
                                 length = Integer.valueOf(preIndexPos[2]);
@@ -308,8 +320,8 @@ public class QueryProcessor {
                             preIndexPos = indexPos;
                         }
                     }
-                } else if (bIndexs[0].equals("1")){
-                    for (int i = 1; i<bIndexs.length;i++) {
+                } else if (bIndexs[1].equals("1")){
+                    for (int i = 2; i<bIndexs.length;i++) {
                         String[] rowPos = bIndexs[i].split(",");
                         if (rowPos[0].equals(id)) {
                             synchronized (raf) {
@@ -325,8 +337,6 @@ public class QueryProcessor {
                         }
                     }
                     break;
-                } else {
-                    return rawStr;
                 }
                 if (length > bytes.length) {
                     bytes = new byte[length];

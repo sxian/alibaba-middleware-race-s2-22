@@ -156,12 +156,11 @@ public class IndexProcessor {
                     }
                 }
             }
-
             filesIndexs.put(file, tree);
+            Collections.sort(list);
             filesIndexsKeys.put(file, list);
         } catch (Exception e) {
             e.printStackTrace();
-            int i = 0;
         }
     }
 
@@ -195,7 +194,7 @@ public class IndexProcessor {
                             ", now time: "+(System.currentTimeMillis() - start)+" ***");
                     String line = br.readLine();
                     int element = 0;
-                    BplusTree bpt = new BplusTree(100);
+                    BplusTree bpt = new BplusTree(200); // 这个值小的时候会报异常
                     while (line!=null) {
                         String id = line.split(",")[0];
                         bpt.insertOrUpdate(id,line+" ");
@@ -274,7 +273,7 @@ public class IndexProcessor {
                     System.out.println("build assist index "+fileFold+i+", start build b+ tree. free memory is: "+
                             Runtime.getRuntime().freeMemory()/M+", max memory: "+ Runtime.getRuntime().maxMemory()/M+", now time: "
                             +(System.currentTimeMillis()-start));
-                    BplusTree bpt = new BplusTree(80);
+                    BplusTree bpt = new BplusTree(100);
                     for (Map.Entry<String, StringBuilder> entry : map.entrySet()) {
                         elementNum++;
                         bpt.insertOrUpdate(entry.getKey(),entry.getValue().toString());
