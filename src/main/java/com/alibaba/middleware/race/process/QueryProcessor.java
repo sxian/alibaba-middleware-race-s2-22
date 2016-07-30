@@ -8,6 +8,7 @@ import com.alibaba.middleware.race.datastruct.RecordIndex;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,6 +57,24 @@ public class QueryProcessor {
                 RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"g/iS"+i,"r");
                 indexFileMap.put(RaceConfig.DISK2+"g/iS"+i,raf2);
             }
+
+            for (int i = 0;i<RaceConfig.HB_FILE_SIZE;i++) {
+                RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/hgS"+i,"r");
+                RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"o/hgS"+i,"r");
+                RandomAccessFile raf3 = new RandomAccessFile(RaceConfig.DISK3+"o/hgS"+i,"r");
+
+                RandomAccessFile raf4 = new RandomAccessFile(RaceConfig.DISK1+"o/hbS"+i,"r");
+                RandomAccessFile raf5 = new RandomAccessFile(RaceConfig.DISK2+"o/hbS"+i,"r");
+                RandomAccessFile raf6 = new RandomAccessFile(RaceConfig.DISK3+"o/hbS"+i,"r");
+
+                dataFileMap.put(RaceConfig.DISK1+"o/hgS"+i,raf1);
+                dataFileMap.put(RaceConfig.DISK2+"o/hgS"+i,raf2);
+                dataFileMap.put(RaceConfig.DISK3+"o/hgS"+i,raf3);
+
+                indexFileMap.put(RaceConfig.DISK1+"o/hbS"+i,raf4);
+                indexFileMap.put(RaceConfig.DISK2+"o/hbS"+i,raf5);
+                indexFileMap.put(RaceConfig.DISK3+"o/hbS"+i,raf6);
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -94,15 +113,94 @@ public class QueryProcessor {
         return null;
     }
 
-
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
-        String[] indexs = getIndex(id, path).split(",");
-        if (indexs[0].equals(id)) {
-            RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
-            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
+        try {
+
+            String[] indexs = getIndex(id, path).split(","); // todo 修改
+
+            if (indexs[0].equals(id)) {
+                RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
+                return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
+            }
+            return null;
+        } catch (Exception e) {
+            String[] indexs = getIndex(id, path).split(","); // todo 修改
         }
         return null;
+    }
+
+    public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) throws IOException {
+        int disk = Math.abs(buyerid.hashCode()%3);
+        int file = Math.abs(buyerid.hashCode()%RaceConfig.HB_FILE_SIZE);
+        String path = null;
+        switch (disk) {
+            case 0:
+                path = RaceConfig.DISK1+"o/hbS"+file;
+                break;
+            case 1:
+                path = RaceConfig.DISK2+"o/hbS"+file;
+                break;
+            case 2:
+                path = RaceConfig.DISK3+"o/hbS"+file;
+                break;
+        }
+        String index = getIndex(buyerid, path);
+        if (index != null) {
+            int split = index.indexOf(":");
+            String id = index.substring(0,split);
+            String[] orders = index.split(index.substring(split)+1);
+            if (buyerid.equals(id)) {
+                ArrayList<String> querys = new ArrayList<>();
+                for (String orderid : orders) {
+                    int _split = orderid.indexOf(",");
+                    long time = Long.valueOf(orderid.substring(0,_split));
+                    if (time>= start && time<end) {
+                        querys.add(orderid);
+                    }
+                }
+                Collections.sort(querys);
+                ArrayList<String> result = new ArrayList<>();
+
+                for (String orderid : querys) {
+                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
+                }
+                return result; // todo 记得去掉空格
+            }
+        }
+        return  null;
+    }
+
+    public static List<String> queryOrderidsByGoodsid(String goodid) throws IOException {
+        int disk = Math.abs(goodid.hashCode()%3);
+        int file = Math.abs(goodid.hashCode()%RaceConfig.HG_FILE_SIZE);
+        String path = null;
+        switch (disk) {
+            case 0:
+                path = RaceConfig.DISK1+"o/hgS"+file;
+                break;
+            case 1:
+                path = RaceConfig.DISK2+"o/hgS"+file;
+                break;
+            case 2:
+                path = RaceConfig.DISK3+"o/hgS"+file;
+                break;
+        }
+        String index = getIndex(goodid, path);
+        if (index != null) {
+            int split = index.indexOf(":");
+            String id = index.substring(0,split);
+            if (goodid.equals(id)) {
+                String[] orders = index.split(index.substring(split)+1);
+                Arrays.sort(orders);
+                ArrayList<String> result = new ArrayList<>();
+                for (String orderid : orders) {
+                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
+                }
+                return result; // todo 记得去掉空格
+            }
+        }
+        return  null;
     }
 
     public static String getIndex(String id, String path) throws IOException {
@@ -152,26 +250,9 @@ public class QueryProcessor {
         return new String(bytes);
     }
 
-    public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) {
-        // todo
-        return  null;
-    }
-
-    public static List<String> queryOrderidsByGoodsid(String goodid) {
-        // todo
-        return  null;
-    }
 
     public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
                                                String id, Long start, Long end) throws IOException {
-//        String key;
-//        if (id.compareTo(list.get(0)) < 0) {
-//            key = list.get(0);
-//        } else if(id.compareTo(list.get(list.size()-1)) > 0) {
-//            key = list.get(list.size()-1);
-//        } else {
-//            key = binarySearchString(list, id);
-//        }
         Long[] pos = map.get(id);
         if (pos == null) {
             return new ArrayList<>();
@@ -227,84 +308,6 @@ public class QueryProcessor {
         }
         return new String(bytes);
     }
-
-//    private static String queryRowByBPT(String file, long orderid, long pos, int length) {
-//        byte[] bytes = new byte[length];
-//        boolean findRow = false;
-//        int rowLen = 0;
-//        try {
-//            RandomAccessFile raf = indexFileMap.get(file);
-//
-//            synchronized (raf) {
-//
-//                while (!findRow) {
-//                    raf.seek(pos);
-//                    raf.read(bytes);
-//                    String rawStr = new String(bytes,0,length);
-//                    String[] bIndexs = rawStr.split(" ");
-//                    if (bIndexs[0].equals("0")) {
-//                        boolean findIndex = false;
-//                        String[] preIndexPos = bIndexs[1].split(",");
-//                        if (Long.valueOf(preIndexPos[0])>orderid) { // 第一个节点满足
-//                            pos = Long.valueOf(preIndexPos[1]);
-//                            length = Integer.valueOf(preIndexPos[2]);
-//                            continue;
-//                        }
-//                        if (!findIndex) {
-//                            for (int i = 1; i<bIndexs.length-1;i++) {
-//                                String[] indexPos = bIndexs[i+1].split(",");
-//                                if (i==bIndexs.length-2) {
-//                                    if (orderid < Long.valueOf(preIndexPos[0])) {
-//                                        throw new RuntimeException("compare error");
-//                                    }
-//                                    pos = Long.valueOf(preIndexPos[1]);
-//                                    length = Integer.valueOf(preIndexPos[2]);
-//                                    break;
-//                                }
-//
-//                                if (Long.valueOf(preIndexPos[0]) <= orderid && Long.valueOf(indexPos[0]) > orderid) {
-//                                    pos = Long.valueOf(preIndexPos[1]);
-//                                    length = Integer.valueOf(preIndexPos[2]);
-//                                    break;
-//                                }
-//                                preIndexPos = indexPos;
-//                            }
-//                        }
-//                    } else if (bIndexs[0].equals("1")) {
-//                        for (int i = 1; i<bIndexs.length;i++) {
-//                            if (bIndexs[i].equals("\n")) {  // todo 最终版把写到文件的\n全删了
-//                                continue;
-//                            }
-//                            String[] rowPos = bIndexs[i].split(",");
-//                            if (Long.valueOf(rowPos[0])==orderid) {
-//                                raf.seek(Long.valueOf(rowPos[1]));
-//                                rowLen = Integer.valueOf(rowPos[2]);
-//                                if (rowLen > bytes.length) {
-//                                    bytes = new byte[rowLen];
-//                                }
-//                                raf.read(bytes,0,rowLen);
-//                                findRow = true;
-//                                break;
-//                            }
-//                        }
-//                        break;
-//                    } else {
-//                        if (Long.valueOf(rawStr.split("\t")[0].split(":")[1])==orderid) {
-//                            return rawStr;
-//                        }
-//                        return null;
-//                    }
-//                    if (length > bytes.length) {
-//                        bytes = new byte[length];
-//                    }
-//                }
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//        return findRow ? new String(bytes,0,rowLen) : null;
-//    }
 
     private static String queryRowStringByBPT(String file, String id, long pos, int length) throws IOException {
         byte[] bytes = new byte[length];

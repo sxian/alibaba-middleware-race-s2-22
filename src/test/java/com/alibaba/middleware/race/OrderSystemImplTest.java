@@ -119,33 +119,6 @@ public class OrderSystemImplTest {
                     list.get(i)+ ". result is: "+map.get(keyList.get(s+i)).equals(list.get(i).split(",")[1]));
         }
     }
-    public static void countSuccess(List<OrderSystemImpl.Row> rows, Map<String,OrderSystemImpl.Row> map,String id) {
-        int find = 0;
-        int matched = 0;
-        for (int i = 0;i<rows.size();i++) {
-            OrderSystemImpl.Row row = rows.get(i);
-            OrderSystemImpl.Row _row = map.get(row.get(id).valueAsString());
-            if (_row!=null) {
-                find++;
-                Set<Map.Entry<String, OrderSystemImpl.KV>> entrySet = row.entrySet();
-                boolean ok = true;
-                for (Map.Entry<String, OrderSystemImpl.KV> entry : entrySet) {
-                    try {
-                        OrderSystemImpl.KV kv = _row.getKV(entry.getKey());
-                    } catch (Exception e) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) {
-                    matched++;
-                } else {
-                    int a = 5;
-                }
-            }
-        }
-        System.out.println("find data: "+ find+"\nmatched data: "+matched);
-    }
 
     private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
@@ -339,6 +312,8 @@ public class OrderSystemImplTest {
                             break;
                         case 1:
 //                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
+//                            resultQueue.offer(query,600,TimeUnit.SECONDS);
+
                             break;
                         case 2:
 //                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
@@ -347,6 +322,7 @@ public class OrderSystemImplTest {
 //                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
                             break;
                     }
+//                    resultQueue.offer(query,600,TimeUnit.SECONDS);
                 }
             }catch (Exception e) {
                 e.printStackTrace();

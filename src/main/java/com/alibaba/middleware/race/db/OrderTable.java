@@ -32,10 +32,20 @@ public class OrderTable {
 
 
     public List<String> selectOrderIDByBuyerID(String buyerid, long start, long end) {
-        return QueryProcessor.queryOrderidsByBuyerid(buyerid, start, end);
+        try {
+            return QueryProcessor.queryOrderidsByBuyerid(buyerid, start, end);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public List<String> selectOrderIDByGoodsID(String goodid) {
-        return QueryProcessor.queryOrderidsByGoodsid(goodid);
+        try {
+            return QueryProcessor.queryOrderidsByGoodsid(goodid);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
