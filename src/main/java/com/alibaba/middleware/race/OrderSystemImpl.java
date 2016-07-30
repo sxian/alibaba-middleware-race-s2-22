@@ -353,7 +353,9 @@ public class OrderSystemImpl implements OrderSystem {
         buyerTable = new BuyerTable();
         goodsTable = new GoodsTable();
         System.out.println("successfully processed!");
+        System.out.println("free memory: " +Runtime.getRuntime().freeMemory()/(1024.0*1024.0));
         System.gc();
+        System.out.println("free memory: " +Runtime.getRuntime().freeMemory()/(1024.0*1024.0));
     }
 
     public static Row createRow(String line) {
