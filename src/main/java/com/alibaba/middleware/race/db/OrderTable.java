@@ -5,6 +5,7 @@ import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,7 +38,7 @@ public class OrderTable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return new ArrayList<>();
     }
 
     public List<String> selectOrderIDByGoodsID(String goodid) {
@@ -46,6 +47,6 @@ public class OrderTable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return new ArrayList<>();
     }
 }
