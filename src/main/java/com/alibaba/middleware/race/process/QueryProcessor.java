@@ -84,6 +84,9 @@ public class QueryProcessor {
     }
 
     private static void loadCache() {
+        if (indexMap.size() == 323) {
+            return;
+        }
         BufferedReader br = null;
         System.out.println("*** start load cache ***");
         try {

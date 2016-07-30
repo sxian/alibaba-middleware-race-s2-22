@@ -19,6 +19,7 @@ public class IndexProcessor {
 
     private ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
     private ConcurrentHashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
+    private ConcurrentHashMap<String, int[][]> indexMap = QueryProcessor.indexMap;
 
     private LinkedBlockingQueue<Index> indexQueue1 = new LinkedBlockingQueue<>(2);
     private LinkedBlockingQueue<Index> indexQueue2 = new LinkedBlockingQueue<>(2);
@@ -148,7 +149,9 @@ public class IndexProcessor {
                         if (index.flag) {
                             break;
                         }
-                        cacheQueue.offer(new Object[]{index.FILE_PATH, index.writeToDisk()},600,TimeUnit.SECONDS);
+                        int[][] indexs = index.writeToDisk();
+                        indexMap.put(index.FILE_PATH,indexs);
+                        cacheQueue.offer(new Object[]{index.FILE_PATH, indexs},600,TimeUnit.SECONDS);
                         System.out.println("!!! "+index.FILE_PATH+" complete, now time: "+(System.currentTimeMillis()-start));
                     }
                 } catch (Exception e) {
