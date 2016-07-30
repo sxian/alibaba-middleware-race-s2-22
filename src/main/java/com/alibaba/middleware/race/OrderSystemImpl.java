@@ -434,8 +434,8 @@ public class OrderSystemImpl implements OrderSystem {
         if (list == null)
             return null;
 
-        for (String orderId : list) {
-            Result result = queryOrder(Long.valueOf(orderId),_list); //肯定不为空 所有字段都是join后的
+        for (int i = 0; i<list.size();i++) {
+            Result result = queryOrder(Long.valueOf(list.get(i)),_list); //肯定不为空 所有字段都是join后的
             KV kv = (KV) result.get(key);
             if (kv == null)
                 continue;

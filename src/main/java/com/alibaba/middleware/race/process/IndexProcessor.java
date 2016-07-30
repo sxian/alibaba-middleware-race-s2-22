@@ -24,7 +24,7 @@ public class IndexProcessor {
     private LinkedBlockingQueue<Index> indexQueue1 = new LinkedBlockingQueue<>(2);
     private LinkedBlockingQueue<Index> indexQueue2 = new LinkedBlockingQueue<>(2);
     private LinkedBlockingQueue<Index> indexQueue3 = new LinkedBlockingQueue<>(2);
-    private LinkedBlockingQueue<Object[]> cacheQueue = new LinkedBlockingQueue<>(10);
+//    private LinkedBlockingQueue<Object[]> cacheQueue = new LinkedBlockingQueue<>(10);
 
     private ExecutorService threads = Executors.newFixedThreadPool(6);
     private CountDownLatch latch = new CountDownLatch(11);
@@ -32,7 +32,7 @@ public class IndexProcessor {
 
     private CountDownLatch orderIndexLatch = new CountDownLatch(3);
     private CountDownLatch finalLatch = new CountDownLatch(3);
-    private CountDownLatch cacheLatch = new CountDownLatch(1);
+//    private CountDownLatch cacheLatch = new CountDownLatch(1);
 
     private long start;
 
@@ -103,38 +103,38 @@ public class IndexProcessor {
                 threads.execute(new BuildAssistHashIndex(sortIndexQueues[8],RaceConfig.DISK3+"o/hgS",_latch,
                         indexQueue3,RaceConfig.HG_FILE_SIZE));
 
-                BufferedWriter cacheWriter = null;
-                try {
-                    cacheWriter = Utils.createWriter(RaceConfig.DISK1+"indexCache");
-                    while (true) {
-                        Object[] _cache = cacheQueue.take();
-                        if (_cache.length == 0) {
-                            break;
-                        }
-                        String path = (String) _cache[0];
-                        int[][] cache = (int[][]) _cache[1];
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("File:").append(path).append("\n");
-                        for (int i = 0;i<Index.BUCKET_SIZE;i++) {
-                            sb.append(cache[i][0]).append(",").append(cache[i][1]).append("\n");
-                        }
-                        cacheWriter.write(sb.toString());
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } finally {
-                    if (cacheWriter!=null) {
-                        try {
-                            cacheWriter.flush();
-                            cacheWriter.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    cacheLatch.countDown();
-                }
+//                BufferedWriter cacheWriter = null;
+//                try {
+//                    cacheWriter = Utils.createWriter(RaceConfig.DISK1+"indexCache");
+//                    while (true) {
+//                        Object[] _cache = cacheQueue.take();
+//                        if (_cache.length == 0) {
+//                            break;
+//                        }
+//                        String path = (String) _cache[0];
+//                        int[][] cache = (int[][]) _cache[1];
+//                        StringBuilder sb = new StringBuilder();
+//                        sb.append("File:").append(path).append("\n");
+//                        for (int i = 0;i<Index.BUCKET_SIZE;i++) {
+//                            sb.append(cache[i][0]).append(",").append(cache[i][1]).append("\n");
+//                        }
+//                        cacheWriter.write(sb.toString());
+//                    }
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                } finally {
+//                    if (cacheWriter!=null) {
+//                        try {
+//                            cacheWriter.flush();
+//                            cacheWriter.close();
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                    cacheLatch.countDown();
+//                }
             }
         }).start();
     }
@@ -149,9 +149,9 @@ public class IndexProcessor {
                         if (index.flag) {
                             break;
                         }
-                        int[][] indexs = index.writeToDisk();
-                        indexMap.put(index.FILE_PATH,indexs);
-                        cacheQueue.offer(new Object[]{index.FILE_PATH, indexs},600,TimeUnit.SECONDS);
+//                        int[][] indexs = index.writeToDisk();
+                        indexMap.put(index.FILE_PATH,index.writeToDisk());
+//                        cacheQueue.offer(new Object[]{index.FILE_PATH, indexs},600,TimeUnit.SECONDS);
                         System.out.println("!!! "+index.FILE_PATH+" complete, now time: "+(System.currentTimeMillis()-start));
                     }
                 } catch (Exception e) {
@@ -244,8 +244,8 @@ public class IndexProcessor {
         indexQueue2.offer(new Index(true),600,TimeUnit.SECONDS);
         indexQueue3.offer(new Index(true),600,TimeUnit.SECONDS);
         finalLatch.await();
-        cacheQueue.offer(new Object[0]);
-        cacheLatch.await();
+//        cacheQueue.offer(new Object[0]);
+//        cacheLatch.await();
         threads.shutdown();
     }
 

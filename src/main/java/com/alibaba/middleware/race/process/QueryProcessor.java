@@ -27,7 +27,7 @@ public class QueryProcessor {
     public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
     public static void initFile() {
-        loadCache();
+//        loadCache();
         try {
             for (int i = 0;i<RaceConfig.ORDER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/"+i,"r");
@@ -248,36 +248,11 @@ public class QueryProcessor {
         if (indexMap.get(path) == null) {
             int i =1;
         }
-        int[] pos = null;
-        try {
-            pos = indexMap.get(path)[bucket];
-            if (pos[1]==0) {
-                return null;
-            }
-        } catch (Exception e) {
-            System.out.println("---------------------------------------");
-            System.out.println("indexMap num is: " + indexMap.size());
-            if (indexMap.size() != 323) {
-                loadCache();
-            }
-            System.out.println("---------------------------------------");
-            for (Map.Entry<String, int[][]> entry : indexMap.entrySet()) {
-                if (entry.getValue()!=null) {
-                    int count = 0;
-                    int[][] index = entry.getValue();
-                    for (int i = 0;i<Index.BUCKET_SIZE;i++) {
-                        if (index[i][1] != 0) {
-                            count++;
-                        }
-                    }
-                    System.out.println(entry.getKey()+": index num " + count);
-                } else {
-                    System.out.println(entry.getKey()+": is null ");
-                }
-            }
-            System.out.println("---------------------------------------");
-            pos = indexMap.get(path)[bucket];
+        int[]   pos = indexMap.get(path)[bucket];
+        if (pos[1]==0) {
+            return null;
         }
+
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
         synchronized (raf) {
