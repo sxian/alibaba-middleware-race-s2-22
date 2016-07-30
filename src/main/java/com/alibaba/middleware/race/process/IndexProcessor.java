@@ -57,6 +57,7 @@ public class IndexProcessor {
                     sortIndexQueues[i] = new LinkedBlockingQueue<>(5000);
                 }
                 writeIndexToDisk(indexQueue3); // 启动磁盘3写线程
+                System.out.println("start build order index, now time: " + (System.currentTimeMillis() - start));
                 threads.execute(new ProcessIndex(RaceConfig.DISK1+"o/i", RaceConfig.ORDER_FILE_SIZE,
                         latch,sortIndexQueues[0]));
                 threads.execute(new ProcessIndex(RaceConfig.DISK2+"o/i", RaceConfig.ORDER_FILE_SIZE,
