@@ -38,8 +38,8 @@ public class OrderSystemImpl implements OrderSystem {
     private OrderTable orderTable;
     private BuyerTable buyerTable;
     private GoodsTable goodsTable;
-    private CountDownLatch tmp_latch = new CountDownLatch(1);
 
+    public static long start;
     public OrderSystemImpl() {
         fileProcessor = new FileProcessor(this);
     }
@@ -318,7 +318,7 @@ public class OrderSystemImpl implements OrderSystem {
         final CountDownLatch buyerLatch = new CountDownLatch(buyerFiles.size());
         final CountDownLatch goodsLatch = new CountDownLatch(goodFiles.size());
 
-        long start = System.currentTimeMillis();
+        this.start = System.currentTimeMillis();
 
         // 5个读取数据的线程 todo 加回调，读一个磁盘，写一个磁盘，保证同时一个磁盘只有读或写，还得保持并发，不能让cpu闲着
         new DataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch); //"(orderid|buyerid|goodid|createtime):([\\w|-]+)"
@@ -503,7 +503,7 @@ public class OrderSystemImpl implements OrderSystem {
                             e.printStackTrace();
                         }
                     }
-                    System.out.println("original data: " + files+" complete");
+                    System.out.println("original data: " + file+" complete. now time: "+(System.currentTimeMillis() -start ));
                     latch.countDown();
                 }
             }
