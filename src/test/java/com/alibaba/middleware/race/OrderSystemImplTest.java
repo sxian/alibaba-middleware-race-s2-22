@@ -122,6 +122,9 @@ public class OrderSystemImplTest {
 
     private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
+        if (result == null) {
+            int a = 1;
+        }
         String orderid = String.valueOf(result.orderId());
         boolean queryok = true;
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);
@@ -303,26 +306,22 @@ public class OrderSystemImplTest {
                         resultQueue.offer(query);
                         break;
                     }
+                    querySum.getAndAdd(1);
                     switch (query.queryFlag) {
                         case 0:
-                            querySum.getAndAdd(1);
                             query.result =  osi.queryOrder(Long.valueOf(query.id),query.keys);
-                            resultQueue.offer(query,600,TimeUnit.SECONDS);
-
                             break;
                         case 1:
-//                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
-//                            resultQueue.offer(query,600,TimeUnit.SECONDS);
-
+                            query.result1 = osi.queryOrdersByBuyer(query.start,query.end,query.id);
                             break;
                         case 2:
-//                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
+                            query.result1 = osi.queryOrdersBySaler("",query.id,query.keys);
                             break;
                         case 3:
-//                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
+                            query.kv =  osi.sumOrdersByGood(query.id,query.keys.get(0)); // 性能瓶颈
                             break;
                     }
-//                    resultQueue.offer(query,600,TimeUnit.SECONDS);
+                    resultQueue.offer(query,600,TimeUnit.SECONDS);
                 }
             }catch (Exception e) {
                 e.printStackTrace();
@@ -375,7 +374,8 @@ public class OrderSystemImplTest {
                             Iterator<OrderSystem.Result> result1 = query.result1;
                             boolean queryok = true;
                             while (result1.hasNext()) {
-                                if (!compareOrder(query.id,query.resultMap ,result1.next()) && queryok) {
+                                boolean aaa = compareOrder(query.id,query.resultMap ,result1.next());
+                                if (!aaa && queryok) {
                                     queryok = false;
                                 }
                             }

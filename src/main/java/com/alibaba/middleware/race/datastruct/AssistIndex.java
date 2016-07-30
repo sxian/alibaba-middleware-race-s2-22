@@ -48,7 +48,7 @@ public class AssistIndex extends Index {
                 ArrayList<String> list = entry.getValue();
                 sb.append(entry.getKey()).append(":");
                 for (int j = 0;j<list.size();j++) {
-                    sb.append(list.get(j)).append(".");
+                    sb.append(list.get(j)).append(";");
                 }
                 sb.append(" ");
             }

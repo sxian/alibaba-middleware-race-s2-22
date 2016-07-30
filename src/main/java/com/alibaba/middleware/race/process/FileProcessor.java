@@ -269,7 +269,7 @@ public class FileProcessor {
                     }
 
                     // buyerid -> orderid
-                    hbIndexQueue.offer(new String[]{buyerid,orderid+","+createtime},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{buyerid,createtime+","+orderid},60, TimeUnit.SECONDS);
                     // goodid -> orderid
                     hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 

@@ -392,26 +392,17 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
-        try {
-            tmp_latch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         ArrayList<Result> results = new ArrayList<>();
 
-        for (String orderId : orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime)) {
-            results.add(queryOrder(Long.valueOf(orderId.split(",")[1]),null));
+        List<String> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
+        for (int i = list.size()-1;i>=0;i-- ) {
+            results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
         }
         return results.iterator();
     }
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
-        try {
-            tmp_latch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         ArrayList<Result> results = new ArrayList<>();
         for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
             results.add(queryOrder(Long.valueOf(orderId),keys));
@@ -421,11 +412,6 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
-        try {
-            tmp_latch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
         List<String> _list = new ArrayList<>();
         _list.add(key);

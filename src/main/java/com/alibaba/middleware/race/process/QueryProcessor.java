@@ -67,9 +67,9 @@ public class QueryProcessor {
                 RandomAccessFile raf5 = new RandomAccessFile(RaceConfig.DISK2+"o/hbS"+i,"r");
                 RandomAccessFile raf6 = new RandomAccessFile(RaceConfig.DISK3+"o/hbS"+i,"r");
 
-                dataFileMap.put(RaceConfig.DISK1+"o/hgS"+i,raf1);
-                dataFileMap.put(RaceConfig.DISK2+"o/hgS"+i,raf2);
-                dataFileMap.put(RaceConfig.DISK3+"o/hgS"+i,raf3);
+                indexFileMap.put(RaceConfig.DISK1+"o/hgS"+i,raf1);
+                indexFileMap.put(RaceConfig.DISK2+"o/hgS"+i,raf2);
+                indexFileMap.put(RaceConfig.DISK3+"o/hgS"+i,raf3);
 
                 indexFileMap.put(RaceConfig.DISK1+"o/hbS"+i,raf4);
                 indexFileMap.put(RaceConfig.DISK2+"o/hbS"+i,raf5);
@@ -146,12 +146,12 @@ public class QueryProcessor {
                 break;
         }
         String index = getIndex(buyerid, path);
+        ArrayList<String> querys = new ArrayList<>();
         if (index != null) {
             int split = index.indexOf(":");
             String id = index.substring(0,split);
-            String[] orders = index.split(index.substring(split)+1);
+            String[] orders = index.substring(split+1).split(";");
             if (buyerid.equals(id)) {
-                ArrayList<String> querys = new ArrayList<>();
                 for (String orderid : orders) {
                     int _split = orderid.indexOf(",");
                     long time = Long.valueOf(orderid.substring(0,_split));
@@ -160,15 +160,14 @@ public class QueryProcessor {
                     }
                 }
                 Collections.sort(querys);
-                ArrayList<String> result = new ArrayList<>();
-
-                for (String orderid : querys) {
-                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
-                }
-                return result; // todo 记得去掉空格
+//                ArrayList<String> result = new ArrayList<>(); todo 改成一趟查完
+//
+//                for (String orderid : querys) {
+//                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
+//                }
             }
         }
-        return  null;
+        return  querys;
     }
 
     public static List<String> queryOrderidsByGoodsid(String goodid) throws IOException {
@@ -191,16 +190,16 @@ public class QueryProcessor {
             int split = index.indexOf(":");
             String id = index.substring(0,split);
             if (goodid.equals(id)) {
-                String[] orders = index.split(index.substring(split)+1);
+                String[] orders = index.substring(split+1).split(";");
                 Arrays.sort(orders);
-                ArrayList<String> result = new ArrayList<>();
-                for (String orderid : orders) {
-                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
-                }
-                return result; // todo 记得去掉空格
+//                ArrayList<String> result = new ArrayList<>();
+//                for (String orderid : orders) {
+//                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
+//                }
+                return Arrays.asList(orders);
             }
         }
-        return  null;
+        return  new ArrayList<>();
     }
 
     public static String getIndex(String id, String path) throws IOException {
@@ -208,6 +207,9 @@ public class QueryProcessor {
         int[] pos = indexMap.get(path)[bucket];
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
+        if (raf == null) {
+            int i  = 1;
+        }
         synchronized (raf) {
             raf.seek(pos[0]);
             raf.read(bytes);
