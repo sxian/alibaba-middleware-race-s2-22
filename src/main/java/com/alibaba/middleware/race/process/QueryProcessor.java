@@ -85,6 +85,7 @@ public class QueryProcessor {
 
     private static void loadCache() {
         BufferedReader br = null;
+        System.out.println("*** start load cache ***");
         try {
             br = Utils.createReader(RaceConfig.DISK1+"indexCache");
             String line = br.readLine();
@@ -92,8 +93,11 @@ public class QueryProcessor {
             String path = "";
             int i = 0;
             boolean init = false;
+            int count = 0;
             while (line!=null) {
                 if (line.charAt(0) == 'F' && line.charAt(1) == 'i' && line.charAt(2) == 'l' && line.charAt(3) == 'e') {
+                    System.out.println("start load: "+ line);
+                    count++;
                     if (init) {
                         indexMap.put(path, index);
                     } else {
@@ -111,6 +115,7 @@ public class QueryProcessor {
                 i++;
                 line = br.readLine();
             }
+            System.out.println("load cache complete, file num: " + count);
             indexMap.put(path,index);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -241,9 +246,35 @@ public class QueryProcessor {
         if (indexMap.get(path) == null) {
             int i =1;
         }
-        int[] pos = indexMap.get(path)[bucket];
-        if (pos[1]==0) {
-            return null;
+        int[] pos = null;
+        try {
+            pos = indexMap.get(path)[bucket];
+            if (pos[1]==0) {
+                return null;
+            }
+        } catch (Exception e) {
+            System.out.println("---------------------------------------");
+            System.out.println("indexMap num is: " + indexMap.size());
+            if (indexMap.size() != 323) {
+                loadCache();
+            }
+            System.out.println("---------------------------------------");
+            for (Map.Entry<String, int[][]> entry : indexMap.entrySet()) {
+                if (entry.getValue()!=null) {
+                    int count = 0;
+                    int[][] index = entry.getValue();
+                    for (int i = 0;i<Index.BUCKET_SIZE;i++) {
+                        if (index[i][1] != 0) {
+                            count++;
+                        }
+                    }
+                    System.out.println(entry.getKey()+": index num " + count);
+                } else {
+                    System.out.println(entry.getKey()+": is null ");
+                }
+            }
+            System.out.println("---------------------------------------");
+            pos = indexMap.get(path)[bucket];
         }
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
