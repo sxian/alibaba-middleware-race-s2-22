@@ -1,5 +1,6 @@
 package com.alibaba.middleware.race.datastruct;
 
+import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedWriter;
@@ -13,7 +14,6 @@ import java.util.HashMap;
  */
 public class Index {
     public static final int BUCKET_SIZE = 2000;
-
     public String FILE_PATH;
     public boolean flag;
 

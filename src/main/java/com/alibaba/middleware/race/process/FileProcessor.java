@@ -34,6 +34,7 @@ public class FileProcessor {
 
     private ExecutorService threads;
     private IndexProcessor indexProcessor;
+    private long start;
 
     public FileProcessor(OrderSystemImpl osi) {
         orderQueues = osi.orderQueues;
@@ -45,7 +46,7 @@ public class FileProcessor {
         this.indexProcessor = indexProcessor;
         indexProcessor.init(hbIndexQueue,hgIndexQueue,orderIndexQueue);
         threads = Executors.newFixedThreadPool(6);
-
+        this.start = start;
         threads.execute(new ProcessOrderData(orderQueues[0], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK1+"o/"));
         threads.execute(new ProcessOrderData(orderQueues[1], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK2+"o/"));
         threads.execute(new ProcessOrderData(orderQueues[2], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK3+"o/"));
@@ -67,8 +68,9 @@ public class FileProcessor {
                     indexProcessor.createGoodsIndex();
 
                     orderLatch.await();
-                    hbIndexQueue.offer(new String[0]);
-                    hgIndexQueue.offer(new String[0]);
+                    System.out.println("order index writer complete, now time: "+(System.currentTimeMillis()-start));
+                    hbIndexQueue.offer(new String[0],60,TimeUnit.SECONDS);
+                    hgIndexQueue.offer(new String[0],60,TimeUnit.SECONDS);
                     orderIndexQueue.offer(new String[0],60,TimeUnit.SECONDS);
                     hbIndexQueue = null;
                     hgIndexQueue = null;
@@ -90,6 +92,7 @@ public class FileProcessor {
         goodsLatch = null;
         orderLatch = null;
         threads.shutdown();
+        System.out.println("*** FileProcessor over. ***");
         indexProcessor.waitOver();
     }
 
@@ -244,8 +247,12 @@ public class FileProcessor {
         @Override
         public void run() {
             try {
+                int count = 0;
                 while (true) {
                     String row = queue.take();
+                    if (count++ %100000 == 0) {
+                        System.out.println("[already process data num: "+count+", now time: "+(System.currentTimeMillis()-start)+"]");
+                    }
                     if (row.equals("")) {
                         break;
                     }
@@ -297,6 +304,7 @@ public class FileProcessor {
                 e.printStackTrace();
             } finally {
                 latch.countDown();
+                System.out.println("[*** "+storeFold+" complete. ***]");
                 try {
                     for (int i = 0;i<fileSize;i++) {
                         if (dataWriters[i] != null) {

@@ -353,6 +353,7 @@ public class OrderSystemImpl implements OrderSystem {
         buyerTable = new BuyerTable();
         goodsTable = new GoodsTable();
         System.out.println("successfully processed!");
+        System.gc();
     }
 
     public static Row createRow(String line) {
@@ -425,14 +426,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         for (String orderId : list) {
             Result result = queryOrder(Long.valueOf(orderId),_list); // todo 肯定不为空 所有字段都是join后的
-            KV kv = null;
-
-//            if (result != null) {
-            kv = (KV) result.get(key);
-//            } else {
-//                result = queryOrder(Long.valueOf(orderId),_list);
-//                continue;
-//            }
+            KV kv = (KV) result.get(key);
             if (kv == null)
                 continue;
             if (!existKey) {
@@ -463,7 +457,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
-        } // todo 大量的未包含元素查找
+        }
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 
@@ -509,6 +503,7 @@ public class OrderSystemImpl implements OrderSystem {
                             e.printStackTrace();
                         }
                     }
+                    System.out.println("original data: " + files+" complete");
                     latch.countDown();
                 }
             }

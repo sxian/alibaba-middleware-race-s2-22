@@ -4,7 +4,9 @@ import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.Index;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
+import com.alibaba.middleware.race.util.Utils;
 
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -25,6 +27,7 @@ public class QueryProcessor {
     public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
     public static void initFile() {
+        loadCache();
         try {
             for (int i = 0;i<RaceConfig.ORDER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/"+i,"r");
@@ -80,6 +83,48 @@ public class QueryProcessor {
         }
     }
 
+    private static void loadCache() {
+        BufferedReader br = null;
+        try {
+            br = Utils.createReader(RaceConfig.DISK1+"indexCache");
+            String line = br.readLine();
+            int[][] index = null;
+            String path = "";
+            int i = 0;
+            boolean init = false;
+            while (line!=null) {
+                if (line.charAt(0) == 'F' && line.charAt(1) == 'i' && line.charAt(2) == 'l' && line.charAt(3) == 'e') {
+                    if (init) {
+                        indexMap.put(path, index);
+                    } else {
+                        init = true;
+                    }
+                    index = new int[Index.BUCKET_SIZE][2];
+                    path = line.substring(line.indexOf(":")+1);
+                    i = 0;
+                    line = br.readLine();
+                    continue;
+                }
+                int split = line.indexOf(",");
+                index[i][0] = Integer.valueOf(line.substring(0,split));
+                index[i][1] = Integer.valueOf(line.substring(split+1));
+                i++;
+                line = br.readLine();
+            }
+            indexMap.put(path,index);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                br.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public static String queryOrder(String id) throws IOException {
         int disk = Math.abs(id.hashCode()%3);
         int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
@@ -115,17 +160,10 @@ public class QueryProcessor {
 
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
-        try {
-
-            String[] indexs = getIndex(id, path).split(","); // todo 修改
-
-            if (indexs[0].equals(id)) {
-                RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
-                return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
-            }
-            return null;
-        } catch (Exception e) {
-            String[] indexs = getIndex(id, path).split(","); // todo 修改
+        String[] indexs = getIndex(id, path).split(","); // todo 修改
+        if (indexs[0].equals(id)) {
+            RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
+            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
     }
@@ -192,10 +230,6 @@ public class QueryProcessor {
             if (goodid.equals(id)) {
                 String[] orders = index.substring(split+1).split(";");
                 Arrays.sort(orders);
-//                ArrayList<String> result = new ArrayList<>();
-//                for (String orderid : orders) {
-//                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
-//                }
                 return Arrays.asList(orders);
             }
         }
@@ -204,12 +238,15 @@ public class QueryProcessor {
 
     public static String getIndex(String id, String path) throws IOException {
         int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
+        if (indexMap.get(path) == null) {
+            int i =1;
+        }
         int[] pos = indexMap.get(path)[bucket];
+        if (pos[1]==0) {
+            return null;
+        }
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
-        if (raf == null) {
-            int i  = 1;
-        }
         synchronized (raf) {
             raf.seek(pos[0]);
             raf.read(bytes);
