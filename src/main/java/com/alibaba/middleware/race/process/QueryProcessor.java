@@ -237,7 +237,6 @@ public class QueryProcessor {
             String id = index.substring(0,split);
             if (goodid.equals(id)) {
                 String[] orders = index.substring(split+1).split(";");
-                Arrays.sort(orders);
                 return Arrays.asList(orders);
             }
         }

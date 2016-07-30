@@ -396,7 +396,7 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
-
+        // todo 修改join规则
         List<String> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
         for (int i = list.size()-1;i>=0;i-- ) {
             results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
@@ -406,15 +406,23 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
+        // todo 修改join规则
         ArrayList<Result> results = new ArrayList<>();
-        for (String orderId : orderTable.selectOrderIDByGoodsID(goodid)) {
-            results.add(queryOrder(Long.valueOf(orderId),keys));
+        ArrayList<Long> ids = new ArrayList<>();
+        List<String> _result = orderTable.selectOrderIDByGoodsID(goodid);
+        for (int i = 0;i<_result.size();i++) {
+            ids.add(Long.valueOf(_result.get(i)));
+        }
+        Collections.sort(ids);
+        for (int i = 0;i<ids.size();i++) {
+            results.add(queryOrder(ids.get(i),keys));
         }
         return results.iterator();
     }
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
+        // todo 修改join规则
         List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
         List<String> _list = new ArrayList<>();
         _list.add(key);
@@ -427,7 +435,7 @@ public class OrderSystemImpl implements OrderSystem {
             return null;
 
         for (String orderId : list) {
-            Result result = queryOrder(Long.valueOf(orderId),_list); // todo 肯定不为空 所有字段都是join后的
+            Result result = queryOrder(Long.valueOf(orderId),_list); //肯定不为空 所有字段都是join后的
             KV kv = (KV) result.get(key);
             if (kv == null)
                 continue;
