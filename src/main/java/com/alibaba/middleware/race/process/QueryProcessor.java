@@ -205,7 +205,17 @@ public class QueryProcessor {
                         querys.add(orderid);
                     }
                 }
-                Collections.sort(querys);
+                Collections.sort(querys, new Comparator<String>() {
+                    @Override
+                    public int compare(String o1, String o2) {
+                        int split1 = o1.indexOf(",");
+                        int split2 = o2.indexOf(",");
+                        long time1 = Long.valueOf(o1.substring(0,split1));
+                        long time2 = Long.valueOf(o2.substring(0,split2));
+
+                        return time1 > time2 ? -1 : (time1 < time2  ?  1 : 0);
+                    }
+                });
 //                ArrayList<String> result = new ArrayList<>(); todo 改成一趟查完
 //
 //                for (String orderid : querys) {

@@ -283,7 +283,7 @@ public class OrderSystemImpl implements OrderSystem {
                 new File(storePath+"b/").mkdirs();
                 new File(storePath+"g/").mkdirs();
             }
-            System.out.println("*** order file num: "+orderFiles.size()+" ***");
+//            System.out.println("*** order file num: "+orderFiles.size()+" ***");
             disk1 = new ArrayList<>();
             for (String file : orderFiles) {
                 if (file.startsWith("/disk1")) {
@@ -293,16 +293,16 @@ public class OrderSystemImpl implements OrderSystem {
                 } else {
                     disk3.add(file);
                 }
-                System.out.println(file);
+//                System.out.println(file);
             }
-            System.out.println("*** buyer file num: "+buyerFiles.size()+" ***");
-            for (String file : buyerFiles) {
-                System.out.println(file);
-            }
-            System.out.println("*** goods file num: "+goodFiles.size()+" ***");
-            for (String file : goodFiles) {
-                System.out.println(file);
-            }
+//            System.out.println("*** buyer file num: "+buyerFiles.size()+" ***");
+//            for (String file : buyerFiles) {
+//                System.out.println(file);
+//            }
+//            System.out.println("*** goods file num: "+goodFiles.size()+" ***");
+//            for (String file : goodFiles) {
+//                System.out.println(file);
+//            }
         } else {
             disk1 = new ArrayList<>(orderFiles);
         }
@@ -398,9 +398,12 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<Result> results = new ArrayList<>();
         // todo 修改join规则
         List<String> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
-        for (int i = list.size()-1;i>=0;i-- ) {
+//        StringBuilder sb = new StringBuilder("orders: ");
+        for (int i = 0;i<list.size();i++ ) {
+//            sb.append(list.get(i));
             results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
         }
+        System.out.println("the buyer orders: " +list.size());
         return results.iterator();
     }
 
