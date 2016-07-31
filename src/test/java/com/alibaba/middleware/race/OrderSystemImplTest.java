@@ -60,8 +60,8 @@ public class OrderSystemImplTest {
         start = System.currentTimeMillis();
         buildStart = start;
         for (int i = 0;i<spiltCaseFileNum;i++) {
-            queryQueues[i] = new LinkedBlockingQueue<>(1000);
-            resultQueues[i] = new LinkedBlockingQueue<>(1000);
+            queryQueues[i] = new LinkedBlockingQueue<>(100);
+            resultQueues[i] = new LinkedBlockingQueue<>(100);
             new Thread(new BuildQuery()).start();
             new Thread(new ExecuteQuery()).start();
             new Thread(new CompareResult()).start();

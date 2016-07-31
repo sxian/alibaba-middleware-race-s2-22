@@ -169,7 +169,11 @@ public class QueryProcessor {
 
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
-        String[] indexs = getIndex(id, path).split(","); // todo 修改
+        String index = getIndex(id, path);
+        if(index==null) {
+            return null;
+        }
+        String[] indexs = index.split(","); // todo 修改
         if (indexs[0].equals(id)) {
             RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
@@ -244,7 +248,6 @@ public class QueryProcessor {
         if (pos[1]==0) {
             return null;
         }
-
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
         synchronized (raf) {
@@ -470,13 +473,14 @@ public class QueryProcessor {
             indexs.add(getIndex(id, path));
         }
 
-        RandomAccessFile raf = dataFileMap.get(indexs.get(0).substring(0,indexs.get(0).indexOf(",")));
+        int split = indexs.get(0).indexOf(",");
+        RandomAccessFile raf = dataFileMap.get(indexs.get(0).substring(split+1, indexs.get(0).indexOf(",",split+1)));
         synchronized (raf) {// todo 锁优化
             byte[] bytes = new byte[100];
             for (int i = 0;i<indexs.size();i++) {
                 String _indexs = indexs.get(i);
                 int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
-                int end = _indexs.indexOf(",",start);
+                int end = _indexs.indexOf(",",start+1);
                 int pos = Integer.valueOf(_indexs.substring(start+1,end));
                 int len = Integer.valueOf(_indexs.substring(end+1));
                 if (bytes.length < len) {

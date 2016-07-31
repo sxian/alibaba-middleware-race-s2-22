@@ -57,7 +57,7 @@ public class OrderTable {
             for (int i = 0;i<orders.size();i++) {
                 String orderid = orders.get(i);
                 if (rowCache.get(orderid) == null) {
-                    OrderSystemImpl.Row _row = selectRowById(orderid);
+                    OrderSystemImpl.Row _row = selectRowById(orderid.substring(orderid.indexOf(",")+1));
                     syncQueue.offer(_row);
                     result.add(_row);
                 } else {
@@ -96,11 +96,13 @@ public class OrderTable {
                     result.add(rowCache.get(orderid));
                 }
             }
-            List<String> _result = QueryProcessor.batchQuery(todoQuery);
-            for (int i = 0;i<_result.size();i++) {
-                OrderSystemImpl.Row row = Utils.createRow(_result.get(i));
-                syncQueue.offer(row);
-                result.add(row);
+            if (todoQuery.size()>0) {
+                List<String> _result = QueryProcessor.batchQuery(todoQuery);
+                for (int i = 0;i<_result.size();i++) {
+                    OrderSystemImpl.Row row = Utils.createRow(_result.get(i));
+                    syncQueue.offer(row);
+                    result.add(row);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

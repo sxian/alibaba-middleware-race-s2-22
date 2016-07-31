@@ -13,7 +13,7 @@ import java.util.HashMap;
  * Created by sxian.wang on 2016/7/29.
  */
 public class Index {
-    public static final int BUCKET_SIZE = 200000; // todo 试试能放到多大
+    public static final int BUCKET_SIZE = 2000; // todo 放大以后影响比较大，内存炸
     public String FILE_PATH;
     public boolean flag;
 

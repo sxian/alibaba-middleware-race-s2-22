@@ -3,6 +3,7 @@ package com.alibaba.middleware.race.util;
 import com.alibaba.middleware.race.OrderSystemImpl;
 
 import java.io.*;
+import java.util.Set;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -17,6 +18,9 @@ public class Utils {
     }
 
     public static OrderSystemImpl.Row createRow(String row) {
+        if (row == null) {
+            return null;
+        }
         return OrderSystemImpl.createRow(row);
     }
 
@@ -62,4 +66,9 @@ public class Utils {
         System.out.print(count);
     }
 
+    public static void addAll(Set<String> set1, Set<String> set2) {
+        for (String str : set2) {
+            set1.add(str);
+        }
+    }
 }

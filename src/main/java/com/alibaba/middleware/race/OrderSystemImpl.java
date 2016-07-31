@@ -161,6 +161,30 @@ public class OrderSystemImpl implements OrderSystem {
             this.kvMap = kv;
         }
 
+        private ResultImpl(long orderid, Row kv, Set<String> queryingKeys) {
+            this.orderid = orderid;
+            this.kvMap = new Row();
+            filterKeys(kv, queryingKeys);
+        }
+
+        private ResultImpl(long orderid, Row kv1, Row kv2,Set<String> queryingKeys) {
+            this.orderid = orderid;
+            this.kvMap = new Row();
+            filterKeys(kv1, queryingKeys);
+            filterKeys(kv2, queryingKeys);
+        }
+
+        private void filterKeys(Row row, Set<String> queryingKeys) {
+            if (queryingKeys.size() == 0) {
+                return;
+            }
+            for (KV kv : row.values()) {
+                if (queryingKeys == null || queryingKeys.contains(kv.key)) {
+                    kvMap.put(kv.key(), kv);
+                }
+            }
+        }
+
         static private ResultImpl createResultRow(Row orderData, Row buyerData,
                                                   Row goodData, Set<String> queryingKeys) {
             if (orderData == null || buyerData == null || goodData == null) {
@@ -371,13 +395,24 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
         Row orderRow =  orderTable.selectRowById(String.valueOf(orderId)); //判断join不join很重要
+        Row buyerRow = new Row();
+        Row goodsRow = new Row();
         // todo 官方的借口demo改了一下，方便build result 看着改下
         if (orderRow  == null) // todo 测试substring 和StringTokenizer
             return null;
-        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
-        Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
+        HashSet<String> set = new HashSet<>(orderRow.keySet());
         if (keys == null) {
+            buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+            goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
             return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
+        } else {
+            if (!set.containsAll(keys)) {
+                buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+                set.addAll(buyerRow.keySet());
+                if (!set.containsAll(keys)) {
+                    goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
+                }
+            }
         }
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
@@ -385,35 +420,64 @@ public class OrderSystemImpl implements OrderSystem {
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
-        // todo 修改join规则
         List<Row> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
-//        for (int i = 0;i<list.size();i++ ) {
-//            results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
-//        }
-        System.out.println("the buyer orders: " +list.size());
+        for (int i = 0;i<list.size();i++ ) {
+            Row buyerRow = buyerTable.selectRowById(list.get(i).get("buyerid").valueAsString()); // todo 不join试试
+            Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
+            results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
+        }
+//        System.out.println("the buyer orders: " +list.size());
         return results.iterator();
     }
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
-        // todo 修改join规则
         ArrayList<Result> results = new ArrayList<>();
-        ArrayList<Long> ids = new ArrayList<>();
+        Row goodsRow = goodsTable.selectRowById(goodid);
+        if (goodsRow == null) {
+            return results.iterator();
+        }
         List<Row> _result = orderTable.selectOrderIDByGoodsID(goodid);
-//        for (int i = 0;i<_result.size();i++) {
-//            ids.add(Long.valueOf(_result.get(i)));
-//        }
-//        Collections.sort(ids);
-//        for (int i = 0;i<ids.size();i++) {
-//            results.add(queryOrder(ids.get(i),keys));
-//        }
+        if (keys!=null) {
+            HashSet<String> set = new HashSet<>(goodsRow.keySet());
+            boolean unjoin = set.containsAll(keys);
+            try {
+                for (int i = 0;i<_result.size();i++) {
+                    if (unjoin) {
+                        results.add(new ResultImpl(_result.get(i).get("orderid").valueAsLong(),goodsRow,new HashSet<>(keys)));
+                    } else {
+                        set.addAll(_result.get(i).keySet());
+                    }
+                }
+                if (!unjoin) {
+                    if (set.containsAll(keys)) {
+                        for (int i = 0;i<_result.size();i++) {
+                            results.add(new ResultImpl(_result.get(i).get("orderid").valueAsLong(),_result.get(i),goodsRow,new HashSet<>(keys)));
+                        }
+                    } else {
+                        for (int i = 0;i<_result.size();i++) {
+                            Row buyerRow = buyerTable.selectRowById(_result.get(i).get("buyerid").valueAsString());
+                            results.add(ResultImpl.createResultRow(_result.get(i),buyerRow, goodsRow,new HashSet<>(keys)));
+                        }
+                    }
+                }
+            } catch (TypeException e) {
+                e.printStackTrace();
+            }
+        } else {
+            for (int i = 0;i<_result.size();i++) {
+                Row buyerRow = buyerTable.selectRowById(_result.get(i).get("buyerid").valueAsString());
+                results.add(ResultImpl.createResultRow(_result.get(i),goodsRow, buyerRow,null));
+            }
+        }
         return results.iterator();
     }
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
-        // todo 修改join规则
-        List<Row> list =  orderTable.selectOrderIDByGoodsID(goodid);
+        Set<String> set  = new HashSet<>();
+        set.add(key);
+        Iterator<Result> iterator =  queryOrdersBySaler("",goodid, set);
         List<String> _list = new ArrayList<>();
         _list.add(key);
         double sumDouble = 0;
@@ -421,43 +485,43 @@ public class OrderSystemImpl implements OrderSystem {
         boolean existKey = false;
         boolean existDouble = false;
         boolean existStr = false;
-        if (list == null)
+        if (!iterator.hasNext())
             return null;
 
-//        for (int i = 0; i<list.size();i++) {
-//            Result result = queryOrder(Long.valueOf(list.get(i)),_list); //肯定不为空 所有字段都是join后的
-//            KV kv = (KV) result.get(key);
-//            if (kv == null)
-//                continue;
-//            if (!existKey) {
-//                existKey = true;
-//            }
-//            try {
-//                if (existDouble) {
-//                    double tmp = kv.valueAsDouble();
-//                    sumDouble += tmp;
-//                } else {
-//                    long tmp = kv.valueAsLong();
-//                    sumLong += tmp;
-//                }
-//            } catch (TypeException e) {
-//                if (!existDouble) { // 如果exitDoube为true, 上面肯定转型的是double，double转型失败必然为string
-//                    try {
-//                        double tmp = kv.valueAsDouble();
-//                        sumDouble = tmp + sumLong;
-//                        existDouble = true;
-//                        continue;
-//                    } catch (TypeException e1) {
-//                    }
-//                }
-//                existStr = true;
-//                break;
-//            }
-//        }
-//
-//        if (existDouble) {
-//            return new KV(key,String.valueOf(sumDouble));
-//        }
+        while (iterator.hasNext()) {
+            Result result = iterator.next(); //肯定不为空 所有字段都是join后的
+            KV kv = (KV) result.get(key);
+            if (kv == null)
+                continue;
+            if (!existKey) {
+                existKey = true;
+            }
+            try {
+                if (existDouble) {
+                    double tmp = kv.valueAsDouble();
+                    sumDouble += tmp;
+                } else {
+                    long tmp = kv.valueAsLong();
+                    sumLong += tmp;
+                }
+            } catch (TypeException e) {
+                if (!existDouble) { // 如果exitDoube为true, 上面肯定转型的是double，double转型失败必然为string
+                    try {
+                        double tmp = kv.valueAsDouble();
+                        sumDouble = tmp + sumLong;
+                        existDouble = true;
+                        continue;
+                    } catch (TypeException e1) {
+                    }
+                }
+                existStr = true;
+                break;
+            }
+        }
+
+        if (existDouble) {
+            return new KV(key,String.valueOf(sumDouble));
+        }
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 
