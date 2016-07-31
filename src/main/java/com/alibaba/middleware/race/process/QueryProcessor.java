@@ -1,8 +1,6 @@
 package com.alibaba.middleware.race.process;
 
-import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
-import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.Index;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 import com.alibaba.middleware.race.util.Utils;
@@ -11,7 +9,6 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

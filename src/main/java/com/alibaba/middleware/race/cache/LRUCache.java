@@ -1,7 +1,6 @@
 package com.alibaba.middleware.race.cache;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by sxian.wang on 2016/7/20.

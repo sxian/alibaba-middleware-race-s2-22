@@ -12,9 +12,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 订单系统的demo实现，订单数据全部存放在内存中，用简单的方式实现数据存储和查询功能

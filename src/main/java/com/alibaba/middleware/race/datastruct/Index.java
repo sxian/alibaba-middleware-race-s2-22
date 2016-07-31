@@ -1,13 +1,10 @@
 package com.alibaba.middleware.race.datastruct;
 
-import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.util.Utils;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 
 /**
  * Created by sxian.wang on 2016/7/29.

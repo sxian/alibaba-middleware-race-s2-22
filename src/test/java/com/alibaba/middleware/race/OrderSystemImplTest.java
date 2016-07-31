@@ -1,10 +1,10 @@
 package com.alibaba.middleware.race;
 
 import com.alibaba.middleware.race.datastruct.Query;
-import com.alibaba.middleware.race.db.OrderTable;
 import com.alibaba.middleware.race.util.Utils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
