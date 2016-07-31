@@ -5,9 +5,7 @@ package com.alibaba.middleware.race;
  */
 public class RaceConfig {
 
-    public static final boolean ONLINE = true;
 
-    public static String ORDER_SOTRED_STORE_PATH = "t/index/";
     public static String STORE_PATH = "t/index/";
     public static String DATA_ROOT = "prerun_data/";
     public static String DISK1 = "t/d1/";
@@ -16,9 +14,9 @@ public class RaceConfig {
 
     // 保存排序完的订单数据
 
-    public static int ORDER_FILE_SIZE = 1; // 线上200
-    public static int BUYER_FILE_SIZE = 1; // 10
-    public static int GOODS_FILE_SIZE = 1; // 10
+    public static int ORDER_FILE_SIZE = 61; // 线上200
+    public static int BUYER_FILE_SIZE = 10; // 10
+    public static int GOODS_FILE_SIZE = 10; // 10
     public static int HB_FILE_SIZE = 20;
     public static int HG_FILE_SIZE = 20;
 

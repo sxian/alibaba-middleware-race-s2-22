@@ -281,6 +281,11 @@ public class FileProcessor {
                     hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
+                    String path = null;
+                    switch (Math.abs(goodid.hashCode())) {
+                        case 0:
+
+                    }
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
                     int length = row.getBytes().length;
                     int pos = posCounters[index];

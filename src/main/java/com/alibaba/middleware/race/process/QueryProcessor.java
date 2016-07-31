@@ -455,13 +455,17 @@ public class QueryProcessor {
         return data.get(min);
     }
 
-    public static List<String> batchQuery(List<String> ids, boolean flag) throws IOException {
+    public static List<String> batchQuery(List<String> ids, String goodid) throws IOException {
         List<String> result = new ArrayList<>();
-        List<String> indexs = new ArrayList<>();
+        HashMap<String, ArrayList<String>> map = new HashMap<>();
+        int file = Math.abs(goodid.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+        map.put(RaceConfig.DISK1+"o/"+file,new ArrayList<String>());
+        map.put(RaceConfig.DISK2+"o/"+file,new ArrayList<String>());
+        map.put(RaceConfig.DISK3+"o/"+file,new ArrayList<String>());
         for (int i = 0;i<ids.size();i++) {
             String id = ids.get(i);
+            file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
             int disk = Math.abs(id.hashCode()%3);
-            int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
             String path;
             if (disk == 2) {
                 path = RaceConfig.DISK3+"o/iS"+file;
@@ -470,38 +474,30 @@ public class QueryProcessor {
             } else {
                 path = RaceConfig.DISK1+"o/iS"+file;
             }
-            indexs.add(getIndex(id, path));
+            String index = getIndex(id, path);
+            int split = index.indexOf(",");
+            map.get(index.substring(split+1, index.indexOf(",",split+1))).add(index);
         }
 
-        int split = indexs.get(0).indexOf(",");
-        Collections.sort(indexs);
-        RandomAccessFile raf = dataFileMap.get(indexs.get(0).substring(split+1, indexs.get(0).indexOf(",",split+1)));
-        synchronized (raf) {// todo 锁优化
-            for (int i = 0;i<indexs.size();i++) {
-                String _indexs = indexs.get(i);
-                int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
-                int end = _indexs.indexOf(",",start+1);
-                Long pos = Long.valueOf(_indexs.substring(start+1,end));
-                int len = Integer.valueOf(_indexs.substring(end+1));
-                byte[] bytes = new byte[len];
-                raf.seek(pos);
-                raf.read(bytes);
-                result.add(new String(bytes, 0, len));
-                if (flag) {
-                    pos -= 1000;
-                    if (pos>0) {
-                        raf.seek(pos);
-                    } else {
-                        raf.seek(0);
-                    }
-                    bytes = new byte[len+1000];
+        for (Map.Entry<String, ArrayList<String>> entry: map.entrySet()) {
+            ArrayList<String> indexs = entry.getValue();
+            Collections.sort(indexs);
+            RandomAccessFile raf = dataFileMap.get(entry.getKey());
+            synchronized (raf) {
+                for (int i = 0;i<indexs.size();i++) {
+                    String _indexs = indexs.get(i);
+                    int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
+                    int end = _indexs.indexOf(",",start+1);
+                    Long pos = Long.valueOf(_indexs.substring(start+1,end));
+                    int len = Integer.valueOf(_indexs.substring(end+1));
+                    byte[] bytes = new byte[len];
+                    raf.seek(pos);
                     raf.read(bytes);
-                    System.out.println("error id: " + ids.get(i));
-                    System.out.println("error index: " + _indexs);
-                    System.out.println("error message: " + new String(bytes));
+                    result.add(new String(bytes, 0, len));
                 }
             }
         }
+
 
         return result;
     }

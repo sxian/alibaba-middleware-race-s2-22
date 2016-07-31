@@ -8,9 +8,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -22,35 +20,14 @@ import static com.alibaba.middleware.race.RaceConfig.DATA_ROOT;
  */
 public class TmpTest {
     public static float M = 1024 * 1024;
-    public static LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10000);
-    public static CountDownLatch latch = new CountDownLatch(1);
     public static void main(String[] args) throws IOException, InterruptedException {
-        BufferedReader br = Utils.createReader("prerun_data/test.txt");
-        String orderid,
-                buyerid,
-                goodid,
-                createtime;
+        String str = "14321014175";
+        System.out.println(Math.abs(str.hashCode()%3));
+        System.out.println(Math.abs(str.hashCode()%RaceConfig.ORDER_FILE_SIZE));
 
-        String row = br.readLine();
-        while (row!=null) {
-            int orderid_of = row.indexOf("orderid")+8;
-            int buyerid_of = row.indexOf("buyerid")+8;
-            int goodid_of = row.indexOf("goodid")+7;
-            int createtime_of = row.indexOf("createtime")+11;
-
-            orderid = row.indexOf("\t",orderid_of) != -1 ? row.substring(orderid_of,row.indexOf("\t",orderid_of)) :
-                    row.substring(orderid_of,row.length());
-            buyerid = row.indexOf("\t",buyerid_of) != -1 ? row.substring(buyerid_of,row.indexOf("\t",buyerid_of)) :
-                    row.substring(buyerid_of,row.length());
-            goodid = row.indexOf("\t",goodid_of) != -1 ? row.substring(goodid_of,row.indexOf("\t",goodid_of)) :
-                    row.substring(goodid_of,row.length());
-            createtime = row.indexOf("\t",createtime_of) != -1 ? row.substring(createtime_of,row.indexOf("\t",createtime_of)) :
-                    row.substring(createtime_of,row.length());
-            row = br.readLine();
-        }
+        String str1 = "10109881096";
+        System.out.println(Math.abs(str1.hashCode()%3));
+        System.out.println(Math.abs(str1.hashCode()%RaceConfig.ORDER_FILE_SIZE));
 
     }
-
-
-
 }

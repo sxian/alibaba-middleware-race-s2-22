@@ -287,45 +287,47 @@ public class OrderSystemImpl implements OrderSystem {
     public void construct(Collection<String> orderFiles,
                           Collection<String> buyerFiles, Collection<String> goodFiles,
                           Collection<String> storeFolders) throws IOException, InterruptedException {
-        ArrayList<String> disk1;
+        ArrayList<String> disk1 = new ArrayList<>();
         ArrayList<String> disk2 = new ArrayList<>();
         ArrayList<String> disk3 = new ArrayList<>();
 
-        if (RaceConfig.ONLINE) {
-            RaceConfig.ORDER_FILE_SIZE = 61; // todo 要分到3个磁盘，所以实际文件数量是三倍
-            RaceConfig.BUYER_FILE_SIZE = 10;
-            RaceConfig.GOODS_FILE_SIZE = 10;
-            for (String storePath : storeFolders) {
-                if (storePath.startsWith("/disk1")) {
-                    RaceConfig.DISK1 = storePath;
-                } else if (storePath.startsWith("/disk2")) {
-                    RaceConfig.DISK2 = storePath;
-                } else {
-                    RaceConfig.DISK3 = storePath;
-                }
-                new File(storePath+"o/").mkdirs();
-                new File(storePath+"b/").mkdirs();
-                new File(storePath+"g/").mkdirs();
+        for (String storePath : storeFolders) {
+            if (storePath.startsWith("/disk1")) {
+                RaceConfig.DISK1 = storePath;
+            } else if (storePath.startsWith("/disk2")) {
+                RaceConfig.DISK2 = storePath;
+            } else {
+                RaceConfig.DISK3 = storePath;
             }
-            disk1 = new ArrayList<>();
-            for (String file : orderFiles) {
-                if (file.startsWith("/disk1")) {
-                    disk1.add(file);
-                } else if (file.startsWith("/disk2")) {
-                    disk2.add(file);
-                } else {
-                    disk3.add(file);
-                }
+            new File(storePath+"o/").mkdirs();
+            new File(storePath+"b/").mkdirs();
+            new File(storePath+"g/").mkdirs();
+        }
+        int a = 0;
+        for (String file : orderFiles) {
+//            switch (a++%3) {
+//                case 0 :
+//                    disk1.add(file);
+//                    break;
+//                case 1 :
+//                    disk2.add(file);
+//                    break;
+//                case 2 :
+//                    disk3.add(file);
+//                    break;
+//            }
+            if (file.startsWith("/disk1")) {
+                disk1.add(file);
+            } else if (file.startsWith("/disk2")) {
+                disk2.add(file);
+            } else {
+                disk3.add(file);
             }
-        } else {
-            disk1 = new ArrayList<>(orderFiles);
         }
 
         for (int i = 0;i<3;i++) { // todo 参数优化
             orderQueues[i] = new LinkedBlockingQueue<>(100000);
         }
-
-        // 一个队列对应一个线程
 
         // 设置latch数目，确保所有数据都处理完
         final CountDownLatch orderLatch = new CountDownLatch(orderFiles.size());

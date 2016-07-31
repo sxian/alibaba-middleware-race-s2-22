@@ -101,19 +101,12 @@ public class OrderTable {
                 }
             }
             if (todoQuery.size()>0) {
-                    OrderSystemImpl.Row row = null;
-                try {
-                    List<String> _result = QueryProcessor.batchQuery(todoQuery, false);
-                    for (int i = 0;i<_result.size();i++) {
-                            row = Utils.createRow(_result.get(i));
-                            syncQueue.offer(row, 30, TimeUnit.SECONDS);
-                            result.add(row);
-                    }
-                } catch (RuntimeException e ) {
-                    List<String> _result = QueryProcessor.batchQuery(todoQuery, true);
-                    for (int i = 0;i<_result.size();i++) {
-                        System.out.println("error: "+_result.get(i));
-                    }
+                OrderSystemImpl.Row row;
+                List<String> _result = QueryProcessor.batchQuery(todoQuery, goodid);
+                for (int i = 0;i<_result.size();i++) {
+                        row = Utils.createRow(_result.get(i));
+                        syncQueue.offer(row, 30, TimeUnit.SECONDS);
+                        result.add(row);
                 }
             }
         } catch (IOException e) {
