@@ -1,5 +1,6 @@
 package com.alibaba.middleware.race.process;
 
+import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.RaceConfig;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.datastruct.Index;
@@ -147,7 +148,7 @@ public class QueryProcessor {
 
         String index = getIndex(id, path);
         if (index != null) {
-            String[] indexs = index.split(",");
+            String[] indexs = index.split(","); // id path pos len
             if (indexs[0].equals(id)) {
                 RandomAccessFile raf = dataFileMap.get(indexs[1]);
                 return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
@@ -205,22 +206,6 @@ public class QueryProcessor {
                         querys.add(orderid);
                     }
                 }
-                Collections.sort(querys, new Comparator<String>() {
-                    @Override
-                    public int compare(String o1, String o2) {
-                        int split1 = o1.indexOf(",");
-                        int split2 = o2.indexOf(",");
-                        long time1 = Long.valueOf(o1.substring(0,split1));
-                        long time2 = Long.valueOf(o2.substring(0,split2));
-
-                        return time1 > time2 ? -1 : (time1 < time2  ?  1 : 0);
-                    }
-                });
-//                ArrayList<String> result = new ArrayList<>(); todo 改成一趟查完
-//
-//                for (String orderid : querys) {
-//                    result.add(queryOrder(orderid.substring(orderid.indexOf(",")+1)));
-//                }
             }
         }
         return  querys;
@@ -255,9 +240,6 @@ public class QueryProcessor {
 
     public static String getIndex(String id, String path) throws IOException {
         int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
-        if (indexMap.get(path) == null) {
-            int i =1;
-        }
         int[]   pos = indexMap.get(path)[bucket];
         if (pos[1]==0) {
             return null;
@@ -311,10 +293,6 @@ public class QueryProcessor {
     public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
                                                String id, Long start, Long end) throws IOException {
         Long[] pos = map.get(id);
-        if (pos == null) {
-            return new ArrayList<>();
-//            throw new RuntimeException("range query order id error");
-        }
 
         String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
         if (result == null) {
@@ -323,7 +301,7 @@ public class QueryProcessor {
         List<String> orderList = Arrays.asList(result.split(" "));
         List<String> newList = new ArrayList<>();
         if (start != null) {
-            for (String str : orderList) {  // orderList 是无序的
+            for (String str : orderList) {
                 String[] kv = str.split(",");
                 long time = 0;
                 try {
@@ -332,8 +310,7 @@ public class QueryProcessor {
                     int i = 1;
                 }
                 if (time>= start && time < end){
-                    // todo 在处理文件数据的时候换下位置
-                    newList.add(kv[1]+","+kv[0]); // 因为要按时间排序，所以返回有序的结果 -> 不能光添加订单，否则会按照订单排序
+                    newList.add(kv[1]+","+kv[0]);
                 }
             }
             Collections.sort(newList, new Comparator<String>() {
@@ -344,7 +321,6 @@ public class QueryProcessor {
             });
             return newList;
         }
-        Collections.sort(newList);  // 光有订单id, 按照订单id升序排列(从小到大)
         return orderList;
     }
 
@@ -476,5 +452,42 @@ public class QueryProcessor {
         return data.get(min);
     }
 
+    public static List<String> batchQuery(List<String> ids) throws IOException {
+        List<String> result = new ArrayList<>();
+        List<String> indexs = new ArrayList<>();
+        for (int i = 0;i<ids.size();i++) {
+            String id = ids.get(i);
+            int disk = Math.abs(id.hashCode()%3);
+            int file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
+            String path;
+            if (disk == 2) {
+                path = RaceConfig.DISK3+"o/iS"+file;
+            } else if(disk == 1) {
+                path = RaceConfig.DISK2+"o/iS"+file;
+            } else {
+                path = RaceConfig.DISK1+"o/iS"+file;
+            }
+            indexs.add(getIndex(id, path));
+        }
 
+        RandomAccessFile raf = dataFileMap.get(indexs.get(0).substring(0,indexs.get(0).indexOf(",")));
+        synchronized (raf) {// todo 锁优化
+            byte[] bytes = new byte[100];
+            for (int i = 0;i<indexs.size();i++) {
+                String _indexs = indexs.get(i);
+                int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
+                int end = _indexs.indexOf(",",start);
+                int pos = Integer.valueOf(_indexs.substring(start+1,end));
+                int len = Integer.valueOf(_indexs.substring(end+1));
+                if (bytes.length < len) {
+                    bytes = new byte[len];
+                }
+                raf.seek(pos);
+                raf.read(bytes);
+                result.add(new String(bytes, 0, len));
+            }
+        }
+
+        return result;
+    }
 }

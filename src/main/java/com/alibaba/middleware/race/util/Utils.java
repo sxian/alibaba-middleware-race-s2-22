@@ -1,5 +1,7 @@
 package com.alibaba.middleware.race.util;
 
+import com.alibaba.middleware.race.OrderSystemImpl;
+
 import java.io.*;
 
 /**
@@ -12,6 +14,10 @@ public class Utils {
 
     public static BufferedReader createReader(String file) throws FileNotFoundException {
         return new BufferedReader(new FileReader(file));
+    }
+
+    public static OrderSystemImpl.Row createRow(String row) {
+        return OrderSystemImpl.createRow(row);
     }
 
     public static void spilitCaseFile(String caseFilePath, String storeFilePath,int splitNum) throws IOException {

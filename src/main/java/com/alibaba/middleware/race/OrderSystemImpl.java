@@ -283,7 +283,6 @@ public class OrderSystemImpl implements OrderSystem {
                 new File(storePath+"b/").mkdirs();
                 new File(storePath+"g/").mkdirs();
             }
-//            System.out.println("*** order file num: "+orderFiles.size()+" ***");
             disk1 = new ArrayList<>();
             for (String file : orderFiles) {
                 if (file.startsWith("/disk1")) {
@@ -293,16 +292,7 @@ public class OrderSystemImpl implements OrderSystem {
                 } else {
                     disk3.add(file);
                 }
-//                System.out.println(file);
             }
-//            System.out.println("*** buyer file num: "+buyerFiles.size()+" ***");
-//            for (String file : buyerFiles) {
-//                System.out.println(file);
-//            }
-//            System.out.println("*** goods file num: "+goodFiles.size()+" ***");
-//            for (String file : goodFiles) {
-//                System.out.println(file);
-//            }
         } else {
             disk1 = new ArrayList<>(orderFiles);
         }
@@ -380,13 +370,12 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        String orderRowStr = orderTable.selectRowById(String.valueOf(orderId));
+        Row orderRow =  orderTable.selectRowById(String.valueOf(orderId)); //判断join不join很重要
         // todo 官方的借口demo改了一下，方便build result 看着改下
-        if (orderRowStr  == null)
+        if (orderRow  == null) // todo 测试substring 和StringTokenizer
             return null;
-        Row orderRow = createRow(orderRowStr); // todo 一直build真特么费时间 -> 判断join不join很重要
-        Row buyerRow = createRow(buyerTable.selectRowById(orderRow.get("buyerid").valueAsString()));
-        Row goodsRow = createRow(goodsTable.selectRowById(orderRow.get("goodid").valueAsString()));
+        Row buyerRow = buyerTable.selectRowById(orderRow.get("buyerid").valueAsString());
+        Row goodsRow = goodsTable.selectRowById(orderRow.get("goodid").valueAsString());
         if (keys == null) {
             return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, null);
         }
@@ -397,10 +386,10 @@ public class OrderSystemImpl implements OrderSystem {
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
         ArrayList<Result> results = new ArrayList<>();
         // todo 修改join规则
-        List<String> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
-        for (int i = 0;i<list.size();i++ ) {
-            results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
-        }
+        List<Row> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
+//        for (int i = 0;i<list.size();i++ ) {
+//            results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
+//        }
         System.out.println("the buyer orders: " +list.size());
         return results.iterator();
     }
@@ -410,21 +399,21 @@ public class OrderSystemImpl implements OrderSystem {
         // todo 修改join规则
         ArrayList<Result> results = new ArrayList<>();
         ArrayList<Long> ids = new ArrayList<>();
-        List<String> _result = orderTable.selectOrderIDByGoodsID(goodid);
-        for (int i = 0;i<_result.size();i++) {
-            ids.add(Long.valueOf(_result.get(i)));
-        }
-        Collections.sort(ids);
-        for (int i = 0;i<ids.size();i++) {
-            results.add(queryOrder(ids.get(i),keys));
-        }
+        List<Row> _result = orderTable.selectOrderIDByGoodsID(goodid);
+//        for (int i = 0;i<_result.size();i++) {
+//            ids.add(Long.valueOf(_result.get(i)));
+//        }
+//        Collections.sort(ids);
+//        for (int i = 0;i<ids.size();i++) {
+//            results.add(queryOrder(ids.get(i),keys));
+//        }
         return results.iterator();
     }
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
         // todo 修改join规则
-        List<String> list =  orderTable.selectOrderIDByGoodsID(goodid);
+        List<Row> list =  orderTable.selectOrderIDByGoodsID(goodid);
         List<String> _list = new ArrayList<>();
         _list.add(key);
         double sumDouble = 0;
@@ -435,40 +424,40 @@ public class OrderSystemImpl implements OrderSystem {
         if (list == null)
             return null;
 
-        for (int i = 0; i<list.size();i++) {
-            Result result = queryOrder(Long.valueOf(list.get(i)),_list); //肯定不为空 所有字段都是join后的
-            KV kv = (KV) result.get(key);
-            if (kv == null)
-                continue;
-            if (!existKey) {
-                existKey = true;
-            }
-            try {
-                if (existDouble) {
-                    double tmp = kv.valueAsDouble();
-                    sumDouble += tmp;
-                } else {
-                    long tmp = kv.valueAsLong();
-                    sumLong += tmp;
-                }
-            } catch (TypeException e) {
-                if (!existDouble) { // 如果exitDoube为true, 上面肯定转型的是double，double转型失败必然为string
-                    try {
-                        double tmp = kv.valueAsDouble();
-                        sumDouble = tmp + sumLong;
-                        existDouble = true;
-                        continue;
-                    } catch (TypeException e1) {
-                    }
-                }
-                existStr = true;
-                break;
-            }
-        }
-
-        if (existDouble) {
-            return new KV(key,String.valueOf(sumDouble));
-        }
+//        for (int i = 0; i<list.size();i++) {
+//            Result result = queryOrder(Long.valueOf(list.get(i)),_list); //肯定不为空 所有字段都是join后的
+//            KV kv = (KV) result.get(key);
+//            if (kv == null)
+//                continue;
+//            if (!existKey) {
+//                existKey = true;
+//            }
+//            try {
+//                if (existDouble) {
+//                    double tmp = kv.valueAsDouble();
+//                    sumDouble += tmp;
+//                } else {
+//                    long tmp = kv.valueAsLong();
+//                    sumLong += tmp;
+//                }
+//            } catch (TypeException e) {
+//                if (!existDouble) { // 如果exitDoube为true, 上面肯定转型的是double，double转型失败必然为string
+//                    try {
+//                        double tmp = kv.valueAsDouble();
+//                        sumDouble = tmp + sumLong;
+//                        existDouble = true;
+//                        continue;
+//                    } catch (TypeException e1) {
+//                    }
+//                }
+//                existStr = true;
+//                break;
+//            }
+//        }
+//
+//        if (existDouble) {
+//            return new KV(key,String.valueOf(sumDouble));
+//        }
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 

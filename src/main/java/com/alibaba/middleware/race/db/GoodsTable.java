@@ -3,28 +3,44 @@ package com.alibaba.middleware.race.db;
 import com.alibaba.middleware.race.OrderSystemImpl;
 import com.alibaba.middleware.race.cache.LRUCache;
 import com.alibaba.middleware.race.process.QueryProcessor;
+import com.alibaba.middleware.race.util.Utils;
 
 import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
 public class GoodsTable {
-    private LRUCache<String, String> rowCache;
+    private LRUCache<String, OrderSystemImpl.Row> rowCache;
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>();
 
     public GoodsTable() {
         rowCache = new LRUCache<>(100000);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        OrderSystemImpl.Row row = syncQueue.take();
+                        rowCache.put(row.get("goodid").valueAsString(),row); // todo 做成异步的
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
     }
 
-    public String selectRowById(String id) {
-        String row = rowCache.get(id);
+    public OrderSystemImpl.Row selectRowById(String id) {
+        OrderSystemImpl.Row row = rowCache.get(id);
         if (row == null) {
             try {
-                row = QueryProcessor.queryGoods(id);
+                row = Utils.createRow(QueryProcessor.queryGoods(id));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            if (row!=null) rowCache.put(id, row);
+            if (row!=null) syncQueue.offer(row);
         }
         return row;
     }

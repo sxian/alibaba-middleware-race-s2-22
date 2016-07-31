@@ -88,38 +88,6 @@ public class OrderSystemImplTest {
         return rows;
     }
 
-    public static void testSelectOrderIDByBuyerID(String id, Random random, String strs,OrderTable table) {
-        System.out.println("**************");
-        TreeMap<String, String> map = new TreeMap<>();
-        for (String str : strs.split(" ")) {
-            String[] kv = str.split(",");
-            map.put(kv[1],kv[0]); // 时间 订单号
-        }
-        List<String> keyList = new ArrayList<>(map.keySet());
-        int s = random.nextInt(keyList.size()-1);
-        int e = random.nextInt(keyList.size()-1);
-        while (s==e || s>e) {
-            if (s==e) {
-                s = random.nextInt(keyList.size()-1);
-                e = random.nextInt(keyList.size()-1);
-            } else {
-                int tmp = e;
-                e = s;
-                s = tmp;
-            }
-        }
-        long start = Long.valueOf(keyList.get(s));
-        long end = Long.valueOf(keyList.get(e));
-
-        List<String> list = table.selectOrderIDByBuyerID(id,start,end);
-        System.out.println("query result count: " + list.size()+", should: "+(e-s));
-        for (int i = 0;i<e-s;i++) {
-            System.out.println("------------");
-            System.out.println("time is:"+keyList.get(s+i)+", result should: " +map.get(keyList.get(s+i))+", fact: "+
-                    list.get(i)+ ". result is: "+map.get(keyList.get(s+i)).equals(list.get(i).split(",")[1]));
-        }
-    }
-
     private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
         if (result == null) {
