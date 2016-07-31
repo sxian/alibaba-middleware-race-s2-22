@@ -244,7 +244,10 @@ public class QueryProcessor {
 
     public static String getIndex(String id, String path) throws IOException {
         int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
-        int[]   pos = indexMap.get(path)[bucket];
+        if (indexMap.get(path) == null) {
+            int a = 1;
+        }
+        int[] pos = indexMap.get(path)[bucket];
         if (pos[1]==0) {
             return null;
         }

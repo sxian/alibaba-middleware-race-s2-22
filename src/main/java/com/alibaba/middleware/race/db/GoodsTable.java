@@ -7,6 +7,7 @@ import com.alibaba.middleware.race.util.Utils;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -37,10 +38,12 @@ public class GoodsTable {
         if (row == null) {
             try {
                 row = Utils.createRow(QueryProcessor.queryGoods(id));
+                if (row!=null) syncQueue.offer(row, 30, TimeUnit.SECONDS);
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            if (row!=null) syncQueue.offer(row);
         }
         return row;
     }

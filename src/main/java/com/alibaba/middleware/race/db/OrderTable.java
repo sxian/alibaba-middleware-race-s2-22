@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by sxian.wang on 2016/7/21.
@@ -41,10 +42,12 @@ public class OrderTable {
         if (row == null) {
             try {
                 row = Utils.createRow(QueryProcessor.queryOrder(id));
+                if (row!=null) syncQueue.offer(row, 30, TimeUnit.SECONDS);
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            if (row!=null) syncQueue.offer(row);
         }
         return row;
     }
@@ -57,13 +60,15 @@ public class OrderTable {
                 String orderid = orders.get(i);
                 if (rowCache.get(orderid) == null) {
                     OrderSystemImpl.Row _row = selectRowById(orderid.substring(orderid.indexOf(",")+1));
-                    syncQueue.offer(_row);
+                    syncQueue.offer(_row, 30, TimeUnit.SECONDS);
                     result.add(_row);
                 } else {
                     result.add(rowCache.get(orderid));
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
         Collections.sort(result, new Comparator<OrderSystemImpl.Row>() {
@@ -99,11 +104,13 @@ public class OrderTable {
                 List<String> _result = QueryProcessor.batchQuery(todoQuery);
                 for (int i = 0;i<_result.size();i++) {
                     OrderSystemImpl.Row row = Utils.createRow(_result.get(i));
-                    syncQueue.offer(row);
+                    syncQueue.offer(row, 30, TimeUnit.SECONDS);
                     result.add(row);
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
         Collections.sort(result, new Comparator<OrderSystemImpl.Row>() {

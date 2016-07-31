@@ -1,6 +1,7 @@
 package com.alibaba.middleware.race.cache;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by sxian.wang on 2016/7/20.
@@ -18,7 +19,7 @@ public class LRUCache<K, V> {
         hashMap = new ConcurrentHashMap<K, Entry<K, V>>();
     }
 
-    public synchronized void put(K key, V value) { // todo 锁优化，太特么费时了
+    public void put(K key, V value) { // todo 锁优化，太特么费时了
         Entry entry = getEntry(key);
         if (entry == null) {
             if (hashMap.size() >= MAX_CACHE_SIZE) {
@@ -33,14 +34,14 @@ public class LRUCache<K, V> {
         hashMap.put(key, entry);
     }
 
-    public synchronized V get(K key) {
+    public V get(K key) {
         Entry<K, V> entry = getEntry(key);
         if (entry == null) return null;
         moveToFirst(entry);
         return entry.value;
     }
 
-    public synchronized void remove(K key) { // 优化锁
+    public void remove(K key) {
         Entry entry = getEntry(key);
         if (entry != null) {
             if (entry.pre != null) entry.pre.next = entry.next;
