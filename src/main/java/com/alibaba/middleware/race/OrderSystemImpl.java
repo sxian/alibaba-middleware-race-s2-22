@@ -398,9 +398,7 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<Result> results = new ArrayList<>();
         // todo 修改join规则
         List<String> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
-//        StringBuilder sb = new StringBuilder("orders: ");
         for (int i = 0;i<list.size();i++ ) {
-//            sb.append(list.get(i));
             results.add(queryOrder(Long.valueOf(list.get(i).substring(list.get(i).indexOf(",")+1)),null));
         }
         System.out.println("the buyer orders: " +list.size());

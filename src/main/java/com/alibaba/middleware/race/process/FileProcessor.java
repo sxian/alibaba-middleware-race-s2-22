@@ -247,12 +247,12 @@ public class FileProcessor {
         @Override
         public void run() {
             try {
-//                int count = 0;
+                int count = 0;
                 while (true) {
                     String row = queue.take();
-//                    if (count++ %100000 == 0) {
-//                        System.out.println("[already process "+storeFold+" data num: "+count+", now time: "+(System.currentTimeMillis()-start)+"]");
-//                    }
+                    if (count++ %100000 == 0) {
+                        System.out.println("[already process "+storeFold+" data num: "+count+", now time: "+(System.currentTimeMillis()-start)+"]");
+                    }
                     if (row.equals("")) {
                         break;
                     }
@@ -304,7 +304,7 @@ public class FileProcessor {
                 e.printStackTrace();
             } finally {
                 latch.countDown();
-//                System.out.println("[*** "+storeFold+" complete. now time: "+(System.currentTimeMillis()-start)+" ***]");
+                System.out.println("[*** "+storeFold+" complete. now time: "+(System.currentTimeMillis()-start)+" ***]");
                 try {
                     for (int i = 0;i<fileSize;i++) {
                         if (dataWriters[i] != null) {

@@ -152,7 +152,7 @@ public class IndexProcessor {
 //                        int[][] indexs = index.writeToDisk();
                         indexMap.put(index.FILE_PATH,index.writeToDisk());
 //                        cacheQueue.offer(new Object[]{index.FILE_PATH, indexs},600,TimeUnit.SECONDS);
-//                        System.out.println("!!! "+index.FILE_PATH+" complete, now time: "+(System.currentTimeMillis()-start));
+                        System.out.println("!!! "+index.FILE_PATH+" complete, now time: "+(System.currentTimeMillis()-start));
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -279,7 +279,7 @@ public class IndexProcessor {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } finally {
-//                    System.out.println("read index: "+fileFold+i+" complete.");
+                    System.out.println("read index: "+fileFold+i+" complete.");
                     try {
                         queue.offer(String.valueOf(i),60,TimeUnit.SECONDS);
                         if (br!=null) {
@@ -326,7 +326,7 @@ public class IndexProcessor {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-//                System.out.println("!!! build assist index: "+path+" complete. !!!");
+                System.out.println("!!! build assist index: "+path+" complete. !!!");
                 latch.countDown();
             }
         }
@@ -363,7 +363,7 @@ public class IndexProcessor {
                         }
                         diskqueue.offer(index,600,TimeUnit.SECONDS);
                         index = new Index(path+num);
-//                        System.out.println("+++ "+index.FILE_PATH+" start, now time: "+(System.currentTimeMillis()-start)+"+++");
+                        System.out.println("+++ "+index.FILE_PATH+" start, now time: "+(System.currentTimeMillis()-start)+"+++");
                         continue;
                     }
                     index.add(line.substring(0,line.indexOf(",")),line);
@@ -371,7 +371,7 @@ public class IndexProcessor {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-//                System.out.println("!!! build hash index: "+path+" complete. !!!");
+                System.out.println("!!! build hash index: "+path+" complete. !!!");
                 latch.countDown();
             }
         }
