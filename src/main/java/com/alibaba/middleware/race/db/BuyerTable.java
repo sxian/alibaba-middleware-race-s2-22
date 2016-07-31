@@ -13,7 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class BuyerTable {
     private LRUCache<String, OrderSystemImpl.Row> rowCache;
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>();
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>(1000);
 
 
     public BuyerTable() {
@@ -24,7 +24,7 @@ public class BuyerTable {
                 while (true) {
                     try {
                         OrderSystemImpl.Row row = syncQueue.take();
-                        rowCache.put(row.get("buyerid").valueAsString(),row); // todo 做成异步的
+                        rowCache.put(row.get("buyerid").valueAsString(),row);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

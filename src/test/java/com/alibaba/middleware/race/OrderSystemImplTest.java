@@ -71,6 +71,9 @@ public class OrderSystemImplTest {
         compareLatch.await();
         System.out.println("query number is: "+querySum.get()+", success num is: "+successSum.get()+
                 ", failed num is: " +failed.get());
+        System.out.println(Runtime.getRuntime().freeMemory()/(1024.0*1024.0));
+        System.gc();
+        System.out.println(Runtime.getRuntime().freeMemory()/(1024.0*1024.0));
     }
 
     public static ArrayList<OrderSystemImpl.Row> buildQueryList(String[] files) throws IOException {
@@ -90,9 +93,6 @@ public class OrderSystemImplTest {
 
     private static boolean compareOrder(String id, HashMap<String,ArrayList<OrderSystemImpl.KV>> resultMap,
                                      OrderSystem.Result result) {
-        if (result == null) {
-            int a = 1;
-        }
         String orderid = String.valueOf(result.orderId());
         boolean queryok = true;
         ArrayList<OrderSystemImpl.KV> list = resultMap.get(orderid);

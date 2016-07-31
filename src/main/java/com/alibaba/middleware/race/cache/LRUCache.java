@@ -18,7 +18,7 @@ public class LRUCache<K, V> {
         hashMap = new ConcurrentHashMap<K, Entry<K, V>>();
     }
 
-    public synchronized void put(K key, V value) {
+    public synchronized void put(K key, V value) { // todo 锁优化，太特么费时了
         Entry entry = getEntry(key);
         if (entry == null) {
             if (hashMap.size() >= MAX_CACHE_SIZE) {

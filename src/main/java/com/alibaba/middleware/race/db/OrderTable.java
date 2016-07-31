@@ -18,7 +18,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class OrderTable {
     public LRUCache<String, OrderSystemImpl.Row> rowCache; // todo 计算一个entry的大小
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>();
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>(1000);
     public OrderTable() {
         rowCache = new LRUCache<>(400000);
         new Thread(new Runnable() {
@@ -31,7 +31,6 @@ public class OrderTable {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-
                 }
             }
         }).start();

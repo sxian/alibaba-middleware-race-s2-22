@@ -13,7 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class GoodsTable {
     private LRUCache<String, OrderSystemImpl.Row> rowCache;
-    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>();
+    public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>(1000);
 
     public GoodsTable() {
         rowCache = new LRUCache<>(100000);
