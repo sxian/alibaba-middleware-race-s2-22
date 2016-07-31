@@ -173,7 +173,7 @@ public class QueryProcessor {
         if(index==null) {
             return null;
         }
-        String[] indexs = index.split(","); // todo 修改
+        String[] indexs = index.split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
@@ -244,9 +244,6 @@ public class QueryProcessor {
 
     public static String getIndex(String id, String path) throws IOException {
         int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
-        if (indexMap.get(path) == null) {
-            int a = 1;
-        }
         int[] pos = indexMap.get(path)[bucket];
         if (pos[1]==0) {
             return null;
@@ -458,7 +455,7 @@ public class QueryProcessor {
         return data.get(min);
     }
 
-    public static List<String> batchQuery(List<String> ids) throws IOException {
+    public static List<String> batchQuery(List<String> ids, boolean flag) throws IOException {
         List<String> result = new ArrayList<>();
         List<String> indexs = new ArrayList<>();
         for (int i = 0;i<ids.size();i++) {
@@ -477,21 +474,32 @@ public class QueryProcessor {
         }
 
         int split = indexs.get(0).indexOf(",");
+        Collections.sort(indexs);
         RandomAccessFile raf = dataFileMap.get(indexs.get(0).substring(split+1, indexs.get(0).indexOf(",",split+1)));
         synchronized (raf) {// todo 锁优化
-            byte[] bytes = new byte[100];
             for (int i = 0;i<indexs.size();i++) {
                 String _indexs = indexs.get(i);
                 int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
                 int end = _indexs.indexOf(",",start+1);
-                int pos = Integer.valueOf(_indexs.substring(start+1,end));
+                Long pos = Long.valueOf(_indexs.substring(start+1,end));
                 int len = Integer.valueOf(_indexs.substring(end+1));
-                if (bytes.length < len) {
-                    bytes = new byte[len];
-                }
+                byte[] bytes = new byte[len];
                 raf.seek(pos);
                 raf.read(bytes);
                 result.add(new String(bytes, 0, len));
+                if (flag) {
+                    pos -= 1000;
+                    if (pos>0) {
+                        raf.seek(pos);
+                    } else {
+                        raf.seek(0);
+                    }
+                    bytes = new byte[len+1000];
+                    raf.read(bytes);
+                    System.out.println("error id: " + ids.get(i));
+                    System.out.println("error index: " + _indexs);
+                    System.out.println("error message: " + new String(bytes));
+                }
             }
         }
 

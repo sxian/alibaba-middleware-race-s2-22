@@ -422,7 +422,7 @@ public class OrderSystemImpl implements OrderSystem {
         ArrayList<Result> results = new ArrayList<>();
         List<Row> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
         for (int i = 0;i<list.size();i++ ) {
-            Row buyerRow = buyerTable.selectRowById(list.get(i).get("buyerid").valueAsString()); // todo 不join试试
+            Row buyerRow = buyerTable.selectRowById(list.get(i).get("buyerid").valueAsString());
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
@@ -489,7 +489,7 @@ public class OrderSystemImpl implements OrderSystem {
             return null;
 
         while (iterator.hasNext()) {
-            Result result = iterator.next(); //肯定不为空 所有字段都是join后的
+            Result result = iterator.next();
             KV kv = (KV) result.get(key);
             if (kv == null)
                 continue;
