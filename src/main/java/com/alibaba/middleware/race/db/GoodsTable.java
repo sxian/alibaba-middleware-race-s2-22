@@ -24,7 +24,7 @@ public class GoodsTable {
                 while (true) {
                     try {
                         OrderSystemImpl.Row row = syncQueue.take();
-                        rowCache.put(row.get("goodid").valueAsString(),row); // todo 做成异步的
+                        rowCache.put(row.get("goodid").valueAsString(),row);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

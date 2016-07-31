@@ -19,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
-    // 有没有必要把这里设置为static -> todo 同一个RandomAccessFile 读的时候能共用吗 -> 并发下使用不安全
     private static HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
     private static HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 

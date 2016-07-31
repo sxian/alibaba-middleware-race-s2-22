@@ -28,7 +28,7 @@ public class FileProcessor {
     public LinkedBlockingQueue<String[]> hgIndexQueue = new LinkedBlockingQueue<>(50000);
     public LinkedBlockingQueue<String[]> orderIndexQueue = new LinkedBlockingQueue<>(50000);
 
-    public CountDownLatch orderLatch = new CountDownLatch(3); // todo 关了hg hb
+    public CountDownLatch orderLatch = new CountDownLatch(3);
     public CountDownLatch buyerLatch = new CountDownLatch(1);
     public CountDownLatch goodsLatch = new CountDownLatch(1);
 

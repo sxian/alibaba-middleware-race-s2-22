@@ -96,7 +96,7 @@ public class Node {
         //如果是叶子节点
         if (isLeaf){
             //不需要分裂，直接插入或更新 为啥下面+1这不加1
-            if (/*contains(key) ||*/ entries.size() < tree.getRank()){ // todo 按时间戳排序存在相等的情况 不要update
+            if (/*contains(key) ||*/ entries.size() < tree.getRank()){
                 insertOrUpdate(key, obj);
                 if (parent != null) {
                     //更新父节点
