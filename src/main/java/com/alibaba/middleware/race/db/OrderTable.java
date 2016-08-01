@@ -103,9 +103,10 @@ public class OrderTable {
             List<String> todoQuery = new ArrayList<>();
             for (int i = 0;i<orders.size();i++) {
                 String index = orders.get(i);
-                String orderid = index.substring(index.lastIndexOf(",")+1);
+                int last = index.lastIndexOf(",");
+                String orderid = index.substring(last+1);
                 if (rowCache.get(orderid) == null) {
-                    todoQuery.add(index);
+                    todoQuery.add(index.substring(0,last));
                 } else {
                     result.add(rowCache.get(orderid));
                 }

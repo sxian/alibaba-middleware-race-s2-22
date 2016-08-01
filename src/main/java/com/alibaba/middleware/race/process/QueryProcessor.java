@@ -160,6 +160,9 @@ public class QueryProcessor {
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
         String index = getIndex(id, path);
+        if (index == null) {
+            getIndex(id, path);
+        }
         String[] indexs = getIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
@@ -263,27 +266,6 @@ public class QueryProcessor {
         return str.substring(in,str.indexOf(" ",in));
     }
 
-    public static String queryIndex(String id, String path) throws IOException {
-        ArrayList<String> idKeys = filesIndexKey.get(path);
-        String key;
-        try {
-
-        if (id.compareTo(idKeys.get(0))< 0) {
-            key = idKeys.get(0);
-        } else if(id.compareTo(idKeys.get(idKeys.size()-1)) > 0) {
-            key = idKeys.get(idKeys.size()-1);
-        } else {
-            key = binarySearchString(idKeys,id);
-        }
-        int[] pos = null;
-            pos = filesIndex.get(path).get(key);
-        return queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
-        } catch (Exception e) {
-            int i = 1;
-        }
-        return null;
-    }
-
     public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {
         byte[] bytes = new byte[length];
         synchronized (raf) {
@@ -298,185 +280,33 @@ public class QueryProcessor {
         return queryData(raf,pos,length);
     }
 
-
-    public static List<String> queryRangeOrder(TreeMap<String,Long[]> map, ArrayList<String> list, String path,
-                                               String id, Long start, Long end) throws IOException {
-        Long[] pos = map.get(id);
-
-        String result = queryRowStringByBPT(path, id, pos[0],Integer.valueOf(String.valueOf(pos[1])));
-        if (result == null) {
-            return null;
-        }
-        List<String> orderList = Arrays.asList(result.split(" "));
-        List<String> newList = new ArrayList<>();
-        if (start != null) {
-            for (String str : orderList) {
-                String[] kv = str.split(",");
-                long time = 0;
-                try {
-                    time = Long.valueOf(kv[1]);
-                } catch (Exception e) {
-                    int i = 1;
-                }
-                if (time>= start && time < end){
-                    newList.add(kv[1]+","+kv[0]);
-                }
-            }
-            Collections.sort(newList, new Comparator<String>() {
-                @Override
-                public int compare(String o1, String o2) {
-                    return -(o1.compareTo(o2));
-                }
-            });
-            return newList;
-        }
-        return orderList;
-    }
-
-    private static String queryByIndex(RecordIndex index) {
-        return null;
-    }
-
-    private static String queryRow(String file, long pos, int length) {
-        byte[] bytes = new byte[length];
-//        try {
-//            RandomAccessFile raf = indexFileMap.get(file);
-//            synchronized (raf) {
-//                raf.seek(pos);
-//                raf.read(bytes);
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-        return new String(bytes);
-    }
-
-    private static String queryRowStringByBPT(String file, String id, long pos, int length) throws IOException {
-        byte[] bytes = new byte[length];
-        boolean findRow = false;
-        int rowLen = 0;
-
-        RandomAccessFile raf = null;
-            while (!findRow) {
-                synchronized (raf) {
-                    raf.seek(pos);
-                    raf.read(bytes);
-                }
-                String rawStr = new String(bytes,0,bytes.length);
-                // todo
-                String[] bIndexs = rawStr.split(" ");
-                Arrays.sort(bIndexs);
-                if (bIndexs.length == 1) {
-                    return rawStr;
-                }
-                if (bIndexs[1].equals("0")) {
-                    boolean findIndex = false;
-                    String[] preIndexPos = bIndexs[2].split(",");
-                    if (preIndexPos[0].compareTo(id)>0) { // 第一个节点满足
-                        pos = Long.valueOf(preIndexPos[1]);
-                        length = Integer.valueOf(preIndexPos[2]);
-                        continue;
-                    }
-                    String[] lastIndex = bIndexs[bIndexs.length-1].split(",");
-                    if (lastIndex[0].compareTo(id)<=0) {
-                        pos = Long.valueOf(lastIndex[1]);
-                        length = Integer.valueOf(lastIndex[2]);
-                        continue;
-                    }
-                    if (!findIndex) {
-                        for (int i = 2; i<bIndexs.length;i++) {
-                            String[] indexPos = bIndexs[i+1].split(",");
-                            if (preIndexPos[0].compareTo(id) <= 0 && indexPos[0].compareTo(id) > 0 ) {
-                                pos = Long.valueOf(preIndexPos[1]);
-                                length = Integer.valueOf(preIndexPos[2]);
-                                break;
-                            }
-                            preIndexPos = indexPos;
-                        }
-                    }
-                } else if (bIndexs[1].equals("1")){
-                    for (int i = 2; i<bIndexs.length;i++) {
-                        String[] rowPos = bIndexs[i].split(",");
-                        if (rowPos[0].equals(id)) {
-                            synchronized (raf) {
-                                raf.seek(Long.valueOf(rowPos[1]));
-                                rowLen = Integer.valueOf(rowPos[2]);
-                                if (rowLen > bytes.length) {
-                                    bytes = new byte[rowLen];
-                                }
-                                raf.read(bytes,0,rowLen);
-                            }
-                            findRow = true;
-                            break;
-                        }
-                    }
-                    break;
-                }
-                if (length > bytes.length) {
-                    bytes = new byte[length];
-                }
-            }
-        return findRow ? new String(bytes,0,rowLen) : null;
-    }
-
-    public static long binarySearch(Long[] data, long key) {
-        int min, max, mid;
-        min = 0;
-        max = data.length - 1;
-        while(!((max-min)== 1)){
-            mid = (min + max) / 2;
-            if(key < data[mid]){
-                max = mid;  // 因为不清楚data[mid-1]是不是满足 key<data[mid-1],可能存在key>=data[min+1]的情况
-            }else if (key > data[mid]){
-                min = mid;  // 因为不清楚data[mid+1]是不是满足 key>=data[mid+1],可能存在data[min+1]>key的情况
-            }else if(key == data[mid]){
-                return data[mid];
-            }
-        }
-
-        if (data[max] <= key) {
-            return data[max];
-        }
-        return data[min];
-    }
-
-    private static String binarySearchString(ArrayList<String> data, String key) {
-        int min, max, mid;
-        min = 0;
-        max = data.size() - 1;
-        while(!((max-min)== 1)){
-            mid = (min + max) / 2;
-            if(key.compareTo(data.get(mid))<0){
-                max = mid;  // 因为不清楚data[mid-1]是不是满足 key<data[mid-1],可能存在key>=data[min+1]的情况
-            }else if (key.compareTo(data.get(mid))>0){
-                min = mid;  // 因为不清楚data[mid+1]是不是满足 key>=data[mid+1],可能存在data[min+1]>key的情况
-            }else if(key.equals(data.get(mid))){
-                return data.get(mid);
-            }
-        }
-
-        if (data.get(max).compareTo(key) <=0 ) {
-            return data.get(max);
-        }
-        return data.get(min);
-    }
-
     public static List<String> batchQuery(List<String> ids, String goodid) throws IOException {
         List<String> result = new ArrayList<>(); // path pos length orderid
         String first = ids.get(0); // todo 用MappedByteBuffer
-        RandomAccessFile raf = dataFileMap.get(first.substring(0,first.indexOf(",")));
-        byte[] bytes = new byte[1024];
-        synchronized (raf) {
+        FileChannel channel = dataFileMap.get(first.substring(0,first.indexOf(","))).getChannel();
+        MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,0,channel.size());
+        Collections.sort(ids, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                long p1 = Long.valueOf(o1.substring(o1.indexOf(",")+1,o1.lastIndexOf(",")));
+                long p2 = Long.valueOf(o2.substring(o2.indexOf(",")+1,o2.lastIndexOf(",")));
+
+                return p1 > p2 ? 1 : (p1 < p2 ? -1 : 0);
+            }
+        });
+        synchronized (mbb) {
+            byte[] bytes = new byte[1024];
             for (String index: ids) {
                 int start = index.indexOf(",")+1;
-                int end = index.indexOf(",",start);
+                int end = index.lastIndexOf(",");
                 int pos = Integer.valueOf(index.substring(start,end));
-                int len = Integer.valueOf(index.substring(end+1,index.lastIndexOf(",")));
+                int len = Integer.valueOf(index.substring(end+1));
                 if (bytes.length < len) {
                     bytes = new byte[len];
                 }
-                raf.seek(pos);
-                raf.read(bytes,0,len);
+                for (int i = 0;i<len;i++) {
+                    bytes[i] = mbb.get(pos+i);
+                }
                 result.add(new String(bytes, 0, len));
             }
         }
