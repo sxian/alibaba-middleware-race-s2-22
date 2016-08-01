@@ -159,10 +159,6 @@ public class QueryProcessor {
 
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
-        String index = getIndex(id, path);
-        if (index == null) {
-            getIndex(id, path);
-        }
         String[] indexs = getIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
