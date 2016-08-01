@@ -1,5 +1,7 @@
 package com.alibaba.middleware.race.cache;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -18,7 +20,7 @@ public class LRUCache<K, V> {
         hashMap = new ConcurrentHashMap<K, Entry<K, V>>();
     }
 
-    public void put(K key, V value) { // todo 锁优化，太特么费时了
+    public void put(K key, V value) {
         Entry entry = getEntry(key);
         if (entry == null) {
             if (hashMap.size() >= MAX_CACHE_SIZE) {
@@ -33,11 +35,27 @@ public class LRUCache<K, V> {
         hashMap.put(key, entry);
     }
 
+    public void put(List<Object[]> entries) {
+        if ((MAX_CACHE_SIZE - hashMap.size()) <= entries.size()) {
+            remove(entries.size());
+        }
+        for (int i = 0;i<entries.size();i++) {
+            Object[] entry = entries.get(i);
+            put((K) entry[0],(V) entry[1]);
+        }
+    }
+
     public V get(K key) {
         Entry<K, V> entry = getEntry(key);
         if (entry == null) return null;
         moveToFirst(entry);
         return entry.value;
+    }
+
+    public synchronized void remove(int num) {
+        for (int i = 0;i<num;i++) {
+            removeLast();
+        }
     }
 
     public void remove(K key) {
@@ -97,5 +115,12 @@ public class LRUCache<K, V> {
         public Entry next;
         public K key;
         public V value;
+
+        public Entry() {}
+        public Entry(K k, V v) {
+            key = k;
+            value = v;
+        }
+
     }
 }

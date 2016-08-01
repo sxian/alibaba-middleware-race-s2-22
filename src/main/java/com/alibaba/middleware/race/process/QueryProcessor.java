@@ -283,8 +283,6 @@ public class QueryProcessor {
     public static List<String> batchQuery(List<String> ids, String goodid) throws IOException {
         List<String> result = new ArrayList<>(); // path pos length orderid
         String first = ids.get(0); // todo 用MappedByteBuffer
-        FileChannel channel = dataFileMap.get(first.substring(0,first.indexOf(","))).getChannel();
-        MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,0,channel.size());
         Collections.sort(ids, new Comparator<String>() {
             @Override
             public int compare(String o1, String o2) {
@@ -294,7 +292,10 @@ public class QueryProcessor {
                 return p1 > p2 ? 1 : (p1 < p2 ? -1 : 0);
             }
         });
-        synchronized (mbb) {
+        RandomAccessFile raf = dataFileMap.get(first.substring(0,first.indexOf(",")));
+        synchronized (raf) {
+            FileChannel channel = raf.getChannel();
+            MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,0,channel.size());
             byte[] bytes = new byte[1024];
             for (String index: ids) {
                 int start = index.indexOf(",")+1;
