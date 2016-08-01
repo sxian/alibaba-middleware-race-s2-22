@@ -41,8 +41,6 @@ public class Index {
         StringBuilder _sb = new StringBuilder();
         for (int i = 0;i<BUCKET_SIZE;i++) {
             ArrayList<String> list = _list[i];
-            _list[i] = null;
-//            Collections.sort(list);
             StringBuilder sb = new StringBuilder();
             for (int j = 0;j<list.size();j++) {
                 sb.append(list.get(j)).append(" ");
@@ -56,6 +54,7 @@ public class Index {
             result[i][0] = pos;
             result[i][1] = length;
             pos += length;
+            _list[i] = null;
         }
         bw.write(_sb.toString());
         bw.flush();

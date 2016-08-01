@@ -61,6 +61,7 @@ public class AssistIndex extends Index {
             result[i][0] = pos;
             result[i][1] = length;
             pos += length;
+            _list[i] = null;
         }
         bw.write(_sb.toString());
         bw.flush();

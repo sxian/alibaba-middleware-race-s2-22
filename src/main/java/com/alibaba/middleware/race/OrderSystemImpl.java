@@ -417,7 +417,7 @@ public class OrderSystemImpl implements OrderSystem {
                 }
             }
         }
-        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
@@ -431,7 +431,7 @@ public class OrderSystemImpl implements OrderSystem {
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
-        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -477,7 +477,7 @@ public class OrderSystemImpl implements OrderSystem {
                 results.add(ResultImpl.createResultRow(_result.get(i),goodsRow, buyerRow,null));
             }
         }
-        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -531,7 +531,7 @@ public class OrderSystemImpl implements OrderSystem {
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
         }
-        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
+//        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 
