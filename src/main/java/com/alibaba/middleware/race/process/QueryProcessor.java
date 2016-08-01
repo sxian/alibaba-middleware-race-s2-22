@@ -160,10 +160,7 @@ public class QueryProcessor {
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
         String index = getIndex(id, path);
-        if (index == null) {
-            getIndex(id, path);
-        }
-        String[] indexs = index.split(",");
+        String[] indexs = getIndex(id, path).split(",");
         if (indexs[0].equals(id)) {
             RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
@@ -254,12 +251,13 @@ public class QueryProcessor {
         }
         byte[] bytes = new byte[pos[1]];
         RandomAccessFile raf = indexFileMap.get(path);
-        raf.seek(pos[0]);
-        raf.read(bytes);
+        synchronized (raf) {
+            raf.seek(pos[0]);
+            raf.read(bytes);
+        }
         String str = new String(bytes);
         int in = str.indexOf(id);
         if (in == -1) {
-            System.out.println(str);
             return null;
         }
         return str.substring(in,str.indexOf(" ",in));
@@ -288,8 +286,10 @@ public class QueryProcessor {
 
     public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {
         byte[] bytes = new byte[length];
-        raf.seek(pos);
-        raf.read(bytes);
+        synchronized (raf) {
+            raf.seek(pos);
+            raf.read(bytes);
+        }
         return new String(bytes);
     }
 
@@ -498,8 +498,10 @@ public class QueryProcessor {
                     bytes = new byte[bfsize];
                     bfsize = len;
                 }
-                raf.seek(pos);
-                raf.read(bytes,0,len);
+                synchronized (raf) {
+                    raf.seek(pos);
+                    raf.read(bytes,0,len);
+                }
                 result.add(new String(bytes, 0, len));
             }
         }
