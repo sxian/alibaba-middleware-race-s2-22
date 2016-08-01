@@ -269,16 +269,17 @@ public class FileProcessor {
                         continue;
                     }
 
-                    // buyerid -> orderid
-                    hbIndexQueue.offer(new String[]{buyerid,createtime+","+orderid},60, TimeUnit.SECONDS);
-                    // goodid -> orderid
-                    hgIndexQueue.offer(new String[]{goodid,orderid},60, TimeUnit.SECONDS);
 
                     // 订单信息, 单线程处理
                     int index = Math.abs(Math.abs(goodid.hashCode()))%fileSize; // -> order按照goodid hash，buyer 和goods按照主键
                     int length = row.getBytes().length;
                     int pos = posCounters[index];
-                    orderIndexQueue.offer(new String[]{orderid,storeFold+index+","+pos+","+length},60, TimeUnit.SECONDS);
+                    StringBuilder sb = new StringBuilder(storeFold).append(index)
+                                                .append(",").append(pos).append(",").append(length);
+                    orderIndexQueue.offer(new String[]{orderid,sb.toString()},60, TimeUnit.SECONDS);
+                    hgIndexQueue.offer(new String[]{goodid,sb.append(",").append(orderid).toString()},60, TimeUnit.SECONDS);
+                    hbIndexQueue.offer(new String[]{buyerid,sb.append(",").append(createtime).toString()},60, TimeUnit.SECONDS);
+
                     posCounters[index] += length;
                     data_sbs[index].append(row);
                     if (counter[index]++ == 200){

@@ -303,25 +303,26 @@ public class OrderSystemImpl implements OrderSystem {
             new File(storePath+"b/").mkdirs();
             new File(storePath+"g/").mkdirs();
         }
+        int a = 0;
         for (String file : orderFiles) {
-//            switch (a++%3) {
-//                case 0 :
-//                    disk1.add(file);
-//                    break;
-//                case 1 :
-//                    disk2.add(file);
-//                    break;
-//                case 2 :
-//                    disk3.add(file);
-//                    break;
-//            }
-            if (file.startsWith("/disk1")) {
-                disk1.add(file);
-            } else if (file.startsWith("/disk2")) {
-                disk2.add(file);
-            } else {
-                disk3.add(file);
+            switch (a++%3) {
+                case 0 :
+                    disk1.add(file);
+                    break;
+                case 1 :
+                    disk2.add(file);
+                    break;
+                case 2 :
+                    disk3.add(file);
+                    break;
             }
+//            if (file.startsWith("/disk1")) {
+//                disk1.add(file);
+//            } else if (file.startsWith("/disk2")) {
+//                disk2.add(file);
+//            } else {
+//                disk3.add(file);
+//            }
         }
 
         for (int i = 0;i<3;i++) { // todo 参数优化
@@ -336,9 +337,9 @@ public class OrderSystemImpl implements OrderSystem {
         this.start = System.currentTimeMillis();
 
         // 5个读取数据的线程 todo 加回调，读一个磁盘，写一个磁盘，保证同时一个磁盘只有读或写，还得保持并发，不能让cpu闲着
-        new DataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch); //"(orderid|buyerid|goodid|createtime):([\\w|-]+)"
-        new DataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch);
-        new DataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch);
+        new OrderDataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch); //"(orderid|buyerid|goodid|createtime):([\\w|-]+)"
+        new OrderDataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch);
+        new OrderDataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch);
 
         new DataFileHandler().handle(buyerQueue, buyerFiles,1, buyerLatch);
 
@@ -416,7 +417,7 @@ public class OrderSystemImpl implements OrderSystem {
                 }
             }
         }
-        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
@@ -430,7 +431,7 @@ public class OrderSystemImpl implements OrderSystem {
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
-        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -476,7 +477,7 @@ public class OrderSystemImpl implements OrderSystem {
                 results.add(ResultImpl.createResultRow(_result.get(i),goodsRow, buyerRow,null));
             }
         }
-        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -504,7 +505,7 @@ public class OrderSystemImpl implements OrderSystem {
             if (!existKey) {
                 existKey = true;
             }
-            try {
+            try { // todo 改一下判断方法 intanceof或者contains(".")
                 if (existDouble) {
                     double tmp = kv.valueAsDouble();
                     sumDouble += tmp;
@@ -530,15 +531,45 @@ public class OrderSystemImpl implements OrderSystem {
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
         }
-        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
+//        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 
     private class DataFileHandler {
         LinkedBlockingQueue<String> queue;
+        void emit(String str) throws InterruptedException {
+            queue.offer(str,60,TimeUnit.SECONDS);
+        }
+
         void handle(LinkedBlockingQueue<String> queue, Collection<String> files, final int keyNum,
                     final CountDownLatch latch) {
             this.queue = queue;
+            new Thread(new FileHandler(keyNum,files,latch,this)).start();
+        }
+    }
+
+    private class OrderDataFileHandler extends DataFileHandler{
+        @Override
+        void emit(String row) throws InterruptedException {
+            int goodid_of = row.indexOf("goodid")+7;
+            int disk = Math.abs((row.indexOf("\t",goodid_of) != -1 ? row.substring(goodid_of,row.indexOf("\t",goodid_of)) :
+                    row.substring(goodid_of)).hashCode()%3);
+            switch (disk) {
+                case 0:
+                    orderQueues[0].offer(row,60,TimeUnit.SECONDS);
+                    break;
+                case 1:
+                    orderQueues[1].offer(row,60,TimeUnit.SECONDS);
+                    break;
+                case 2:
+                    orderQueues[2].offer(row,60,TimeUnit.SECONDS);
+                    break;
+            }
+        }
+
+        @Override
+        void handle(LinkedBlockingQueue<String> queue, Collection<String> files, final int keyNum,
+                    final CountDownLatch latch) {
             new Thread(new FileHandler(keyNum,files,latch,this)).start();
         }
     }
@@ -563,7 +594,7 @@ public class OrderSystemImpl implements OrderSystem {
                     bfr = Utils.createReader(file);
                     String line = bfr.readLine();
                     while (line != null) {
-                        handler.queue.offer(line,60,TimeUnit.SECONDS);
+                        handler.emit(line);
                         line = bfr.readLine();
                     }
                 } catch (Exception e) {

@@ -10,7 +10,7 @@ import java.util.ArrayList;
  * Created by sxian.wang on 2016/7/29.
  */
 public class Index {
-    public static final int BUCKET_SIZE = 5000; // todo 放大以后影响比较大，内存炸 -> 看能不能优化下hash函数
+    public static final int BUCKET_SIZE = 3000; // todo 放大以后影响比较大，内存炸 -> 看能不能优化下hash函数
     public String FILE_PATH;
     public boolean flag;
 

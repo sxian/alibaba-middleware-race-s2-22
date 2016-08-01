@@ -205,8 +205,8 @@ public class QueryProcessor {
             String[] orders = index.substring(split+1).split(";");
             if (buyerid.equals(id)) {
                 for (String orderid : orders) {
-                    int _split = orderid.indexOf(",");
-                    long time = Long.valueOf(orderid.substring(0,_split));
+                    int _split = orderid.lastIndexOf(",");
+                    long time = Long.valueOf(orderid.substring(_split+1));
                     if (time>= start && time<end) {
                         querys.add(orderid);
                     }
@@ -291,6 +291,11 @@ public class QueryProcessor {
             raf.read(bytes);
         }
         return new String(bytes);
+    }
+
+    public static String queryData(String path, long pos, int length) throws IOException {
+        RandomAccessFile raf = dataFileMap.get(path);
+        return queryData(raf,pos,length);
     }
 
 
@@ -457,56 +462,24 @@ public class QueryProcessor {
     }
 
     public static List<String> batchQuery(List<String> ids, String goodid) throws IOException {
-        List<String> result = new ArrayList<>();
-        HashMap<String, ArrayList<String>> map = new HashMap<>();
-        int file = Math.abs(goodid.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-        map.put(RaceConfig.DISK1+"o/"+file,new ArrayList<String>());
-        map.put(RaceConfig.DISK2+"o/"+file,new ArrayList<String>());
-        map.put(RaceConfig.DISK3+"o/"+file,new ArrayList<String>());
-        for (int i = 0;i<ids.size();i++) {
-            String id = ids.get(i);
-            file = Math.abs(id.hashCode()%RaceConfig.ORDER_FILE_SIZE);
-            int disk = Math.abs(id.hashCode()%3);
-            String path;
-            if (disk == 2) {
-                path = RaceConfig.DISK3+"o/iS"+file;
-            } else if(disk == 1) {
-                path = RaceConfig.DISK2+"o/iS"+file;
-            } else {
-                path = RaceConfig.DISK1+"o/iS"+file;
-            }
-            String index = getIndex(id, path);
-            int split = index.indexOf(",");
-            map.get(index.substring(split+1, index.indexOf(",",split+1))).add(index);
-        }
-
-        for (Map.Entry<String, ArrayList<String>> entry: map.entrySet()) {
-            ArrayList<String> indexs = entry.getValue();
-            if (indexs.size() == 0) continue;
-
-            Collections.sort(indexs);
-            RandomAccessFile raf = dataFileMap.get(entry.getKey());
-            int bfsize = 1024;
-            byte[] bytes = new byte[bfsize];
-            for (int i = 0;i<indexs.size();i++) {
-                String _indexs = indexs.get(i);
-                int start = _indexs.indexOf(",",_indexs.indexOf(",")+1);
-                int end = _indexs.indexOf(",",start+1);
-                int pos = Integer.valueOf(_indexs.substring(start+1,end));
-                int len = Integer.valueOf(_indexs.substring(end+1));
-                if (bfsize < len) {
-                    bytes = new byte[bfsize];
-                    bfsize = len;
+        List<String> result = new ArrayList<>(); // path pos length orderid
+        String first = ids.get(0); // todo 用MappedByteBuffer
+        RandomAccessFile raf = dataFileMap.get(first.substring(0,first.indexOf(",")));
+        byte[] bytes = new byte[1024];
+        synchronized (raf) {
+            for (String index: ids) {
+                int start = index.indexOf(",")+1;
+                int end = index.indexOf(",",start);
+                int pos = Integer.valueOf(index.substring(start,end));
+                int len = Integer.valueOf(index.substring(end+1,index.lastIndexOf(",")));
+                if (bytes.length < len) {
+                    bytes = new byte[len];
                 }
-                synchronized (raf) {
-                    raf.seek(pos);
-                    raf.read(bytes,0,len);
-                }
+                raf.seek(pos);
+                raf.read(bytes,0,len);
                 result.add(new String(bytes, 0, len));
             }
         }
-
-
         return result;
     }
 }

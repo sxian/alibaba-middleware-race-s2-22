@@ -57,9 +57,18 @@ public class OrderTable {
         try {
             List<String> orders = QueryProcessor.queryOrderidsByBuyerid(buyerid, start, end);
             for (int i = 0;i<orders.size();i++) {
-                String orderid = orders.get(i);
+                String indexs = orders.get(i);// path pos len id time
+                int first = indexs.indexOf(",");
+                int second = indexs.indexOf(",",first+1);
+                int third = indexs.indexOf(",",second+1);
+                int fourth = indexs.indexOf(",",third+1);
+
+                String path = indexs.substring(0,first);
+                int pos = Integer.valueOf(indexs.substring(first+1,second));
+                int len = Integer.valueOf(indexs.substring(second+1,third));
+                String orderid = indexs.substring(third+1,fourth);
                 if (rowCache.get(orderid) == null) {
-                    OrderSystemImpl.Row _row = selectRowById(orderid.substring(orderid.indexOf(",")+1));
+                    OrderSystemImpl.Row _row = Utils.createRow(QueryProcessor.queryData(path,pos,len));
                     syncQueue.offer(_row, 30, TimeUnit.SECONDS);
                     result.add(_row);
                 } else {
@@ -93,9 +102,10 @@ public class OrderTable {
             List<String> orders = QueryProcessor.queryOrderidsByGoodsid(goodid);
             List<String> todoQuery = new ArrayList<>();
             for (int i = 0;i<orders.size();i++) {
-                String orderid = orders.get(i);
+                String index = orders.get(i);
+                String orderid = index.substring(index.lastIndexOf(",")+1);
                 if (rowCache.get(orderid) == null) {
-                    todoQuery.add(orderid);
+                    todoQuery.add(index);
                 } else {
                     result.add(rowCache.get(orderid));
                 }

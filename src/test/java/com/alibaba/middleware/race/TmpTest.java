@@ -2,6 +2,8 @@ package com.alibaba.middleware.race;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  * Created by sxian.wang on 2016/7/23.
@@ -19,7 +21,11 @@ public class TmpTest {
 
         byte[] bytes = new byte[100];
         RandomAccessFile raf = new RandomAccessFile("1","r");
+        FileChannel channel = raf.getChannel();
+        MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,0,channel.size());
+        mbb.get(100);
+        str.lastIndexOf("a");
         raf.read(bytes);
-
+        raf.seek(1);
     }
 }
