@@ -1,6 +1,7 @@
 package com.alibaba.middleware.race;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  * Created by sxian.wang on 2016/7/23.
@@ -15,6 +16,10 @@ public class TmpTest {
         String str1 = "10109881096";
         System.out.println(Math.abs(str1.hashCode()%3));
         System.out.println(Math.abs(str1.hashCode()%RaceConfig.ORDER_FILE_SIZE));
+
+        byte[] bytes = new byte[100];
+        RandomAccessFile raf = new RandomAccessFile("1","r");
+        raf.read(bytes);
 
     }
 }

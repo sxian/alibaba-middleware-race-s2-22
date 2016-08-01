@@ -154,9 +154,7 @@ public class IndexProcessor {
                         if (index.flag) {
                             break;
                         }
-//                        int[][] indexs = index.writeToDisk();
                         indexMap.put(index.FILE_PATH,index.writeToDisk());
-//                        cacheQueue.offer(new Object[]{index.FILE_PATH, indexs},600,TimeUnit.SECONDS);
                         System.out.println("!!! "+index.FILE_PATH+" complete, now time: "+(System.currentTimeMillis()-start));
                     }
                 } catch (Exception e) {

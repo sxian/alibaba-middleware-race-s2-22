@@ -376,15 +376,29 @@ public class OrderSystemImpl implements OrderSystem {
     public static Row createRow(String line) {
         String[] kvs = line.split("\t");
         Row kvMap = new Row();
-        for (String rawkv : kvs) {
-            int p = rawkv.indexOf(':');
-            String key = rawkv.substring(0, p);
-            String value = rawkv.substring(p + 1);
-            if (key.length() == 0 || value.length() == 0) {
-                throw new RuntimeException("Bad data:" + line);
+        try {
+
+            for (String rawkv : kvs) {
+                int p = rawkv.indexOf(':');
+                String key = rawkv.substring(0, p);
+                String value = rawkv.substring(p + 1);
+                if (key.length() == 0 || value.length() == 0) {
+                    throw new RuntimeException("Bad data:" + line);
+                }
+                KV kv = new KV(key, value);
+                kvMap.put(kv.key(), kv);
             }
-            KV kv = new KV(key, value);
-            kvMap.put(kv.key(), kv);
+        } catch (Exception e) {
+            for (String rawkv : kvs) {
+                int p = rawkv.indexOf(':');
+                String key = rawkv.substring(0, p);
+                String value = rawkv.substring(p + 1);
+                if (key.length() == 0 || value.length() == 0) {
+                    throw new RuntimeException("Bad data:" + line);
+                }
+                KV kv = new KV(key, value);
+                kvMap.put(kv.key(), kv);
+            }
         }
         return kvMap;
     }
@@ -416,7 +430,7 @@ public class OrderSystemImpl implements OrderSystem {
                 }
             }
         }
-        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
@@ -430,7 +444,7 @@ public class OrderSystemImpl implements OrderSystem {
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
-        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -476,7 +490,7 @@ public class OrderSystemImpl implements OrderSystem {
                 results.add(ResultImpl.createResultRow(_result.get(i),goodsRow, buyerRow,null));
             }
         }
-        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
+//        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -530,7 +544,7 @@ public class OrderSystemImpl implements OrderSystem {
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
         }
-        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
+//        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 

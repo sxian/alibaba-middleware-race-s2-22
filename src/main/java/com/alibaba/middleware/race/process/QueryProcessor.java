@@ -20,8 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QueryProcessor {
     // todo 添加索引缓存
-    private static HashMap<String, FileChannel> indexFileMap = new HashMap<>();
-    private static HashMap<String, FileChannel> dataFileMap = new HashMap<>();
+    private static HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
+    private static HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
     public static final ConcurrentHashMap<String,int[][]> indexMap = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
@@ -39,27 +39,27 @@ public class QueryProcessor {
                 RandomAccessFile raf5 = new RandomAccessFile(RaceConfig.DISK2+"o/iS"+i,"r");
                 RandomAccessFile raf6 = new RandomAccessFile(RaceConfig.DISK3+"o/iS"+i,"r");
 
-                dataFileMap.put(RaceConfig.DISK1+"o/"+i,raf1.getChannel());
-                dataFileMap.put(RaceConfig.DISK2+"o/"+i,raf2.getChannel());
-                dataFileMap.put(RaceConfig.DISK3+"o/"+i,raf3.getChannel());
+                dataFileMap.put(RaceConfig.DISK1+"o/"+i,raf1);
+                dataFileMap.put(RaceConfig.DISK2+"o/"+i,raf2);
+                dataFileMap.put(RaceConfig.DISK3+"o/"+i,raf3);
 
-                indexFileMap.put(RaceConfig.DISK1+"o/iS"+i,raf4.getChannel());
-                indexFileMap.put(RaceConfig.DISK2+"o/iS"+i,raf5.getChannel());
-                indexFileMap.put(RaceConfig.DISK3+"o/iS"+i,raf6.getChannel());
+                indexFileMap.put(RaceConfig.DISK1+"o/iS"+i,raf4);
+                indexFileMap.put(RaceConfig.DISK2+"o/iS"+i,raf5);
+                indexFileMap.put(RaceConfig.DISK3+"o/iS"+i,raf6);
             }
             for (int i = 0;i<RaceConfig.BUYER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"b/"+i,"r");
-                dataFileMap.put(RaceConfig.DISK1+"b/"+i,raf1.getChannel());
+                dataFileMap.put(RaceConfig.DISK1+"b/"+i,raf1);
 
                 RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK1+"b/iS"+i,"r");
-                indexFileMap.put(RaceConfig.DISK1+"b/iS"+i,raf2.getChannel());
+                indexFileMap.put(RaceConfig.DISK1+"b/iS"+i,raf2);
             }
             for (int i = 0;i<RaceConfig.GOODS_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK2+"g/"+i,"r");
-                dataFileMap.put(RaceConfig.DISK2+"g/"+i,raf1.getChannel());
+                dataFileMap.put(RaceConfig.DISK2+"g/"+i,raf1);
 
                 RandomAccessFile raf2 = new RandomAccessFile(RaceConfig.DISK2+"g/iS"+i,"r");
-                indexFileMap.put(RaceConfig.DISK2+"g/iS"+i,raf2.getChannel());
+                indexFileMap.put(RaceConfig.DISK2+"g/iS"+i,raf2);
             }
 
             for (int i = 0;i<RaceConfig.HB_FILE_SIZE;i++) {
@@ -71,13 +71,13 @@ public class QueryProcessor {
                 RandomAccessFile raf5 = new RandomAccessFile(RaceConfig.DISK2+"o/hbS"+i,"r");
                 RandomAccessFile raf6 = new RandomAccessFile(RaceConfig.DISK3+"o/hbS"+i,"r");
 
-                indexFileMap.put(RaceConfig.DISK1+"o/hgS"+i,raf1.getChannel());
-                indexFileMap.put(RaceConfig.DISK2+"o/hgS"+i,raf2.getChannel());
-                indexFileMap.put(RaceConfig.DISK3+"o/hgS"+i,raf3.getChannel());
+                indexFileMap.put(RaceConfig.DISK1+"o/hgS"+i,raf1);
+                indexFileMap.put(RaceConfig.DISK2+"o/hgS"+i,raf2);
+                indexFileMap.put(RaceConfig.DISK3+"o/hgS"+i,raf3);
 
-                indexFileMap.put(RaceConfig.DISK1+"o/hbS"+i,raf4.getChannel());
-                indexFileMap.put(RaceConfig.DISK2+"o/hbS"+i,raf5.getChannel());
-                indexFileMap.put(RaceConfig.DISK3+"o/hbS"+i,raf6.getChannel());
+                indexFileMap.put(RaceConfig.DISK1+"o/hbS"+i,raf4);
+                indexFileMap.put(RaceConfig.DISK2+"o/hbS"+i,raf5);
+                indexFileMap.put(RaceConfig.DISK3+"o/hbS"+i,raf6);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -150,7 +150,7 @@ public class QueryProcessor {
         if (index != null) {
             String[] indexs = index.split(","); // id path pos len
             if (indexs[0].equals(id)) {
-                FileChannel raf = dataFileMap.get(indexs[1]);
+                RandomAccessFile raf = dataFileMap.get(indexs[1]);
                 return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
             }
         }
@@ -159,9 +159,13 @@ public class QueryProcessor {
 
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
-        String[] indexs = getIndex(id, path).split(",");
+        String index = getIndex(id, path);
+        if (index == null) {
+            getIndex(id, path);
+        }
+        String[] indexs = index.split(",");
         if (indexs[0].equals(id)) {
-            FileChannel raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
+            RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
@@ -175,7 +179,7 @@ public class QueryProcessor {
         }
         String[] indexs = index.split(",");
         if (indexs[0].equals(id)) {
-            FileChannel raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
+            RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
             return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
         }
         return null;
@@ -249,11 +253,13 @@ public class QueryProcessor {
             return null;
         }
         byte[] bytes = new byte[pos[1]];
-        MappedByteBuffer mbb = indexFileMap.get(path).map(FileChannel.MapMode.READ_ONLY,pos[0],pos[1]);
-        mbb.get(bytes);
+        RandomAccessFile raf = indexFileMap.get(path);
+        raf.seek(pos[0]);
+        raf.read(bytes);
         String str = new String(bytes);
         int in = str.indexOf(id);
         if (in == -1) {
+            System.out.println(str);
             return null;
         }
         return str.substring(in,str.indexOf(" ",in));
@@ -280,10 +286,10 @@ public class QueryProcessor {
         return null;
     }
 
-    public static String queryData(FileChannel raf, long pos, int length) throws IOException {
+    public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {
         byte[] bytes = new byte[length];
-        MappedByteBuffer mbb = raf.map(FileChannel.MapMode.READ_ONLY,pos,length);
-        mbb.get(bytes);
+        raf.seek(pos);
+        raf.read(bytes);
         return new String(bytes);
     }
 
@@ -476,9 +482,10 @@ public class QueryProcessor {
 
         for (Map.Entry<String, ArrayList<String>> entry: map.entrySet()) {
             ArrayList<String> indexs = entry.getValue();
+            if (indexs.size() == 0) continue;
+
             Collections.sort(indexs);
-            FileChannel raf = dataFileMap.get(entry.getKey());
-            MappedByteBuffer mbb = raf.map(FileChannel.MapMode.READ_ONLY,0,raf.size());
+            RandomAccessFile raf = dataFileMap.get(entry.getKey());
             int bfsize = 1024;
             byte[] bytes = new byte[bfsize];
             for (int i = 0;i<indexs.size();i++) {
@@ -491,8 +498,8 @@ public class QueryProcessor {
                     bytes = new byte[bfsize];
                     bfsize = len;
                 }
-                mbb.position(pos);
-                mbb.get(bytes,0,len);
+                raf.seek(pos);
+                raf.read(bytes,0,len);
                 result.add(new String(bytes, 0, len));
             }
         }
