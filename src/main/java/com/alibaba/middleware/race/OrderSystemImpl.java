@@ -303,26 +303,14 @@ public class OrderSystemImpl implements OrderSystem {
             new File(storePath+"b/").mkdirs();
             new File(storePath+"g/").mkdirs();
         }
-        int a = 0;
         for (String file : orderFiles) {
-            switch (a++%3) {
-                case 0 :
-                    disk1.add(file);
-                    break;
-                case 1 :
-                    disk2.add(file);
-                    break;
-                case 2 :
-                    disk3.add(file);
-                    break;
+            if (file.startsWith("/disk1")) {
+                disk1.add(file);
+            } else if (file.startsWith("/disk2")) {
+                disk2.add(file);
+            } else {
+                disk3.add(file);
             }
-//            if (file.startsWith("/disk1")) {
-//                disk1.add(file);
-//            } else if (file.startsWith("/disk2")) {
-//                disk2.add(file);
-//            } else {
-//                disk3.add(file);
-//            }
         }
 
         for (int i = 0;i<3;i++) { // todo 参数优化
