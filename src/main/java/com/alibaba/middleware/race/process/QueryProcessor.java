@@ -9,6 +9,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
+    // todo 添加索引缓存
     private static HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
     private static HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 

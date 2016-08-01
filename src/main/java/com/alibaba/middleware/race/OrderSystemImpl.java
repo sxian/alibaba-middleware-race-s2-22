@@ -303,7 +303,6 @@ public class OrderSystemImpl implements OrderSystem {
             new File(storePath+"b/").mkdirs();
             new File(storePath+"g/").mkdirs();
         }
-        int a = 0;
         for (String file : orderFiles) {
 //            switch (a++%3) {
 //                case 0 :
@@ -428,7 +427,6 @@ public class OrderSystemImpl implements OrderSystem {
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
-//        System.out.println("the buyer orders: " +list.size());
         return results.iterator();
     }
 
