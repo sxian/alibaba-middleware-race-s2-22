@@ -27,13 +27,7 @@ public class QueryProcessor {
     public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
-    private static HashMap<String,int[]> orderIndex = new HashMap<>();
-    private static HashMap<String,int[]> buyerIndex = new HashMap<>();
-    private static HashMap<String,int[]> goodsIndex = new HashMap<>();
-
-
     public static void initFile() {
-//        loadCache();
         try {
             for (int i = 0;i<RaceConfig.ORDER_FILE_SIZE;i++) {
                 RandomAccessFile raf1 = new RandomAccessFile(RaceConfig.DISK1+"o/"+i,"r");
@@ -86,56 +80,6 @@ public class QueryProcessor {
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-        }
-    }
-
-    private static void loadCache() {
-        if (indexMap.size() == 323) {
-            return;
-        }
-        BufferedReader br = null;
-        System.out.println("*** start load cache ***");
-        try {
-            br = Utils.createReader(RaceConfig.DISK1+"indexCache");
-            String line = br.readLine();
-            int[][] index = null;
-            String path = "";
-            int i = 0;
-            boolean init = false;
-            int count = 0;
-            while (line!=null) {
-                if (line.charAt(0) == 'F' && line.charAt(1) == 'i' && line.charAt(2) == 'l' && line.charAt(3) == 'e') {
-                    System.out.println("start load: "+ line);
-                    count++;
-                    if (init) {
-                        indexMap.put(path, index);
-                    } else {
-                        init = true;
-                    }
-                    index = new int[Index.BUCKET_SIZE][2];
-                    path = line.substring(line.indexOf(":")+1);
-                    i = 0;
-                    line = br.readLine();
-                    continue;
-                }
-                int split = line.indexOf(",");
-                index[i][0] = Integer.valueOf(line.substring(0,split));
-                index[i][1] = Integer.valueOf(line.substring(split+1));
-                i++;
-                line = br.readLine();
-            }
-            System.out.println("load cache complete, file num: " + count);
-            indexMap.put(path,index);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                br.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 

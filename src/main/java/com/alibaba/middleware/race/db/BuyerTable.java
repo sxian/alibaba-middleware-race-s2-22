@@ -18,7 +18,7 @@ public class BuyerTable {
 
 
     public BuyerTable() {
-        rowCache = new LRUCache<>(100000);
+        rowCache = new LRUCache<>(800000);
         new Thread(new Runnable() {
             @Override
             public void run() {

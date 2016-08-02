@@ -17,7 +17,7 @@ public class GoodsTable {
     public final LinkedBlockingQueue<OrderSystemImpl.Row> syncQueue = new LinkedBlockingQueue<>(1000);
 
     public GoodsTable() {
-        rowCache = new LRUCache<>(100000);
+        rowCache = new LRUCache<>(400000);
         new Thread(new Runnable() {
             @Override
             public void run() {
