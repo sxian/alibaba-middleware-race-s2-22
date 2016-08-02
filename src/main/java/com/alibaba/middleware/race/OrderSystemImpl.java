@@ -324,7 +324,7 @@ public class OrderSystemImpl implements OrderSystem {
 
         this.start = System.currentTimeMillis();
 
-        // 5个读取数据的线程 todo 加回调，读一个磁盘，写一个磁盘，保证同时一个磁盘只有读或写，还得保持并发，不能让cpu闲着
+        // 5个读取数据的线程
         new OrderDataFileHandler().handle(orderQueues[0], disk1, 4, orderLatch); //"(orderid|buyerid|goodid|createtime):([\\w|-]+)"
         new OrderDataFileHandler().handle(orderQueues[1], disk2, 4, orderLatch);
         new OrderDataFileHandler().handle(orderQueues[2], disk3, 4, orderLatch);
@@ -405,7 +405,6 @@ public class OrderSystemImpl implements OrderSystem {
                 }
             }
         }
-//        System.out.println("queryOrder: "+(System.currentTimeMillis() -start));
         return ResultImpl.createResultRow(orderRow, buyerRow, goodsRow, new HashSet<>(keys));
     }
 
@@ -419,7 +418,6 @@ public class OrderSystemImpl implements OrderSystem {
             Row goodsRow = goodsTable.selectRowById(list.get(i).get("goodid").valueAsString());
             results.add(ResultImpl.createResultRow(list.get(i),buyerRow, goodsRow,null));
         }
-//        System.out.println("queryOrdersByBuyer: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
@@ -519,7 +517,6 @@ public class OrderSystemImpl implements OrderSystem {
         if (existDouble) {
             return new KV(key,String.valueOf(sumDouble));
         }
-//        System.out.println("sumOrdersByGood: "+(System.currentTimeMillis() -start));
         return (!existKey || existStr) ? null : new KV(key,String.valueOf(sumLong));
     }
 

@@ -27,6 +27,11 @@ public class QueryProcessor {
     public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
+    private static HashMap<String,int[]> orderIndex = new HashMap<>();
+    private static HashMap<String,int[]> buyerIndex = new HashMap<>();
+    private static HashMap<String,int[]> goodsIndex = new HashMap<>();
+
+
     public static void initFile() {
 //        loadCache();
         try {
@@ -278,7 +283,6 @@ public class QueryProcessor {
 
     public static List<String> batchQuery(List<String> ids, String goodid) throws IOException {
         List<String> result = new ArrayList<>(); // path pos length orderid
-        String first = ids.get(0); // todo 用MappedByteBuffer
         Collections.sort(ids, new Comparator<String>() {
             @Override
             public int compare(String o1, String o2) {
@@ -288,15 +292,22 @@ public class QueryProcessor {
                 return p1 > p2 ? 1 : (p1 < p2 ? -1 : 0);
             }
         });
+        String first = ids.get(0);
+        String last = ids.get(ids.size()-1);
         RandomAccessFile raf = dataFileMap.get(first.substring(0,first.indexOf(",")));
+        int start_pos = Integer.valueOf(first.substring(first.indexOf(",")+1,first.lastIndexOf(",")));
+        int end_pos = Integer.valueOf(last.substring(last.indexOf(",")+1,last.lastIndexOf(",")))+
+                Integer.valueOf(last.substring(last.lastIndexOf(",")+1));
+
         synchronized (raf) {
             FileChannel channel = raf.getChannel();
-            MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,0,channel.size());
+            MappedByteBuffer mbb = channel.map(FileChannel.MapMode.READ_ONLY,start_pos,end_pos-start_pos);
+            mbb.isLoaded();
             byte[] bytes = new byte[1024];
             for (String index: ids) {
                 int start = index.indexOf(",")+1;
                 int end = index.lastIndexOf(",");
-                int pos = Integer.valueOf(index.substring(start,end));
+                int pos = Integer.valueOf(index.substring(start,end))-start_pos;
                 int len = Integer.valueOf(index.substring(end+1));
                 if (bytes.length < len) {
                     bytes = new byte[len];

@@ -25,11 +25,12 @@ public class OrderSystemImplTest {
     public static AtomicInteger compareCaseThreadCount = new AtomicInteger(0);
     public static AtomicInteger executeQueryThreadCount = new AtomicInteger(0);
     public static long buildStart;
-    public static int spiltCaseFileNum = 10;
+
+    public static int spiltCaseFileNum = 10; // 将case文件切分为几份，同时也是线程的并发数量
     public static CountDownLatch queryLatch = new CountDownLatch(spiltCaseFileNum);
     public static CountDownLatch compareLatch = new CountDownLatch(spiltCaseFileNum);
 
-    public static String CASE_ROOT = RaceConfig.STORE_PATH+"case/";
+    public static String CASE_ROOT = RaceConfig.STORE_PATH+"case/"; // 存放case数据的目录，注意是目录！
     private static final LinkedBlockingQueue<Query>[] queryQueues = new LinkedBlockingQueue[spiltCaseFileNum];
     private static final LinkedBlockingQueue<Query>[] resultQueues = new LinkedBlockingQueue[spiltCaseFileNum];
 
@@ -45,6 +46,7 @@ public class OrderSystemImplTest {
         String[] goodsFiles = new String[]{DATA_ROOT+"good.0.0", DATA_ROOT+"good.1.1",
                 DATA_ROOT+"good.2.2"};
 
+        // 自己根据自己的代码配置下
         String[] storeFiles = new String[]{"t/d1/","t/d2/","t/d3/"};
 
         osi = new OrderSystemImpl();
@@ -56,6 +58,8 @@ public class OrderSystemImplTest {
         long start = System.currentTimeMillis();
         osi.construct(orderList, buyerList, goodsList, storeList);
         System.out.println("Build useTime: " + (System.currentTimeMillis() - start));
+
+        // 参数是case文件路径，case切分后存放的文件夹，切分的数量
         Utils.spilitCaseFile(DATA_ROOT+"case.0", CASE_ROOT, spiltCaseFileNum);
         start = System.currentTimeMillis();
         buildStart = start;
@@ -164,7 +168,6 @@ public class OrderSystemImplTest {
                         for (String kvStr : strs[1].replace("[","").replace("]","").split(",")) {
                             String[] kv = kvStr.split(":");
                             if (kv.length <= 1) continue;
-
                             list.add(OrderSystemImpl.createKV(kv[0],kv[1]));
                         }
                         query.resultMap.put(key, list);
