@@ -654,7 +654,7 @@ public class Node {
 
     public String toString(){
         StringBuilder sb = new StringBuilder();
-        if (!isToString) {  // todo 空间换时间 -> 确认下会不会造成额外的内存消耗，以及导致full gc
+        if (!isToString) {
             isToString = true;
             if (isLeaf) {
                 sb.append("1 ");

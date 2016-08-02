@@ -35,27 +35,12 @@ public class LRUCache<K, V> {
         hashMap.put(key, entry);
     }
 
-    public void put(List<Object[]> entries) {
-        if ((MAX_CACHE_SIZE - hashMap.size()) <= entries.size()) {
-            remove(entries.size());
-        }
-        for (int i = 0;i<entries.size();i++) {
-            Object[] entry = entries.get(i);
-            put((K) entry[0],(V) entry[1]);
-        }
-    }
 
     public V get(K key) {
         Entry<K, V> entry = getEntry(key);
         if (entry == null) return null;
         moveToFirst(entry);
         return entry.value;
-    }
-
-    public synchronized void remove(int num) {
-        for (int i = 0;i<num;i++) {
-            removeLast();
-        }
     }
 
     public void remove(K key) {

@@ -1,6 +1,7 @@
 package com.alibaba.middleware.race.process;
 
 import com.alibaba.middleware.race.RaceConfig;
+import com.alibaba.middleware.race.cache.IndexCache;
 import com.alibaba.middleware.race.datastruct.Index;
 import com.alibaba.middleware.race.datastruct.RecordIndex;
 import com.alibaba.middleware.race.util.Utils;
@@ -14,18 +15,21 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Created by sxian.wang on 2016/7/21.
  */
 public class QueryProcessor {
-    // todo 添加索引缓存
     private static HashMap<String, RandomAccessFile> indexFileMap = new HashMap<>();
     private static HashMap<String, RandomAccessFile> dataFileMap = new HashMap<>();
 
     public static final ConcurrentHashMap<String,int[][]> indexMap = new ConcurrentHashMap<>();
-    public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
-    public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
+//    public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
+//    public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
+
+    public static IndexCache buyerIndex = new IndexCache(2000000);
+    public static IndexCache goodIndex = new IndexCache(1000000);
 
     public static void initFile() {
         try {
@@ -95,12 +99,12 @@ public class QueryProcessor {
             path = RaceConfig.DISK3+"o/iS"+file;
         }
 
-        String index = getIndex(id, path);
+        String index = getIndex(id, path,true);
         if (index != null) {
             String[] indexs = index.split(","); // id path pos len
             if (indexs[0].equals(id)) {
                 RandomAccessFile raf = dataFileMap.get(indexs[1]);
-                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim())); // todo 记得去掉空格
+                return queryData(raf,Long.valueOf(indexs[2]),Integer.valueOf(indexs[3].trim()));
             }
         }
         return null;
@@ -108,26 +112,19 @@ public class QueryProcessor {
 
     public static String queryBuyer(String id) throws IOException {
         String path = RaceConfig.DISK1+"b/iS"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE);
-        String[] indexs = getIndex(id, path).split(",");
-        if (indexs[0].equals(id)) {
-            RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
-            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
-        }
-        return null;
+        int[] indexs = getBGIndex(id, path, buyerIndex);
+        RandomAccessFile raf =  dataFileMap.get(RaceConfig.DISK1+"b/"+Math.abs(id.hashCode()%RaceConfig.BUYER_FILE_SIZE));
+        return  queryData(raf,indexs[0],indexs[1]);
     }
 
     public static String queryGoods(String id) throws IOException {
         String path = RaceConfig.DISK2+"g/iS"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE);
-        String index = getIndex(id, path);
+        int[] index = getBGIndex(id, path, goodIndex);
         if(index==null) {
             return null;
         }
-        String[] indexs = index.split(",");
-        if (indexs[0].equals(id)) {
-            RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
-            return  queryData(raf,Long.valueOf(indexs[1]),Integer.valueOf(indexs[2].trim()));
-        }
-        return null;
+        RandomAccessFile raf = dataFileMap.get(RaceConfig.DISK2+"g/"+Math.abs(id.hashCode()%RaceConfig.GOODS_FILE_SIZE));
+        return  queryData(raf,index[0],index[1]);
     }
 
     public static List<String> queryOrderidsByBuyerid(String buyerid, long start, long end) throws IOException {
@@ -145,7 +142,7 @@ public class QueryProcessor {
                 path = RaceConfig.DISK3+"o/hbS"+file;
                 break;
         }
-        String index = getIndex(buyerid, path);
+        String index = getIndex(buyerid, path,true);
         ArrayList<String> querys = new ArrayList<>();
         if (index != null) {
             int split = index.indexOf(":");
@@ -179,7 +176,7 @@ public class QueryProcessor {
                 path = RaceConfig.DISK3+"o/hgS"+file;
                 break;
         }
-        String index = getIndex(goodid, path);
+        String index = getIndex(goodid, path, true);
         if (index != null) {
             int split = index.indexOf(":");
             String id = index.substring(0,split);
@@ -191,7 +188,23 @@ public class QueryProcessor {
         return  new ArrayList<>();
     }
 
-    public static String getIndex(String id, String path) throws IOException {
+    public static int[] getBGIndex(String id, String path, IndexCache cache) throws IOException {
+        int[] index = cache.get(id);
+        if (index==null){
+            String _indexs = getIndex(id,path,false);
+            if (_indexs!=null) {
+                cache.put(_indexs);
+                int in = _indexs.indexOf(id);
+                String indexs = _indexs.substring(in,_indexs.indexOf(" ",in));
+                int first = indexs.indexOf(",");
+                int last = indexs.lastIndexOf(",");
+                index = new int[]{Integer.valueOf(indexs.substring(first+1,last)),Integer.valueOf(indexs.substring(last+1))};
+            }
+        }
+        return index;
+    }
+
+    public static String getIndex(String id, String path, boolean flag) throws IOException {// true order false buyer goods
         int bucket = Math.abs(id.hashCode()%Index.BUCKET_SIZE);
         int[] pos = indexMap.get(path)[bucket];
         if (pos[1]==0) {
@@ -208,7 +221,7 @@ public class QueryProcessor {
         if (in == -1) {
             return null;
         }
-        return str.substring(in,str.indexOf(" ",in));
+        return flag ? str.substring(in,str.indexOf(" ",in)) : str;
     }
 
     public static String queryData(RandomAccessFile raf, long pos, int length) throws IOException {

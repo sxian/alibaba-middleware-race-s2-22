@@ -22,8 +22,8 @@ public class IndexProcessor {
 
     private static final float M = 1024*1024;
 
-    private ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
-    private ConcurrentHashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
+//    private ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndexs = QueryProcessor.filesIndex;
+//    private ConcurrentHashMap<String, ArrayList<String>> filesIndexsKeys = QueryProcessor.filesIndexKey;
     private ConcurrentHashMap<String, int[][]> indexMap = QueryProcessor.indexMap;
 
     private LinkedBlockingQueue<Index> indexQueue1 = new LinkedBlockingQueue<>(2);
@@ -183,62 +183,62 @@ public class IndexProcessor {
     }
 
     // 设置辅助索引
-    public void setCache(BplusTree bplusTree, String file) {
-        TreeMap<String,int[]> tree = new TreeMap<>();
-        ArrayList<String> list = new ArrayList<>();
-        Node a = bplusTree.getHead();
-        int num = 0;
-        while (a!=null) {
-            num += a.getEntries().size();
-            a = a.getNext();
-        }
-        System.out.println(file+" actually num is: "+ num);
-        try {
-            for (Node node : bplusTree.getRoot().getChildren()) {
-                if (node.getChildren() != null) {
-                    for (Node _node : node.getChildren()) {
-                        // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
-                        // 所以在二次对叶子节点toString的时候，会偏移叶子节点的length长度个单位，这是因为writeToDisk方法
-                        // 被调用后pos被更新为输出所有entries以及自身后的长度
-                        String[] indexs = _node.toString().split(" ");
-                        for (int j = 1;j<indexs.length;j++) {
-                            try {
-                                if (indexs[j].equals("\n")) {
-                                    continue;// 线上可以删了
-                                }
-                                String[] index = indexs[j].split(",");
-                                tree.put(index[0],new int[]{Integer.valueOf(index[1]),
-                                        Integer.valueOf(index[2])});
-                                list.add(index[0]);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                } else {
-                    String[] indexs = node.toString().split(" ");
-                    for (int j = 1;j<indexs.length;j++) {
-                        try {
-                            if (indexs[j].equals("\n")) {
-                                continue;// 线上可以删了
-                            }
-                            String[] index = indexs[j].split(",");
-                            list.add(index[0]);
-                            tree.put(index[0],new int[]{Integer.valueOf(index[1]),
-                                    Integer.valueOf(index[2])});
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-            filesIndexs.put(file, tree);
-            Collections.sort(list);
-            filesIndexsKeys.put(file, list);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+//    public void setCache(BplusTree bplusTree, String file) {
+//        TreeMap<String,int[]> tree = new TreeMap<>();
+//        ArrayList<String> list = new ArrayList<>();
+//        Node a = bplusTree.getHead();
+//        int num = 0;
+//        while (a!=null) {
+//            num += a.getEntries().size();
+//            a = a.getNext();
+//        }
+//        System.out.println(file+" actually num is: "+ num);
+//        try {
+//            for (Node node : bplusTree.getRoot().getChildren()) {
+//                if (node.getChildren() != null) {
+//                    for (Node _node : node.getChildren()) {
+//                        // node 内部节点的toString并不依赖于节点的length，但是叶子节点的依赖叶子节点的pos
+//                        // 所以在二次对叶子节点toString的时候，会偏移叶子节点的length长度个单位，这是因为writeToDisk方法
+//                        // 被调用后pos被更新为输出所有entries以及自身后的长度
+//                        String[] indexs = _node.toString().split(" ");
+//                        for (int j = 1;j<indexs.length;j++) {
+//                            try {
+//                                if (indexs[j].equals("\n")) {
+//                                    continue;// 线上可以删了
+//                                }
+//                                String[] index = indexs[j].split(",");
+//                                tree.put(index[0],new int[]{Integer.valueOf(index[1]),
+//                                        Integer.valueOf(index[2])});
+//                                list.add(index[0]);
+//                            } catch (Exception e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    }
+//                } else {
+//                    String[] indexs = node.toString().split(" ");
+//                    for (int j = 1;j<indexs.length;j++) {
+//                        try {
+//                            if (indexs[j].equals("\n")) {
+//                                continue;// 线上可以删了
+//                            }
+//                            String[] index = indexs[j].split(",");
+//                            list.add(index[0]);
+//                            tree.put(index[0],new int[]{Integer.valueOf(index[1]),
+//                                    Integer.valueOf(index[2])});
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            }
+//            filesIndexs.put(file, tree);
+//            Collections.sort(list);
+//            filesIndexsKeys.put(file, list);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     void waitOver() throws InterruptedException {
         latch.await();

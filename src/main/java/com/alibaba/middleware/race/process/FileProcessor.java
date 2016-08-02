@@ -45,7 +45,6 @@ public class FileProcessor {
         threads.execute(new ProcessOrderData(orderQueues[1], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK2+"o/"));
         threads.execute(new ProcessOrderData(orderQueues[2], orderLatch,RaceConfig.ORDER_FILE_SIZE,RaceConfig.DISK3+"o/"));
 
-        // todo 有没有必要让good和order分不到不同磁盘上
         threads.execute(new ProcessData(buyerQueue, buyerLatch,RaceConfig.BUYER_FILE_SIZE,RaceConfig.DISK1+"b/",true));
         threads.execute(new ProcessData(goodsQueue, goodsLatch,RaceConfig.GOODS_FILE_SIZE,RaceConfig.DISK2+"g/",false));
 

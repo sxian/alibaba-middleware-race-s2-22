@@ -313,7 +313,7 @@ public class OrderSystemImpl implements OrderSystem {
             }
         }
 
-        for (int i = 0;i<3;i++) { // todo 参数优化
+        for (int i = 0;i<3;i++) {
             orderQueues[i] = new LinkedBlockingQueue<>(100000);
         }
 
