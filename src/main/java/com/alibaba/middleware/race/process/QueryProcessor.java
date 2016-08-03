@@ -28,8 +28,8 @@ public class QueryProcessor {
 //    public static ConcurrentHashMap<String, TreeMap<String,int[]>> filesIndex = new ConcurrentHashMap<>();
 //    public static ConcurrentHashMap<String, ArrayList<String>> filesIndexKey = new ConcurrentHashMap<>();
 
-    public static IndexCache buyerIndex = new IndexCache(2000000);
-    public static IndexCache goodIndex = new IndexCache(1000000);
+    public static IndexCache buyerIndex = new IndexCache(800000);
+    public static IndexCache goodIndex = new IndexCache(400000);
 
     public static void initFile() {
         try {

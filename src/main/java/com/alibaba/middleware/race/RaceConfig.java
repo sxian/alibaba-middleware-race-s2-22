@@ -14,7 +14,7 @@ public class RaceConfig {
 
     // 保存排序完的订单数据
 
-    public static int ORDER_FILE_SIZE = 91; // 线上200
+    public static int ORDER_FILE_SIZE = 71; // 线上200
     public static int BUYER_FILE_SIZE = 10; // 10
     public static int GOODS_FILE_SIZE = 10; // 10
     public static int HB_FILE_SIZE = 31;
