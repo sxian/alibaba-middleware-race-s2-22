@@ -409,7 +409,6 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersByBuyer(long startTime, long endTime, String buyerid) {
-        long start = System.currentTimeMillis();
         ArrayList<Result> results = new ArrayList<>();
         List<Row> list = orderTable.selectOrderIDByBuyerID(buyerid,startTime,endTime);
         for (int i = 0;i<list.size();i++ ) {
@@ -422,8 +421,6 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Iterator<Result> queryOrdersBySaler(String salerid, String goodid, Collection<String> keys) {
-        long start = System.currentTimeMillis();
-
         ArrayList<Result> results = new ArrayList<>();
         Row goodsRow = goodsTable.selectRowById(goodid);
         if (goodsRow == null) {
@@ -467,7 +464,6 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public KeyValue sumOrdersByGood(String goodid, String key) {
-        long start = System.currentTimeMillis();
         Set<String> set  = new HashSet<>();
         set.add(key);
         Iterator<Result> iterator =  queryOrdersBySaler("",goodid, set);
