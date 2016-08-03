@@ -384,7 +384,6 @@ public class OrderSystemImpl implements OrderSystem {
 
     @Override
     public Result queryOrder(long orderId, Collection<String> keys) {
-        long start = System.currentTimeMillis();
         Row orderRow =  orderTable.selectRowById(String.valueOf(orderId)); //判断join不join很重要
         Row buyerRow = new Row();
         Row goodsRow = new Row();
@@ -463,7 +462,6 @@ public class OrderSystemImpl implements OrderSystem {
                 results.add(ResultImpl.createResultRow(_result.get(i),goodsRow, buyerRow,null));
             }
         }
-//        System.out.println("queryOrdersBySaler: "+(System.currentTimeMillis() -start));
         return results.iterator();
     }
 
